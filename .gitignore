@@ -1,0 +1,11 @@
+# IDE
+.vscode/
+.idea/
+
+# Gradle
+.gradle/
+build/
+bin/
+
+# Local files
+.internal

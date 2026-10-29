@@ -1,0 +1,33 @@
+plugins {
+    id("com.gradleup.shadow") version "8.3.6" apply false
+}
+
+allprojects {
+    group = "dev.darkblade.croppy"
+    version = "0.1.0-SNAPSHOT"
+
+    repositories {
+        mavenCentral()
+        maven("https://repo.papermc.io/repository/maven-public/")
+        maven("https://oss.sonatype.org/content/groups/public/")
+    }
+}
+
+subprojects {
+    apply(plugin = "java-library")
+
+    configure<JavaPluginExtension> {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        }
+    }
+
+    tasks.withType<JavaCompile> {
+        options.encoding = "UTF-8"
+        options.release.set(21)
+    }
+
+    tasks.withType<Test> {
+        useJUnitPlatform()
+    }
+}
