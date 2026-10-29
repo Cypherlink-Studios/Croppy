@@ -3,6 +3,7 @@ package dev.darkblade.croppy.core;
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.core.crop.CropManager;
+import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
 
 import java.util.Map;
@@ -22,6 +23,7 @@ public class CroppyCore {
     private final Map<Class<? extends Service>, Service> services = new ConcurrentHashMap<>();
     private final DefaultSpeciesRegistry speciesRegistry = new DefaultSpeciesRegistry();
     private final CropManager cropManager = new CropManager();
+    private final GrowthEngine growthEngine = new GrowthEngine();
     private final AtomicBoolean active = new AtomicBoolean(false);
 
     public CroppyCore(Logger logger) {
@@ -46,6 +48,7 @@ public class CroppyCore {
         cropManager.clear();
         registerService(SpeciesRegistry.class, speciesRegistry);
         registerService(CropManager.class, cropManager);
+        registerService(GrowthEngine.class, growthEngine);
         active.set(true);
         logger.info("Croppy core domain services initialized successfully.");
     }
@@ -57,6 +60,7 @@ public class CroppyCore {
         logger.info("Shutting down Croppy core domain services...");
         speciesRegistry.clear();
         cropManager.clear();
+        growthEngine.shutdown();
         services.clear();
         active.set(false);
         logger.info("Croppy core domain services shut down cleanly.");
@@ -74,6 +78,13 @@ public class CroppyCore {
      */
     public CropManager getCropManager() {
         return cropManager;
+    }
+
+    /**
+     * @return the growth simulation engine
+     */
+    public GrowthEngine getGrowthEngine() {
+        return growthEngine;
     }
 
     /**

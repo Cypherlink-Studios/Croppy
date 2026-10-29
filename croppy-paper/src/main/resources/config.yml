@@ -1,0 +1,13 @@
+# ==============================================================================
+# Croppy - Advanced Modular Agriculture Engine Configuration
+# ==============================================================================
+
+growth:
+  # Interval between growth simulation cycles in server ticks (20 ticks = 1 second)
+  tick-interval: 20
+
+  # Base progress points gained per cycle if environmental requirements are met
+  base-progress: 1.0
+
+  # Horizontal search radius in blocks for detecting water (4 blocks = 9x9 area)
+  water-search-radius: 4

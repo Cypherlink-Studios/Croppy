@@ -1,6 +1,7 @@
 package dev.darkblade.croppy.api.crop;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.world.BlockPosition;
 
 /**
@@ -67,4 +68,23 @@ public interface CropInstance {
      * Updates the lastUpdated timestamp to the current system time.
      */
     void updateTimestamp();
+
+    /**
+     * Advances the developmental stage index by 1, resets progress to 0.0, and updates timestamp.
+     */
+    default void advanceStage() {
+        setStageIndex(getStageIndex() + 1);
+        setProgress(0.0);
+        updateTimestamp();
+    }
+
+    /**
+     * Checks if this crop instance has reached the mature stage of the given species.
+     *
+     * @param species the species definition
+     * @return true if mature
+     */
+    default boolean isMature(Species species) {
+        return species != null && species.isMature(getStageIndex());
+    }
 }
