@@ -1,6 +1,8 @@
 package dev.darkblade.croppy.core;
 
 import dev.darkblade.croppy.api.registry.Service;
+import dev.darkblade.croppy.api.species.SpeciesRegistry;
+import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
 
 import java.util.Map;
 import java.util.Objects;
@@ -17,6 +19,7 @@ public class CroppyCore {
 
     private final Logger logger;
     private final Map<Class<? extends Service>, Service> services = new ConcurrentHashMap<>();
+    private final DefaultSpeciesRegistry speciesRegistry = new DefaultSpeciesRegistry();
     private final AtomicBoolean active = new AtomicBoolean(false);
 
     public CroppyCore(Logger logger) {
@@ -37,6 +40,7 @@ public class CroppyCore {
             throw new IllegalStateException("CroppyCore is already initialized");
         }
         logger.info("Initializing Croppy core domain services...");
+        speciesRegistry.clear();
         active.set(true);
         logger.info("Croppy core domain services initialized successfully.");
     }
@@ -46,9 +50,17 @@ public class CroppyCore {
      */
     public synchronized void shutdown() {
         logger.info("Shutting down Croppy core domain services...");
+        speciesRegistry.clear();
         services.clear();
         active.set(false);
         logger.info("Croppy core domain services shut down cleanly.");
+    }
+
+    /**
+     * @return the central species registry
+     */
+    public SpeciesRegistry getSpeciesRegistry() {
+        return speciesRegistry;
     }
 
     /**

@@ -1,0 +1,35 @@
+id: "croppy:carrot"
+name: "Zanahoria"
+
+display:
+  type: "vanilla"
+  block: "minecraft:carrots"
+  seed_item: "minecraft:carrot"
+
+stages:
+  - id: "seed"
+    progress_required: 100
+    display:
+      block_age: 0
+  - id: "sprout"
+    progress_required: 100
+    display:
+      block_age: 2
+  - id: "growing"
+    progress_required: 150
+    display:
+      block_age: 5
+  - id: "mature"
+    progress_required: 0
+    display:
+      block_age: 7
+
+requirements:
+  min_light: 9
+  water_fluid_level: 1
+
+harvest:
+  yield:
+    - item: "minecraft:carrot"
+      min: 1
+      max: 4
