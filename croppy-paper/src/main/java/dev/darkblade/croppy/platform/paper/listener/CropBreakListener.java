@@ -47,6 +47,7 @@ public class CropBreakListener implements Listener {
         Optional<Species> speciesOpt = core.getSpeciesRegistry().get(crop.getSpeciesKey());
         if (speciesOpt.isEmpty()) {
             core.getCropManager().removeCrop(pos);
+            core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
             return;
         }
 
@@ -78,6 +79,7 @@ public class CropBreakListener implements Listener {
             }
 
             core.getCropManager().removeCrop(pos);
+            core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
             event.setDropItems(false);
 
             for (ItemStack drop : drops) {
@@ -93,6 +95,7 @@ public class CropBreakListener implements Listener {
             }
 
             core.getCropManager().removeCrop(pos);
+            core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
             event.setDropItems(false);
 
             Material seedMat = Material.matchMaterial(species.getDisplay().seedItemId());

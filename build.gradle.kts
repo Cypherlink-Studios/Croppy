@@ -10,6 +10,7 @@ allprojects {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://oss.sonatype.org/content/groups/public/")
+        maven("https://repo.alessiodp.com/releases/")
     }
 }
 

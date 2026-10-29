@@ -11,3 +11,21 @@ growth:
 
   # Horizontal search radius in blocks for detecting water (4 blocks = 9x9 area)
   water-search-radius: 4
+
+storage:
+  # Storage engine backend type:
+  # - "pdc" (default): Uses Minecraft's native Chunk PersistentDataContainer.
+  #   Zero extra dependencies, ultra-compact binary format, perfectly synced with world chunks.
+  #
+  # - "sqlite": Uses an embedded SQLite database with HikariCP connection pooling.
+  #   Drivers are downloaded dynamically via Libby on first boot if this mode is selected.
+  type: "pdc"
+
+  sqlite:
+    # SQLite database file name (located inside the plugin data folder)
+    file: "crops.db"
+    pool:
+      # Maximum active connections in the HikariCP connection pool
+      maximum-pool-size: 5
+      # Connection timeout in milliseconds
+      connection-timeout: 30000

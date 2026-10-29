@@ -2,6 +2,7 @@ package dev.darkblade.croppy.core;
 
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
+import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
@@ -24,6 +25,7 @@ public class CroppyCore {
     private final DefaultSpeciesRegistry speciesRegistry = new DefaultSpeciesRegistry();
     private final CropManager cropManager = new CropManager();
     private final GrowthEngine growthEngine = new GrowthEngine();
+    private CropStorage storage;
     private final AtomicBoolean active = new AtomicBoolean(false);
 
     public CroppyCore(Logger logger) {
@@ -61,9 +63,32 @@ public class CroppyCore {
         speciesRegistry.clear();
         cropManager.clear();
         growthEngine.shutdown();
+        if (storage != null) {
+            storage.shutdown();
+            storage = null;
+        }
         services.clear();
         active.set(false);
         logger.info("Croppy core domain services shut down cleanly.");
+    }
+
+    /**
+     * Sets and registers the persistent crop storage provider.
+     *
+     * @param storage storage implementation
+     */
+    public void setStorage(CropStorage storage) {
+        this.storage = storage;
+        if (storage != null) {
+            registerService(CropStorage.class, storage);
+        }
+    }
+
+    /**
+     * @return the active crop storage provider if registered
+     */
+    public Optional<CropStorage> getStorage() {
+        return Optional.ofNullable(storage);
     }
 
     /**

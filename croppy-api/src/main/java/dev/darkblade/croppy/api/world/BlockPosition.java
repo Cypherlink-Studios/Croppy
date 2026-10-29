@@ -34,6 +34,10 @@ public record BlockPosition(String worldName, int x, int y, int z) {
         return add(0, 1, 0);
     }
 
+    public ChunkPosition toChunkPosition() {
+        return new ChunkPosition(worldName, x >> 4, z >> 4);
+    }
+
     @Override
     public String toString() {
         return worldName + "[" + x + "," + y + "," + z + "]";

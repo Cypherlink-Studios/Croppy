@@ -30,7 +30,10 @@ public class CropPhysicsListener implements Listener {
 
     private void removeIfTracked(Block block) {
         BlockPosition pos = BlockPosition.of(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-        core.getCropManager().removeCrop(pos);
+        if (core.getCropManager().hasCrop(pos)) {
+            core.getCropManager().removeCrop(pos);
+            core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -79,6 +82,7 @@ public class CropPhysicsListener implements Listener {
             Block soil = block.getRelative(BlockFace.DOWN);
             if (soil.getType() != Material.FARMLAND && !soil.getType().isSolid()) {
                 core.getCropManager().removeCrop(pos);
+                core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
             }
         }
     }

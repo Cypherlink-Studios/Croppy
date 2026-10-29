@@ -55,5 +55,6 @@ public class CropPlantListener implements Listener {
         }
 
         core.getCropManager().registerCrop(instance);
+        core.getStorage().ifPresent(storage -> storage.saveCrop(instance));
     }
 }
