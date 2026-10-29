@@ -8,6 +8,9 @@ import dev.darkblade.croppy.api.world.ChunkPosition;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.species.YamlSpeciesLoader;
+import dev.darkblade.croppy.platform.paper.command.CroppyCommands;
+import dev.darkblade.croppy.platform.paper.command.parser.SpeciesParser;
+import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import dev.darkblade.croppy.platform.paper.event.CropGrowEvent;
 import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
 import dev.darkblade.croppy.platform.paper.growth.PaperEnvironmentProvider;
@@ -17,12 +20,18 @@ import dev.darkblade.croppy.platform.paper.listener.CropBreakListener;
 import dev.darkblade.croppy.platform.paper.listener.CropGrowthListener;
 import dev.darkblade.croppy.platform.paper.listener.CropPhysicsListener;
 import dev.darkblade.croppy.platform.paper.listener.CropPlantListener;
+import dev.darkblade.croppy.platform.paper.listener.InspectionToolListener;
+import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.storage.CropStorageFactory;
 import dev.darkblade.croppy.platform.paper.storage.LibbyDependencyLoader;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.incendo.cloud.annotations.AnnotationParser;
+import org.incendo.cloud.execution.ExecutionCoordinator;
+import org.incendo.cloud.paper.PaperCommandManager;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,11 +50,18 @@ public class CroppyPlugin extends JavaPlugin {
     private CropStorage storage;
     private LibbyDependencyLoader libbyLoader;
     private PaperGrowthTicker growthTicker;
+    private PaperEnvironmentProvider environmentProvider;
+    private PaperDisplaySynchronizer displaySynchronizer;
+    private PluginConfig pluginConfig;
+    private CropInspectorService inspectorService;
 
     @Override
     public void onEnable() {
         getLogger().info("Enabling Croppy plugin on Paper 1.21.8...");
         saveDefaultConfig();
+
+        this.pluginConfig = new PluginConfig();
+        this.pluginConfig.load(getConfig());
 
         this.core = new CroppyCore(getLogger());
         try {
@@ -57,8 +73,9 @@ public class CroppyPlugin extends JavaPlugin {
 
             setupSpeciesDefinitions();
             loadActiveChunkCrops();
-            registerListeners();
             setupGrowthSimulation();
+            setupCommands();
+            registerListeners();
             getLogger().info("Croppy enabled successfully!");
         } catch (Exception e) {
             getLogger().severe("Failed to initialize Croppy: " + e.getMessage());
@@ -89,7 +106,8 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new CropGrowthListener(core), this);
         pm.registerEvents(new CropBreakListener(core), this);
         pm.registerEvents(new CropPhysicsListener(core), this);
-        getLogger().info("Registered crop lifecycle and chunk listeners.");
+        pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
+        getLogger().info("Registered crop lifecycle, chunk, and inspection listeners.");
     }
 
     private void setupGrowthSimulation() {
@@ -100,10 +118,10 @@ public class CroppyPlugin extends JavaPlugin {
         GrowthEngine growthEngine = core.getGrowthEngine();
         growthEngine.setBaseProgress(baseProgress);
 
-        PaperEnvironmentProvider envProvider = new PaperEnvironmentProvider(getServer(), waterSearchRadius);
-        PaperDisplaySynchronizer displaySync = new PaperDisplaySynchronizer(getServer(), getLogger());
+        this.environmentProvider = new PaperEnvironmentProvider(getServer(), waterSearchRadius);
+        this.displaySynchronizer = new PaperDisplaySynchronizer(getServer(), getLogger());
 
-        growthEngine.setDisplaySynchronizer(displaySync);
+        growthEngine.setDisplaySynchronizer(this.displaySynchronizer);
         growthEngine.setStageAdvanceInterceptor((crop, species, fromStage, toStage) -> {
             World world = getServer().getWorld(crop.getPosition().worldName());
             if (world == null) {
@@ -122,9 +140,38 @@ public class CroppyPlugin extends JavaPlugin {
             return false;
         });
 
-        this.growthTicker = new PaperGrowthTicker(this, core, envProvider);
+        this.growthTicker = new PaperGrowthTicker(this, core, this.environmentProvider);
         this.growthTicker.start(tickInterval);
         getLogger().info("Started PaperGrowthTicker with interval of " + tickInterval + " ticks (base progress: " + baseProgress + ").");
+    }
+
+    private void setupCommands() {
+        this.inspectorService = new CropInspectorService(
+                core.getCropManager(),
+                core.getSpeciesRegistry(),
+                this.environmentProvider
+        );
+
+        PaperCommandManager<CommandSourceStack> commandManager = PaperCommandManager.builder()
+                .executionCoordinator(ExecutionCoordinator.simpleCoordinator())
+                .buildOnEnable(this);
+
+        commandManager.parserRegistry().registerParser(SpeciesParser.speciesParser(core.getSpeciesRegistry()));
+
+        AnnotationParser<CommandSourceStack> annotationParser = new AnnotationParser<>(
+                commandManager,
+                CommandSourceStack.class
+        );
+        annotationParser.parse(new CroppyCommands(this, this.inspectorService, this.pluginConfig));
+        getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
+    }
+
+    public void reloadPlugin() {
+        reloadConfig();
+        this.pluginConfig.load(getConfig());
+        this.core.getSpeciesRegistry().clear();
+        setupSpeciesDefinitions();
+        getLogger().info("Croppy configuration and species definitions reloaded successfully.");
     }
 
     private void setupSpeciesDefinitions() {
@@ -200,5 +247,21 @@ public class CroppyPlugin extends JavaPlugin {
      */
     public CropStorage getStorage() {
         return storage;
+    }
+
+    public PluginConfig getPluginConfig() {
+        return pluginConfig;
+    }
+
+    public CropInspectorService getInspectorService() {
+        return inspectorService;
+    }
+
+    public PaperDisplaySynchronizer getDisplaySynchronizer() {
+        return displaySynchronizer;
+    }
+
+    public PaperEnvironmentProvider getEnvironmentProvider() {
+        return environmentProvider;
     }
 }

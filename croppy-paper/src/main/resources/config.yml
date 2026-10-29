@@ -29,3 +29,32 @@ storage:
       maximum-pool-size: 5
       # Connection timeout in milliseconds
       connection-timeout: 30000
+
+# ==============================================================================
+# Inspection Tool Settings
+# ==============================================================================
+inspection-tool:
+  # Material used for the inspection tool item
+  material: "SPYGLASS"
+  # Display name rendered with MiniMessage
+  name: "<gradient:#70e000:#38b000><bold>Crop Inspector</bold></gradient>"
+  # Item lore lines rendered with MiniMessage
+  lore:
+    - "<gray>Right-click any crop to view"
+    - "<gray>its current growth status."
+
+# ==============================================================================
+# Messages (Kyori Adventure MiniMessage format)
+# ==============================================================================
+messages:
+  prefix: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>"
+  no-permission: "<red>You do not have permission to execute this command."
+  no-crop-found: "<red>No active crop found at the targeted location."
+  tool-given: "<green>You have received the <gradient:#70e000:#38b000>Crop Inspector</gradient> tool."
+  reload-success: "<green>Configuration and species definitions reloaded successfully."
+  reload-failed: "<red>Failed to reload configuration: <error>"
+  stage-updated: "<green>Updated crop stage to <yellow><stage></yellow>."
+  progress-updated: "<green>Updated crop progress to <yellow><progress>%</yellow>."
+  give-success: "<green>Given <yellow><amount>x <species></yellow> to <aqua><player></aqua>."
+  player-not-found: "<red>Player <player> was not found online."
+  species-not-found: "<red>Species <species> was not found in the registry."

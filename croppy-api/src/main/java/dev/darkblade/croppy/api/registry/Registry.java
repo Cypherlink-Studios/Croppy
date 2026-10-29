@@ -62,4 +62,9 @@ public interface Registry<T extends Keyed> {
     default boolean isEmpty() {
         return size() == 0;
     }
+
+    /**
+     * Clears all registered entries from this registry.
+     */
+    void clear();
 }

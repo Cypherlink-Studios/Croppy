@@ -28,8 +28,29 @@ public class CropPlantListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
-        String seedId = event.getItemInHand().getType().getKey().toString().toLowerCase();
-        Optional<Species> speciesOpt = core.getSpeciesRegistry().findBySeedItem(seedId);
+        org.bukkit.inventory.ItemStack itemInHand = event.getItemInHand();
+        Optional<Species> speciesOpt = Optional.empty();
+
+        if (itemInHand.hasItemMeta()) {
+            org.bukkit.inventory.meta.ItemMeta meta = itemInHand.getItemMeta();
+            if (meta != null) {
+                String pdcSpecies = meta.getPersistentDataContainer().get(
+                        new org.bukkit.NamespacedKey("croppy", "species"),
+                        org.bukkit.persistence.PersistentDataType.STRING
+                );
+                if (pdcSpecies != null) {
+                    try {
+                        speciesOpt = core.getSpeciesRegistry().get(dev.darkblade.croppy.api.identifier.Key.parse(pdcSpecies));
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        }
+
+        if (speciesOpt.isEmpty()) {
+            String seedId = itemInHand.getType().getKey().toString().toLowerCase();
+            speciesOpt = core.getSpeciesRegistry().findBySeedItem(seedId);
+        }
 
         if (speciesOpt.isEmpty()) {
             String blockId = event.getBlockPlaced().getType().getKey().toString().toLowerCase();
