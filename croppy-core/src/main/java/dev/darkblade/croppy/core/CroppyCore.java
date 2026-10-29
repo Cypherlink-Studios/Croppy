@@ -2,6 +2,7 @@ package dev.darkblade.croppy.core;
 
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
+import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
 
 import java.util.Map;
@@ -20,6 +21,7 @@ public class CroppyCore {
     private final Logger logger;
     private final Map<Class<? extends Service>, Service> services = new ConcurrentHashMap<>();
     private final DefaultSpeciesRegistry speciesRegistry = new DefaultSpeciesRegistry();
+    private final CropManager cropManager = new CropManager();
     private final AtomicBoolean active = new AtomicBoolean(false);
 
     public CroppyCore(Logger logger) {
@@ -41,6 +43,9 @@ public class CroppyCore {
         }
         logger.info("Initializing Croppy core domain services...");
         speciesRegistry.clear();
+        cropManager.clear();
+        registerService(SpeciesRegistry.class, speciesRegistry);
+        registerService(CropManager.class, cropManager);
         active.set(true);
         logger.info("Croppy core domain services initialized successfully.");
     }
@@ -51,6 +56,7 @@ public class CroppyCore {
     public synchronized void shutdown() {
         logger.info("Shutting down Croppy core domain services...");
         speciesRegistry.clear();
+        cropManager.clear();
         services.clear();
         active.set(false);
         logger.info("Croppy core domain services shut down cleanly.");
@@ -61,6 +67,13 @@ public class CroppyCore {
      */
     public SpeciesRegistry getSpeciesRegistry() {
         return speciesRegistry;
+    }
+
+    /**
+     * @return the central crop instance manager
+     */
+    public CropManager getCropManager() {
+        return cropManager;
     }
 
     /**

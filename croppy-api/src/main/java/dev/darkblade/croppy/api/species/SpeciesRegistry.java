@@ -1,13 +1,14 @@
 package dev.darkblade.croppy.api.species;
 
 import dev.darkblade.croppy.api.registry.Registry;
+import dev.darkblade.croppy.api.registry.Service;
 
 import java.util.Optional;
 
 /**
  * Specialized registry for crop species with fast lookup indices.
  */
-public interface SpeciesRegistry extends Registry<Species> {
+public interface SpeciesRegistry extends Registry<Species>, Service {
 
     /**
      * Finds a species by its triggering seed item identifier.

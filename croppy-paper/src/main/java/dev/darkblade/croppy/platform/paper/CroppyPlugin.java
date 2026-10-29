@@ -23,11 +23,21 @@ public class CroppyPlugin extends JavaPlugin {
         try {
             this.core.initialize();
             setupSpeciesDefinitions();
+            registerListeners();
             getLogger().info("Croppy enabled successfully!");
         } catch (Exception e) {
             getLogger().severe("Failed to initialize Croppy: " + e.getMessage());
             getServer().getPluginManager().disablePlugin(this);
         }
+    }
+
+    private void registerListeners() {
+        var pm = getServer().getPluginManager();
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.CropPlantListener(core), this);
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.CropGrowthListener(core), this);
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.CropBreakListener(core), this);
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.CropPhysicsListener(core), this);
+        getLogger().info("Registered crop lifecycle listeners.");
     }
 
     private void setupSpeciesDefinitions() {
