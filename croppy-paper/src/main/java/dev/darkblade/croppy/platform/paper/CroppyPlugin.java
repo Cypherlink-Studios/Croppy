@@ -24,7 +24,9 @@ import dev.darkblade.croppy.platform.paper.listener.InspectionToolListener;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.storage.CropStorageFactory;
 import dev.darkblade.croppy.platform.paper.storage.LibbyDependencyLoader;
+import io.leangen.geantyref.TypeToken;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -155,6 +157,13 @@ public class CroppyPlugin extends JavaPlugin {
         PaperCommandManager<CommandSourceStack> commandManager = PaperCommandManager.builder()
                 .executionCoordinator(ExecutionCoordinator.simpleCoordinator())
                 .buildOnEnable(this);
+
+        if (commandManager.hasBrigadierManager()) {
+            commandManager.brigadierManager().registerMapping(
+                    new TypeToken<SpeciesParser<CommandSourceStack>>() {},
+                    builder -> builder.toConstant(ArgumentTypes.key()).cloudSuggestions()
+            );
+        }
 
         commandManager.parserRegistry().registerParser(SpeciesParser.speciesParser(core.getSpeciesRegistry()));
 
