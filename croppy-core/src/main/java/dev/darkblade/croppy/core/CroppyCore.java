@@ -1,10 +1,12 @@
 package dev.darkblade.croppy.core;
 
+import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
+import dev.darkblade.croppy.core.item.DefaultItemRegistry;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
 
 import java.util.Map;
@@ -23,6 +25,7 @@ public class CroppyCore {
     private final Logger logger;
     private final Map<Class<? extends Service>, Service> services = new ConcurrentHashMap<>();
     private final DefaultSpeciesRegistry speciesRegistry = new DefaultSpeciesRegistry();
+    private final DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
     private final CropManager cropManager = new CropManager();
     private final GrowthEngine growthEngine = new GrowthEngine();
     private CropStorage storage;
@@ -47,8 +50,10 @@ public class CroppyCore {
         }
         logger.info("Initializing Croppy core domain services...");
         speciesRegistry.clear();
+        itemRegistry.clear();
         cropManager.clear();
         registerService(SpeciesRegistry.class, speciesRegistry);
+        registerService(ItemRegistry.class, itemRegistry);
         registerService(CropManager.class, cropManager);
         registerService(GrowthEngine.class, growthEngine);
         active.set(true);
@@ -61,6 +66,7 @@ public class CroppyCore {
     public synchronized void shutdown() {
         logger.info("Shutting down Croppy core domain services...");
         speciesRegistry.clear();
+        itemRegistry.clear();
         cropManager.clear();
         growthEngine.shutdown();
         if (storage != null) {
@@ -96,6 +102,13 @@ public class CroppyCore {
      */
     public SpeciesRegistry getSpeciesRegistry() {
         return speciesRegistry;
+    }
+
+    /**
+     * @return the central item registry
+     */
+    public ItemRegistry getItemRegistry() {
+        return itemRegistry;
     }
 
     /**

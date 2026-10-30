@@ -1,0 +1,7 @@
+id: "croppy:potato_seeds"
+category: "seeds"
+material: "POTATO"
+custom-model-data: 0
+name: "<yellow>Semillas de Patata</yellow>"
+lore:
+  - "<gray>Plántalas en tierra arada para cultivar patatas.</gray>"

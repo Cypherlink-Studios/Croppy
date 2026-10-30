@@ -264,8 +264,19 @@ public class CropInspectorService {
         if (meta == null) {
             return false;
         }
+
+        // 1. Check standardized croppy:item_id
+        String itemId = meta.getPersistentDataContainer().get(
+                new NamespacedKey("croppy", "item_id"),
+                PersistentDataType.STRING
+        );
+        if ("croppy:inspection_tool".equalsIgnoreCase(itemId)) {
+            return true;
+        }
+
+        // 2. Check legacy tool key
         String marker = meta.getPersistentDataContainer().get(
-                new NamespacedKey(plugin, "tool"),
+                new NamespacedKey("croppy", "tool"),
                 PersistentDataType.STRING
         );
         return "crop_inspector".equals(marker);

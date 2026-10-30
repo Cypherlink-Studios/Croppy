@@ -8,9 +8,12 @@ import java.util.Locale;
  * Tier configurations for player watering cans.
  */
 public enum WateringCanTier {
-    COPPER("copper", "<color:#e06666>Regadera de Cobre</color>", 30, 1, 1, Material.COPPER_INGOT, 2001),
+    RUSTY("rusty", "<color:#a0522d>Regadera Oxidada</color>", 20, 1, 1, Material.COPPER_INGOT, 2001),
+    COPPER("copper", "<color:#e06666>Regadera de Cobre</color>", 40, 1, 3, Material.COPPER_INGOT, 2002),
+    SILVER("silver", "<white>Regadera de Plata</white>", 100, 3, 3, Material.IRON_INGOT, 2003),
+    GOLD("gold", "<gold>Regadera de Oro</gold>", 250, 3, 3, Material.GOLD_INGOT, 2004),
+    IRIDIUM("iridium", "<color:#bf00ff>Regadera de Iridio</color>", 600, 5, 5, Material.NETHERITE_INGOT, 2005),
     IRON("iron", "<white>Regadera de Hierro</white>", 80, 1, 3, Material.IRON_INGOT, 2002),
-    GOLD("gold", "<gold>Regadera de Oro</gold>", 150, 3, 3, Material.GOLD_INGOT, 2003),
     DIAMOND("diamond", "<aqua>Regadera de Diamante</aqua>", 300, 3, 3, Material.DIAMOND, 2004),
     NETHERITE("netherite", "<color:#994433>Regadera de Netherite</color>", 600, 5, 5, Material.NETHERITE_INGOT, 2005);
 

@@ -96,15 +96,21 @@ public class YamlFertilizerLoader {
         String material = "BONE_MEAL";
         int customModelData = 0;
         Object rawItem = root.get("item");
-        if (rawItem instanceof Map<?, ?> itemMap) {
-            Object rawMat = itemMap.get("material");
-            if (rawMat != null && !rawMat.toString().isBlank()) {
-                material = rawMat.toString().trim().toUpperCase(Locale.ROOT);
-            }
-            Object rawCmd = itemMap.get("custom_model_data");
-            if (rawCmd instanceof Number num) {
-                customModelData = num.intValue();
-            }
+        Map<?, ?> itemMap = (rawItem instanceof Map<?, ?> map) ? map : null;
+
+        Object rawMat = (itemMap != null) ? itemMap.get("material") : root.get("material");
+        if (rawMat != null && !rawMat.toString().isBlank()) {
+            material = rawMat.toString().trim().toUpperCase(Locale.ROOT);
+        }
+        Object rawCmd = (itemMap != null) ? itemMap.get("custom_model_data") : root.get("custom_model_data");
+        if (rawCmd == null && itemMap != null) {
+            rawCmd = itemMap.get("custom-model-data");
+        }
+        if (rawCmd == null) {
+            rawCmd = root.get("custom-model-data");
+        }
+        if (rawCmd instanceof Number num) {
+            customModelData = num.intValue();
         }
 
         return new Fertilizer(key, name, description, type, speedMultiplier, retentionChance, qualityBoost, material, customModelData);

@@ -159,6 +159,35 @@ class YamlSpeciesLoaderTest {
     }
 
     @Test
+    @DisplayName("Parse crop species with decoupled seed key")
+    void testParseDecoupledSeed() {
+        String yaml = """
+                id: "croppy:tomato"
+                name: "Tomate"
+                display:
+                  type: "vanilla"
+                  block: "minecraft:pumpkin_stem"
+                  seed: "croppy:tomato_seeds"
+                stages:
+                  - id: "mature"
+                    progress_required: 0
+                requirements:
+                  min_light: 8
+                  water_fluid_level: 1
+                harvest:
+                  yield:
+                    - item: "croppy:tomato"
+                      min: 1
+                      max: 2
+                """;
+
+        Species species = loadFromYaml(yaml);
+        assertNotNull(species);
+        assertEquals("croppy:tomato", species.getKey().asString());
+        assertEquals("croppy:tomato_seeds", species.getDisplay().seedItemId());
+    }
+
+    @Test
     @DisplayName("Reject invalid water fluid level greater than 8")
     void testRejectInvalidFluidLevel() {
         String yaml = """

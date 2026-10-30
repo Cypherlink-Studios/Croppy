@@ -1,8 +1,10 @@
 package dev.darkblade.croppy.platform.paper.watering;
 
+import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
@@ -23,23 +25,53 @@ import java.util.Optional;
  */
 public class WateringCanService {
 
+    private final ItemFactory itemFactory;
     private final NamespacedKey tierKey;
     private final NamespacedKey waterLevelKey;
+    private final NamespacedKey waterUsesKey;
+    private final NamespacedKey itemIdKey;
+    private final NamespacedKey categoryKey;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
+    public WateringCanService(Plugin plugin, ItemFactory itemFactory) {
+        this.itemFactory = itemFactory;
+        String namespace = "croppy";
+        this.tierKey = new NamespacedKey(namespace, "watering_can_tier");
+        this.waterLevelKey = new NamespacedKey(namespace, "water_level");
+        this.waterUsesKey = new NamespacedKey(namespace, "water_uses");
+        this.itemIdKey = new NamespacedKey(namespace, "item_id");
+        this.categoryKey = new NamespacedKey(namespace, "category");
+    }
+
     public WateringCanService(Plugin plugin) {
-        Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.tierKey = new NamespacedKey(plugin, "watering_can_tier");
-        this.waterLevelKey = new NamespacedKey(plugin, "water_level");
+        this(plugin, null);
     }
 
     public ItemStack createWateringCan(WateringCanTier tier) {
-        ItemStack item = new ItemStack(tier.material());
+        ItemStack item;
+        Key itemKey = Key.of("croppy", tier.id() + "_can");
+
+        if (itemFactory != null) {
+            Optional<ItemDefinition> defOpt = itemFactory.getItemRegistry().get(itemKey);
+            if (defOpt.isPresent()) {
+                item = itemFactory.createItemStack(defOpt.get());
+            } else {
+                item = new ItemStack(tier.material());
+            }
+        } else {
+            item = new ItemStack(tier.material());
+        }
+
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        meta.getPersistentDataContainer().set(tierKey, PersistentDataType.STRING, tier.id());
-        meta.getPersistentDataContainer().set(waterLevelKey, PersistentDataType.INTEGER, tier.capacity());
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        pdc.set(itemIdKey, PersistentDataType.STRING, itemKey.asString());
+        pdc.set(categoryKey, PersistentDataType.STRING, "watering_cans");
+        pdc.set(tierKey, PersistentDataType.STRING, tier.id());
+        pdc.set(waterUsesKey, PersistentDataType.INTEGER, tier.capacity());
+        pdc.set(waterLevelKey, PersistentDataType.INTEGER, tier.capacity());
+
         if (tier.customModelData() > 0) {
             meta.setCustomModelData(tier.customModelData());
         }
@@ -52,18 +84,42 @@ public class WateringCanService {
     public boolean isWateringCan(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
-        return meta != null && meta.getPersistentDataContainer().has(tierKey, PersistentDataType.STRING);
+        if (meta == null) return false;
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        if (pdc.has(waterUsesKey, PersistentDataType.INTEGER) || pdc.has(tierKey, PersistentDataType.STRING)) {
+            return true;
+        }
+        String cat = pdc.get(categoryKey, PersistentDataType.STRING);
+        return "watering_cans".equalsIgnoreCase(cat);
     }
 
     public Optional<WateringCanTier> getTier(ItemStack item) {
         if (!isWateringCan(item)) return Optional.empty();
-        String tierId = item.getItemMeta().getPersistentDataContainer().get(tierKey, PersistentDataType.STRING);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return Optional.empty();
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String tierId = pdc.get(tierKey, PersistentDataType.STRING);
+        if (tierId == null) {
+            String itemId = pdc.get(itemIdKey, PersistentDataType.STRING);
+            if (itemId != null && itemId.startsWith("croppy:")) {
+                tierId = itemId.substring("croppy:".length()).replace("_can", "");
+            }
+        }
         return Optional.ofNullable(WateringCanTier.parse(tierId));
     }
 
     public int getWaterLevel(ItemStack item) {
         if (!isWateringCan(item)) return 0;
-        Integer level = item.getItemMeta().getPersistentDataContainer().get(waterLevelKey, PersistentDataType.INTEGER);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return 0;
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        Integer uses = pdc.get(waterUsesKey, PersistentDataType.INTEGER);
+        if (uses != null) {
+            return uses;
+        }
+        Integer level = pdc.get(waterLevelKey, PersistentDataType.INTEGER);
         return level != null ? level : 0;
     }
 
@@ -75,7 +131,11 @@ public class WateringCanService {
 
         int clamped = Math.clamp(level, 0, tier.capacity());
         ItemMeta meta = item.getItemMeta();
-        meta.getPersistentDataContainer().set(waterLevelKey, PersistentDataType.INTEGER, clamped);
+        if (meta == null) return false;
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        pdc.set(waterUsesKey, PersistentDataType.INTEGER, clamped);
+        pdc.set(waterLevelKey, PersistentDataType.INTEGER, clamped);
         updateItemVisuals(meta, tier, clamped);
         item.setItemMeta(meta);
         return true;
@@ -108,14 +168,10 @@ public class WateringCanService {
             return result;
         }
 
+        // 1x3 linear strip facing player direction
         if (w == 1 && l == 3) {
-            // Line along facing
             int dx = facing.getModX();
             int dz = facing.getModZ();
-            if (dx == 0 && dz == 0) {
-                dx = 0;
-                dz = 1;
-            }
             result.add(BlockPosition.of(world, cx - dx, cy, cz - dz));
             result.add(center);
             result.add(BlockPosition.of(world, cx + dx, cy, cz + dz));

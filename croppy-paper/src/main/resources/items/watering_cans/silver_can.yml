@@ -1,0 +1,14 @@
+id: "croppy:silver_can"
+category: "watering_cans"
+material: "IRON_INGOT"
+custom-model-data: 2003
+name: "<white>Regadera de Plata</white>"
+lore:
+  - "<gray>Una regadera refinada de plata reluciente.</gray>"
+  - "<aqua>Capacidad: 100 usos</aqua>"
+  - "<yellow>Área: 3x3</yellow>"
+pdc:
+  tier: "silver"
+  capacity: "100"
+  aoe_width: "3"
+  aoe_length: "3"

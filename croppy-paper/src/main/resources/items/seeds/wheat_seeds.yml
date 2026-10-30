@@ -1,0 +1,7 @@
+id: "croppy:wheat_seeds"
+category: "seeds"
+material: "WHEAT_SEEDS"
+custom-model-data: 0
+name: "<green>Semillas de Trigo</green>"
+lore:
+  - "<gray>Plántalas en tierra arada para cultivar trigo.</gray>"

@@ -1,0 +1,7 @@
+id: "croppy:carrot_seeds"
+category: "seeds"
+material: "CARROT"
+custom-model-data: 0
+name: "<gold>Semillas de Zanahoria</gold>"
+lore:
+  - "<gray>Plántalas en tierra arada para cultivar zanahorias.</gray>"

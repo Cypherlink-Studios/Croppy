@@ -1,10 +1,10 @@
-id: "croppy:wheat"
-name: "Trigo"
+id: "croppy:carrot"
+name: "Zanahoria"
 
 display:
   type: "vanilla"
-  block: "minecraft:wheat"
-  seed_item: "minecraft:wheat_seeds"
+  block: "minecraft:carrots"
+  seed_item: "croppy:carrot_seeds"
 
 stages:
   - id: "seed"
@@ -14,15 +14,15 @@ stages:
   - id: "sprout"
     progress_required: 100
     display:
-      block_age: 2
+      block_age: 1
   - id: "growing"
     progress_required: 150
     display:
-      block_age: 5
+      block_age: 2
   - id: "mature"
     progress_required: 0
     display:
-      block_age: 7
+      block_age: 3
 
 requirements:
   min_light: 9
@@ -30,9 +30,6 @@ requirements:
 
 harvest:
   yield:
-    - item: "minecraft:wheat"
+    - item: "minecraft:carrot"
       min: 1
-      max: 1
-    - item: "minecraft:wheat_seeds"
-      min: 1
-      max: 3
+      max: 4

@@ -77,7 +77,16 @@ public class YamlSpeciesLoader {
         }
         Object rawSeedItem = displayMap.get("seed_item");
         if (rawSeedItem == null || rawSeedItem.toString().isBlank()) {
-            throw new IllegalArgumentException("Missing required 'display.seed_item' in: " + sourceName);
+            rawSeedItem = displayMap.get("seed");
+        }
+        if (rawSeedItem == null || rawSeedItem.toString().isBlank()) {
+            rawSeedItem = displayMap.get("seed_id");
+        }
+        if (rawSeedItem == null || rawSeedItem.toString().isBlank()) {
+            rawSeedItem = root.get("seed");
+        }
+        if (rawSeedItem == null || rawSeedItem.toString().isBlank()) {
+            throw new IllegalArgumentException("Missing required 'display.seed_item' or 'seed' in: " + sourceName);
         }
         CropDisplay display = new CropDisplay(
                 displayType,

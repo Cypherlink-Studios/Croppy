@@ -1,0 +1,14 @@
+id: "croppy:copper_can"
+category: "watering_cans"
+material: "COPPER_INGOT"
+custom-model-data: 2002
+name: "<color:#e06666>Regadera de Cobre</color>"
+lore:
+  - "<gray>Una regadera mejorada de cobre pulido.</gray>"
+  - "<aqua>Capacidad: 40 usos</aqua>"
+  - "<yellow>Área: 1x3</yellow>"
+pdc:
+  tier: "copper"
+  capacity: "40"
+  aoe_width: "1"
+  aoe_length: "3"

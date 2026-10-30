@@ -1,10 +1,10 @@
-id: "croppy:carrot"
-name: "Zanahoria"
+id: "croppy:wheat"
+name: "Trigo"
 
 display:
   type: "vanilla"
-  block: "minecraft:carrots"
-  seed_item: "minecraft:carrot"
+  block: "minecraft:wheat"
+  seed_item: "croppy:wheat_seeds"
 
 stages:
   - id: "seed"
@@ -30,6 +30,9 @@ requirements:
 
 harvest:
   yield:
-    - item: "minecraft:carrot"
+    - item: "minecraft:wheat"
       min: 1
-      max: 4
+      max: 1
+    - item: "croppy:wheat_seeds"
+      min: 1
+      max: 3

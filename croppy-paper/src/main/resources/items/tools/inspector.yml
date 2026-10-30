@@ -1,0 +1,10 @@
+id: "croppy:inspection_tool"
+category: "tools"
+material: "COMPASS"
+custom-model-data: 1000
+name: "<gold><bold>Herramienta de Inspección</bold></gold>"
+lore:
+  - "<gray>Haz click derecho sobre un cultivo</gray>"
+  - "<gray>para inspeccionar sus condiciones y progreso.</gray>"
+pdc:
+  tool: "crop_inspector"

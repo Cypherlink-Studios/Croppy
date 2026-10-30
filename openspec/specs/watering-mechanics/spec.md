@@ -1,18 +1,17 @@
 # watering-mechanics Specification
 
 ## Purpose
-
 Enables active soil hydration through tiered watering cans, natural rain exposure, and daily moisture tracking for crops.
 
 ## Requirements
 
 ### Requirement: Tiered Watering Cans
-The system SHALL provide tiered watering cans with defined water capacity, area-of-effect hydration patterns, and refill capabilities.
+The system SHALL provide tiered watering cans configured in `items/watering_cans/*.yml` and registered in `ItemRegistry`, identified via PDC `croppy:item_id` with dynamic water use tracking in PDC, defined water capacity, area-of-effect hydration patterns, and refill capabilities.
 
 #### Scenario: Watering crops within area of effect
 - **WHEN** a player right-clicks with a filled watering can on a crop or farmland
 - **THEN** the target block and surrounding blocks within the tool tier area of effect SHALL become hydrated for the current day
-- **AND** the watering can remaining water uses SHALL decrement by one
+- **AND** the watering can remaining water uses in PDC SHALL decrement by one
 - **AND** water splash particles and audio feedback SHALL play at the watered location
 
 #### Scenario: Empty watering can prevents watering
@@ -21,7 +20,7 @@ The system SHALL provide tiered watering cans with defined water capacity, area-
 
 #### Scenario: Refilling watering can
 - **WHEN** a player right-clicks on a water source block or filled water cauldron with a non-full watering can
-- **THEN** the watering can water uses SHALL be restored to maximum capacity
+- **THEN** the watering can water uses in PDC SHALL be restored to maximum capacity
 - **AND** refill audio feedback SHALL play
 
 ### Requirement: Discrete Daily Soil Hydration

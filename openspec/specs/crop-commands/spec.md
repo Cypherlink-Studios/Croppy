@@ -32,10 +32,10 @@ The system SHALL provide an inspection command `/croppy inspect [x y z]` that di
 - **THEN** the system sends a message stating that no active crop was found at that location.
 
 ### Requirement: Interactive Inspection Tool
-The system SHALL provide an inspection tool item via `/croppy tool` tagged with PersistentDataContainer key `croppy:tool` that inspects crops on block right-click.
+The system SHALL support an interactive inspection tool item tagged with PersistentDataContainer key `croppy:item_id` set to `croppy:inspection_tool` that inspects crops on block right-click, distributable through the centralized item command.
 
 #### Scenario: Issue inspection tool
-- **WHEN** an administrator runs `/croppy tool`
+- **WHEN** an administrator runs `/croppy item give tools croppy:inspection_tool`
 - **THEN** the system places the configured inspection tool item into the player's inventory.
 
 #### Scenario: Right-click crop with inspection tool
@@ -47,14 +47,14 @@ The system SHALL provide an inspection tool item via `/croppy tool` tagged with 
 - **THEN** the interaction is cancelled and a notification indicates no crop exists at the targeted block.
 
 ### Requirement: Configuration Hot Reload
-The system SHALL support reloading configuration settings and YAML species definitions at runtime via `/croppy reload`.
+The system SHALL support reloading configuration settings, YAML crop definitions, and item definitions across all categories at runtime via `/croppy reload`.
 
 #### Scenario: Successful configuration reload
 - **WHEN** an administrator runs `/croppy reload`
-- **THEN** the system re-reads `config.yml`, reloads all species YAML files into the `SpeciesRegistry`, and sends a confirmation message.
+- **THEN** the system re-reads `config.yml`, reloads all crop and item definitions from disk, and sends a confirmation message.
 
 #### Scenario: Failed reload due to syntax error
-- **WHEN** an administrator runs `/croppy reload` with an invalid species definition YAML file
+- **WHEN** an administrator runs `/croppy reload` with an invalid definition YAML file
 - **THEN** the error is logged to console and an error notification is sent to the sender while preserving existing valid registrations.
 
 ### Requirement: Debug Growth State Manipulation
@@ -72,13 +72,32 @@ The system SHALL provide `/croppy setstage <stageIndex>` and `/croppy setprogres
 - **WHEN** an administrator executes `/croppy setstage 99` where the species only defines 4 stages
 - **THEN** the system rejects the modification and displays an invalid stage index error.
 
-### Requirement: Crop Item Gifting
-The system SHALL provide `/croppy give <player> <species> [amount]` to issue species items directly to player inventories.
+### Requirement: Centralized Item Give Command
+The system SHALL provide `/croppy item give <category> <item_id> [quantity] [--target <player>] [--silent]` with dynamic Cloud 2.0 tab completion, granting custom items to the target player (defaulting to command sender).
 
-#### Scenario: Give crop item to online player
-- **WHEN** an administrator runs `/croppy give Steve croppy:wheat 3`
-- **THEN** 3 items representing `croppy:wheat` are deposited into Steve's inventory, or dropped at feet if inventory is full.
+#### Scenario: Give item to command sender by default
+- **WHEN** an administrator player runs `/croppy item give watering_cans croppy:copper_watering_can`
+- **THEN** 1 copper watering can is placed into the executing player's inventory and a success message is displayed.
 
-#### Scenario: Unknown species argument
-- **WHEN** an administrator runs `/croppy give Steve croppy:unknown 1`
-- **THEN** the command fails parsing with an unknown species error message.
+#### Scenario: Give item with target and quantity flags
+- **WHEN** an administrator runs `/croppy item give fertilizers croppy:speed_gro 5 --target Steve`
+- **THEN** 5 Speed-Gro fertilizer items are added to Steve's inventory, dropping at feet if full, and confirmation is sent to the administrator.
+
+#### Scenario: Give item silently
+- **WHEN** an administrator executes `/croppy item give seeds croppy:wheat_seeds 1 --target Steve --silent`
+- **THEN** the item is added to Steve's inventory without sending a notification message to Steve.
+
+#### Scenario: Dynamic autocompletion for categories and items
+- **WHEN** a user enters `/croppy item give ` and presses tab
+- **THEN** the system suggests all registered categories, and after choosing a category, suggests only item IDs registered under that category.
+
+### Requirement: Item Registry Listing Command
+The system SHALL provide `/croppy item list [category]` to display registered item definitions and their categories.
+
+#### Scenario: List all registered items
+- **WHEN** an administrator runs `/croppy item list`
+- **THEN** the system displays all registered items grouped by category with their formatted display names and keys.
+
+#### Scenario: List items filtered by category
+- **WHEN** an administrator runs `/croppy item list seeds`
+- **THEN** the system displays only items registered under the `seeds` category.

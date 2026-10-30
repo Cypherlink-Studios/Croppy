@@ -4,7 +4,7 @@ name: "Patata"
 display:
   type: "vanilla"
   block: "minecraft:potatoes"
-  seed_item: "minecraft:potato"
+  seed_item: "croppy:potato_seeds"
 
 stages:
   - id: "seed"
@@ -14,15 +14,15 @@ stages:
   - id: "sprout"
     progress_required: 100
     display:
-      block_age: 2
+      block_age: 1
   - id: "growing"
     progress_required: 150
     display:
-      block_age: 5
+      block_age: 2
   - id: "mature"
     progress_required: 0
     display:
-      block_age: 7
+      block_age: 3
 
 requirements:
   min_light: 9

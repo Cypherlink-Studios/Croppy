@@ -12,6 +12,7 @@ import dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry;
 import dev.darkblade.croppy.core.fertilizer.YamlFertilizerLoader;
 import dev.darkblade.croppy.core.growth.FertilizerGrowthModifier;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
+import dev.darkblade.croppy.core.item.YamlItemLoader;
 import dev.darkblade.croppy.core.species.YamlSpeciesLoader;
 import dev.darkblade.croppy.platform.paper.command.CroppyCommands;
 import dev.darkblade.croppy.platform.paper.command.parser.SpeciesParser;
@@ -22,6 +23,7 @@ import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
 import dev.darkblade.croppy.platform.paper.growth.PaperEnvironmentProvider;
 import dev.darkblade.croppy.platform.paper.growth.PaperGrowthTicker;
 import dev.darkblade.croppy.platform.paper.growth.RainHydrationTask;
+import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.listener.ChunkLifecycleListener;
 import dev.darkblade.croppy.platform.paper.listener.CropBreakListener;
 import dev.darkblade.croppy.platform.paper.listener.CropGrowthListener;
@@ -71,6 +73,7 @@ public class CroppyPlugin extends JavaPlugin {
     private CropInspectorService inspectorService;
 
     // Soil moisture & fertilizer services
+    private ItemFactory itemFactory;
     private FertilizerRegistry fertilizerRegistry;
     private FertilizerService fertilizerService;
     private WateringCanService wateringCanService;
@@ -93,8 +96,9 @@ public class CroppyPlugin extends JavaPlugin {
             this.storage = CropStorageFactory.create(this, libbyLoader);
             this.core.setStorage(storage);
 
+            setupItemDefinitions();
             setupFertilizers();
-            setupSpeciesDefinitions();
+            setupCropDefinitions();
             loadActiveChunkCrops();
             setupGrowthSimulation();
             setupCommands();
@@ -136,17 +140,55 @@ public class CroppyPlugin extends JavaPlugin {
         getLogger().info("Registered crop lifecycle, chunk, inspection, watering, and fertilizer listeners.");
     }
 
+    private void setupItemDefinitions() {
+        Path itemsDir = getDataFolder().toPath().resolve("items");
+        if (!Files.exists(itemsDir)) {
+            // Seeds
+            saveResourceIfNotExists("items/seeds/wheat_seeds.yml");
+            saveResourceIfNotExists("items/seeds/carrot_seeds.yml");
+            saveResourceIfNotExists("items/seeds/potato_seeds.yml");
+            // Tools
+            saveResourceIfNotExists("items/tools/inspector.yml");
+            // Watering Cans
+            saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
+            saveResourceIfNotExists("items/watering_cans/copper_can.yml");
+            saveResourceIfNotExists("items/watering_cans/silver_can.yml");
+            saveResourceIfNotExists("items/watering_cans/gold_can.yml");
+            saveResourceIfNotExists("items/watering_cans/iridium_can.yml");
+            // Fertilizers
+            saveResourceIfNotExists("items/fertilizers/speed_gro.yml");
+            saveResourceIfNotExists("items/fertilizers/retaining_soil.yml");
+            saveResourceIfNotExists("items/fertilizers/quality_fertilizer.yml");
+        }
+
+        YamlItemLoader itemLoader = new YamlItemLoader();
+        int loaded = itemLoader.loadAllCategories(itemsDir, getLogger(), core.getItemRegistry());
+        this.itemFactory = new ItemFactory(this, core.getItemRegistry());
+        getLogger().info("Registered " + loaded + " custom items across " + core.getItemRegistry().getCategories().size() + " categories.");
+    }
+
+    private void saveResourceIfNotExists(String resourcePath) {
+        Path target = getDataFolder().toPath().resolve(resourcePath);
+        if (!Files.exists(target)) {
+            try {
+                saveResource(resourcePath, false);
+            } catch (Exception e) {
+                getLogger().warning("Could not extract default resource '" + resourcePath + "': " + e.getMessage());
+            }
+        }
+    }
+
     private void setupFertilizers() {
         this.fertilizerRegistry = new DefaultFertilizerRegistry();
-        this.fertilizerService = new FertilizerService(this, this.fertilizerRegistry);
-        this.wateringCanService = new WateringCanService(this);
+        this.fertilizerService = new FertilizerService(this, this.fertilizerRegistry, this.itemFactory);
+        this.wateringCanService = new WateringCanService(this, this.itemFactory);
         this.dailyTransitionService = new DailyTransitionService(core.getCropManager(), this.fertilizerRegistry);
 
-        Path fertDir = getDataFolder().toPath().resolve("fertilizers");
+        Path fertDir = getDataFolder().toPath().resolve("items").resolve("fertilizers");
         if (!Files.exists(fertDir)) {
-            saveResource("fertilizers/speed_gro.yml", false);
-            saveResource("fertilizers/retaining_soil.yml", false);
-            saveResource("fertilizers/quality_fertilizer.yml", false);
+            saveResourceIfNotExists("items/fertilizers/speed_gro.yml");
+            saveResourceIfNotExists("items/fertilizers/retaining_soil.yml");
+            saveResourceIfNotExists("items/fertilizers/quality_fertilizer.yml");
         }
 
         YamlFertilizerLoader fertLoader = new YamlFertilizerLoader();
@@ -226,7 +268,9 @@ public class CroppyPlugin extends JavaPlugin {
                 this.pluginConfig,
                 this.wateringCanService,
                 this.fertilizerService,
-                this.fertilizerRegistry
+                this.fertilizerRegistry,
+                this.itemFactory,
+                this.core.getItemRegistry()
         ));
         getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
     }
@@ -235,22 +279,24 @@ public class CroppyPlugin extends JavaPlugin {
         reloadConfig();
         this.pluginConfig.load(getConfig());
         this.core.getSpeciesRegistry().clear();
+        this.core.getItemRegistry().clear();
         this.fertilizerRegistry.clear();
+        setupItemDefinitions();
         setupFertilizers();
-        setupSpeciesDefinitions();
-        getLogger().info("Croppy configuration, fertilizers, and species definitions reloaded successfully.");
+        setupCropDefinitions();
+        getLogger().info("Croppy configuration, items, fertilizers, and crop definitions reloaded successfully.");
     }
 
-    private void setupSpeciesDefinitions() {
-        Path speciesDir = getDataFolder().toPath().resolve("species");
-        if (!Files.exists(speciesDir)) {
-            saveResource("species/wheat.yml", false);
-            saveResource("species/carrot.yml", false);
-            saveResource("species/potato.yml", false);
+    private void setupCropDefinitions() {
+        Path cropsDir = getDataFolder().toPath().resolve("crops");
+        if (!Files.exists(cropsDir)) {
+            saveResourceIfNotExists("crops/wheat.yml");
+            saveResourceIfNotExists("crops/carrot.yml");
+            saveResourceIfNotExists("crops/potato.yml");
         }
 
         YamlSpeciesLoader loader = new YamlSpeciesLoader();
-        List<Species> loaded = loader.loadDirectory(speciesDir, getLogger());
+        List<Species> loaded = loader.loadDirectory(cropsDir, getLogger());
         for (Species species : loaded) {
             core.getSpeciesRegistry().register(species);
         }
@@ -330,6 +376,10 @@ public class CroppyPlugin extends JavaPlugin {
 
     public FertilizerRegistry getFertilizerRegistry() {
         return fertilizerRegistry;
+    }
+
+    public ItemFactory getItemFactory() {
+        return itemFactory;
     }
 
     public FertilizerService getFertilizerService() {

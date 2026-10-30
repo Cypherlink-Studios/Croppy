@@ -40,14 +40,29 @@ public class CropPlantListener implements Listener {
         if (itemInHand.hasItemMeta()) {
             org.bukkit.inventory.meta.ItemMeta meta = itemInHand.getItemMeta();
             if (meta != null) {
-                String pdcSpecies = meta.getPersistentDataContainer().get(
-                        new org.bukkit.NamespacedKey("croppy", "species"),
+                // 1. Check standardized croppy:item_id
+                String pdcItemId = meta.getPersistentDataContainer().get(
+                        new org.bukkit.NamespacedKey("croppy", "item_id"),
                         org.bukkit.persistence.PersistentDataType.STRING
                 );
-                if (pdcSpecies != null) {
+                if (pdcItemId != null) {
                     try {
-                        speciesOpt = core.getSpeciesRegistry().get(dev.darkblade.croppy.api.identifier.Key.parse(pdcSpecies));
+                        speciesOpt = core.getSpeciesRegistry().findBySeedItem(pdcItemId.toLowerCase());
                     } catch (Exception ignored) {
+                    }
+                }
+
+                // 2. Fallback to legacy croppy:species
+                if (speciesOpt.isEmpty()) {
+                    String pdcSpecies = meta.getPersistentDataContainer().get(
+                            new org.bukkit.NamespacedKey("croppy", "species"),
+                            org.bukkit.persistence.PersistentDataType.STRING
+                    );
+                    if (pdcSpecies != null) {
+                        try {
+                            speciesOpt = core.getSpeciesRegistry().get(dev.darkblade.croppy.api.identifier.Key.parse(pdcSpecies));
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
             }

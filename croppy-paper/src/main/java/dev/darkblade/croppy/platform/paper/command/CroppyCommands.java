@@ -4,23 +4,23 @@ import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.fertilizer.Fertilizer;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.identifier.Key;
-import dev.darkblade.croppy.api.species.CropDisplay;
+import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.platform.paper.CroppyPlugin;
 import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
+import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
-import dev.darkblade.croppy.platform.paper.watering.WateringCanTier;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -29,13 +29,16 @@ import org.bukkit.block.data.type.Farmland;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.Default;
+import org.incendo.cloud.annotations.Flag;
 import org.incendo.cloud.annotations.Permission;
+import org.incendo.cloud.annotations.suggestion.Suggestions;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.context.CommandInput;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -52,6 +55,8 @@ public class CroppyCommands {
     private final WateringCanService wateringCanService;
     private final FertilizerService fertilizerService;
     private final FertilizerRegistry fertilizerRegistry;
+    private final ItemFactory itemFactory;
+    private final ItemRegistry itemRegistry;
     private final MiniMessage miniMessage;
 
     public CroppyCommands(
@@ -60,14 +65,18 @@ public class CroppyCommands {
             PluginConfig pluginConfig,
             WateringCanService wateringCanService,
             FertilizerService fertilizerService,
-            FertilizerRegistry fertilizerRegistry
+            FertilizerRegistry fertilizerRegistry,
+            ItemFactory itemFactory,
+            ItemRegistry itemRegistry
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.plugin = plugin;
         this.inspectorService = Objects.requireNonNull(inspectorService, "inspectorService cannot be null");
         this.pluginConfig = Objects.requireNonNull(pluginConfig, "pluginConfig cannot be null");
         this.wateringCanService = wateringCanService;
         this.fertilizerService = fertilizerService;
         this.fertilizerRegistry = fertilizerRegistry;
+        this.itemFactory = itemFactory;
+        this.itemRegistry = itemRegistry;
         this.miniMessage = MiniMessage.miniMessage();
     }
 
@@ -76,8 +85,140 @@ public class CroppyCommands {
             CropInspectorService inspectorService,
             PluginConfig pluginConfig
     ) {
-        this(plugin, inspectorService, pluginConfig, null, null, null);
+        this(plugin, inspectorService, pluginConfig, null, null, null, null, null);
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Dynamic Autocompletion Providers
+    // ---------------------------------------------------------------------------------------------
+
+    @Suggestions("item_categories")
+    public List<String> suggestItemCategories(CommandContext<CommandSourceStack> context, CommandInput input) {
+        if (itemRegistry == null) {
+            return List.of();
+        }
+        return List.copyOf(itemRegistry.getCategories());
+    }
+
+    @Suggestions("category_items")
+    public List<String> suggestCategoryItems(CommandContext<CommandSourceStack> context, CommandInput input) {
+        if (itemRegistry == null) {
+            return List.of();
+        }
+        String category = context.getOrDefault("category", null);
+        if (category != null && !category.isBlank()) {
+            return itemRegistry.getByCategory(category).stream()
+                    .map(def -> def.key().asString())
+                    .toList();
+        }
+        return itemRegistry.values().stream()
+                .map(def -> def.key().asString())
+                .toList();
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Unified Item Commands
+    // ---------------------------------------------------------------------------------------------
+
+    @Command("croppy item give <category> <item_id> [quantity]")
+    @Permission("croppy.admin")
+    public void giveItem(
+            CommandSourceStack source,
+            @Argument(value = "category", suggestions = "item_categories") String category,
+            @Argument(value = "item_id", suggestions = "category_items") String itemId,
+            @Argument("quantity") @Default("1") int quantity,
+            @Flag("target") Player targetPlayer,
+            @Flag("silent") boolean silent
+    ) {
+        CommandSender sender = source.getSender();
+        Player recipient = targetPlayer;
+        if (recipient == null) {
+            if (sender instanceof Player p) {
+                recipient = p;
+            } else {
+                sender.sendMessage(miniMessage.deserialize("<red>Debe especificar un jugador destinatario con --target <jugador> desde la consola.</red>"));
+                return;
+            }
+        }
+
+        if (itemRegistry == null || itemFactory == null) {
+            sender.sendMessage(miniMessage.deserialize("<red>El sistema de ítems no está inicializado.</red>"));
+            return;
+        }
+
+        Key key;
+        try {
+            key = itemId.contains(":") ? Key.parse(itemId) : Key.of("croppy", itemId);
+        } catch (Exception e) {
+            sender.sendMessage(miniMessage.deserialize("<red>Identificador de ítem inválido: " + itemId + "</red>"));
+            return;
+        }
+
+        Optional<ItemDefinition> defOpt = itemRegistry.get(key);
+        if (defOpt.isEmpty()) {
+            sender.sendMessage(miniMessage.deserialize("<red>Ítem no encontrado en el registro: " + key.asString() + "</red>"));
+            return;
+        }
+
+        ItemDefinition def = defOpt.get();
+        int amount = Math.max(1, quantity);
+        ItemStack itemStack = itemFactory.createItemStack(def, amount);
+
+        final Player recipientFinal = recipient;
+        var leftover = recipientFinal.getInventory().addItem(itemStack);
+        if (!leftover.isEmpty()) {
+            leftover.values().forEach(rem -> recipientFinal.getWorld().dropItemNaturally(recipientFinal.getLocation(), rem));
+        }
+
+        if (!silent && !recipientFinal.equals(sender)) {
+            recipientFinal.sendMessage(miniMessage.deserialize(
+                    "<green>Has recibido <yellow>" + amount + "x</yellow> " + def.displayName() + ".</green>"
+            ));
+        }
+
+        sender.sendMessage(miniMessage.deserialize(
+                "<green>Entregado <yellow>" + amount + "x</yellow> " + def.displayName() + " a " + recipientFinal.getName() + ".</green>"
+        ));
+    }
+
+    @Command("croppy item list [category]")
+    @Permission("croppy.admin")
+    public void listItemDefinitions(
+            CommandSourceStack source,
+            @Argument(value = "category", suggestions = "item_categories") @Default("") String category
+    ) {
+        CommandSender sender = source.getSender();
+        if (itemRegistry == null) {
+            sender.sendMessage(miniMessage.deserialize("<red>El registro de ítems no está inicializado.</red>"));
+            return;
+        }
+
+        if (category != null && !category.isBlank()) {
+            Collection<ItemDefinition> items = itemRegistry.getByCategory(category);
+            if (items.isEmpty()) {
+                sender.sendMessage(miniMessage.deserialize("<yellow>No hay ítems registrados en la categoría: " + category + "</yellow>"));
+                return;
+            }
+            sender.sendMessage(miniMessage.deserialize("<gold><bold>=== Ítems en categoría: " + category + " (" + items.size() + ") ===</bold></gold>"));
+            for (ItemDefinition def : items) {
+                sender.sendMessage(miniMessage.deserialize(" <dark_gray>•</dark_gray> <yellow>" + def.key().asString() + "</yellow> - " + def.displayName()));
+            }
+        } else {
+            Collection<ItemDefinition> all = itemRegistry.values();
+            sender.sendMessage(miniMessage.deserialize("<gold><bold>=== Ítems Registrados (" + all.size() + ") ===</bold></gold>"));
+            for (String cat : itemRegistry.getCategories()) {
+                Collection<ItemDefinition> inCat = itemRegistry.getByCategory(cat);
+                sender.sendMessage(miniMessage.deserialize("<aqua>[" + cat + "]</aqua> <gray>(" + inCat.size() + "):</gray>"));
+                for (ItemDefinition def : inCat) {
+                    sender.sendMessage(miniMessage.deserialize("   <dark_gray>•</dark_gray> <yellow>" + def.key().asString() + "</yellow> - " + def.displayName()));
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Core Crop & Inspection Commands
+    // ---------------------------------------------------------------------------------------------
 
     @Command("croppy inspect")
     @Permission("croppy.admin")
@@ -120,23 +261,6 @@ public class CroppyCommands {
         } else {
             sender.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
         }
-    }
-
-    @Command("croppy tool")
-    @Permission("croppy.admin")
-    public void giveTool(CommandSourceStack source) {
-        CommandSender sender = source.getSender();
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(miniMessage.deserialize("<red>Only players can receive the inspection tool."));
-            return;
-        }
-
-        ItemStack tool = CropInspectorService.createInspectionTool(plugin, pluginConfig);
-        var leftover = player.getInventory().addItem(tool);
-        if (!leftover.isEmpty()) {
-            leftover.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
-        }
-        player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "tool-given"));
     }
 
     @Command("croppy reload")
@@ -201,7 +325,7 @@ public class CroppyCommands {
     @Permission("croppy.admin")
     public void fertilizeTarget(
             CommandSourceStack source,
-            @Argument("fertilizer") String fertilizerId
+            @Argument(value = "fertilizer", suggestions = "category_items") String fertilizerId
     ) {
         CommandSender sender = source.getSender();
         if (!(sender instanceof Player player)) {
@@ -227,68 +351,12 @@ public class CroppyCommands {
         }
 
         CropInstance crop = cropOpt.get();
-        Key fertKey = Key.parse(fertilizerId);
+        Key fertKey = fertilizerId.contains(":") ? Key.parse(fertilizerId) : Key.of("croppy", fertilizerId);
         crop.setFertilizerKey(fertKey);
 
         target.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, target.getLocation().add(0.5, 0.5, 0.5), 12, 0.2, 0.2, 0.2, 0.1);
         player.playSound(target.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.1f);
         player.sendMessage(miniMessage.deserialize("<green>¡Fertilizante <yellow>" + fertKey.asString() + "</yellow> aplicado al cultivo!</green>"));
-    }
-
-    @Command("croppy givecan <player> <tier>")
-    @Permission("croppy.admin")
-    public void giveWateringCan(
-            CommandSourceStack source,
-            @Argument("player") Player targetPlayer,
-            @Argument("tier") String tierStr
-    ) {
-        CommandSender sender = source.getSender();
-        if (wateringCanService == null) {
-            sender.sendMessage(miniMessage.deserialize("<red>Watering can service not initialized."));
-            return;
-        }
-
-        WateringCanTier tier = WateringCanTier.parse(tierStr);
-        ItemStack can = wateringCanService.createWateringCan(tier);
-        var leftover = targetPlayer.getInventory().addItem(can);
-        if (!leftover.isEmpty()) {
-            leftover.values().forEach(rem -> targetPlayer.getWorld().dropItemNaturally(targetPlayer.getLocation(), rem));
-        }
-
-        sender.sendMessage(miniMessage.deserialize("<green>Entregada " + tier.displayName() + " a " + targetPlayer.getName() + ".</green>"));
-    }
-
-    @Command("croppy givefertilizer <player> <fertilizer> [amount]")
-    @Permission("croppy.admin")
-    public void giveFertilizer(
-            CommandSourceStack source,
-            @Argument("player") Player targetPlayer,
-            @Argument("fertilizer") String fertId,
-            @Argument("amount") @Default("1") int amount
-    ) {
-        CommandSender sender = source.getSender();
-        if (fertilizerService == null || fertilizerRegistry == null) {
-            sender.sendMessage(miniMessage.deserialize("<red>Fertilizer service not initialized."));
-            return;
-        }
-
-        Key key = Key.parse(fertId);
-        Optional<Fertilizer> fertOpt = fertilizerRegistry.get(key);
-        if (fertOpt.isEmpty()) {
-            sender.sendMessage(miniMessage.deserialize("<red>Fertilizante no encontrado: " + fertId));
-            return;
-        }
-
-        Fertilizer fert = fertOpt.get();
-        ItemStack item = fertilizerService.createFertilizerItem(fert);
-        item.setAmount(Math.max(1, amount));
-
-        var leftover = targetPlayer.getInventory().addItem(item);
-        if (!leftover.isEmpty()) {
-            leftover.values().forEach(rem -> targetPlayer.getWorld().dropItemNaturally(targetPlayer.getLocation(), rem));
-        }
-
-        sender.sendMessage(miniMessage.deserialize("<green>Entregado " + amount + "x " + fert.name() + " a " + targetPlayer.getName() + ".</green>"));
     }
 
     @Command("croppy setstage <stageIndex>")
@@ -376,63 +444,5 @@ public class CroppyCommands {
                 "progress-updated",
                 Placeholder.unparsed("progress", String.format(Locale.ROOT, "%.1f", crop.getProgress()))
         ));
-    }
-
-    @Command("croppy give <player> <species> [amount]")
-    @Permission("croppy.admin")
-    public void giveCropItem(
-            CommandSourceStack source,
-            @Argument("player") Player targetPlayer,
-            @Argument("species") Species species,
-            @Argument("amount") @Default("1") int amount
-    ) {
-        CommandSender sender = source.getSender();
-        if (amount <= 0) {
-            sender.sendMessage(miniMessage.deserialize("<red>Amount must be greater than 0."));
-            return;
-        }
-
-        ItemStack item = createSpeciesItem(species, amount);
-        var leftover = targetPlayer.getInventory().addItem(item);
-        if (!leftover.isEmpty()) {
-            leftover.values().forEach(rem -> targetPlayer.getWorld().dropItemNaturally(targetPlayer.getLocation(), rem));
-        }
-
-        sender.sendMessage(pluginConfig.getMessage(
-                plugin.getConfig(),
-                "give-success",
-                Placeholder.unparsed("amount", String.valueOf(amount)),
-                Placeholder.unparsed("species", species.getName()),
-                Placeholder.unparsed("player", targetPlayer.getName())
-        ));
-    }
-
-    private ItemStack createSpeciesItem(Species species, int amount) {
-        CropDisplay display = species.getDisplay();
-        Material material = Material.WHEAT_SEEDS;
-        if (display != null && display.seedItemId() != null) {
-            String id = display.seedItemId().replace("minecraft:", "").toUpperCase(Locale.ROOT);
-            Material matched = Material.matchMaterial(id);
-            if (matched != null) {
-                material = matched;
-            }
-        }
-
-        ItemStack item = new ItemStack(material, Math.max(1, amount));
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.displayName(miniMessage.deserialize("<yellow>" + species.getName() + " Seeds</yellow>"));
-            meta.lore(List.of(
-                    miniMessage.deserialize("<gray>Custom Croppy agricultural seed.</gray>"),
-                    miniMessage.deserialize("<dark_gray>Species: <gray>" + species.getKey().asString())
-            ));
-            meta.getPersistentDataContainer().set(
-                    new NamespacedKey(plugin, "species"),
-                    PersistentDataType.STRING,
-                    species.getKey().asString()
-            );
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 }
