@@ -22,6 +22,8 @@ import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
 import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
 import dev.darkblade.croppy.platform.paper.growth.PaperEnvironmentProvider;
 import dev.darkblade.croppy.platform.paper.growth.PaperGrowthTicker;
+import dev.darkblade.croppy.platform.paper.command.parser.KeyParser;
+import dev.darkblade.croppy.platform.paper.command.parser.SpeciesParser;
 import dev.darkblade.croppy.platform.paper.growth.RainHydrationTask;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.listener.ChunkLifecycleListener;
@@ -39,7 +41,6 @@ import dev.darkblade.croppy.platform.paper.storage.LibbyDependencyLoader;
 import dev.darkblade.croppy.platform.paper.watering.DailyTransitionService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
 import io.leangen.geantyref.TypeToken;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import org.bukkit.Chunk;
 import org.bukkit.World;
@@ -49,6 +50,8 @@ import org.bukkit.scheduler.BukkitTask;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.PaperCommandManager;
+import org.incendo.cloud.paper.util.sender.PaperSimpleSenderMapper;
+import org.incendo.cloud.paper.util.sender.Source;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -57,6 +60,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 
 /**
  * Main Paper plugin adapter bridging server lifecycle events to the decoupled core.
@@ -90,6 +94,7 @@ public class CroppyPlugin extends JavaPlugin {
 
         this.core = new CroppyCore(getLogger());
         try {
+            preloadShutdownClasses();
             this.core.initialize();
 
             this.libbyLoader = new LibbyDependencyLoader(this);
@@ -245,22 +250,27 @@ public class CroppyPlugin extends JavaPlugin {
                 getServer()
         );
 
-        PaperCommandManager<CommandSourceStack> commandManager = PaperCommandManager.builder()
+        PaperCommandManager<Source> commandManager = PaperCommandManager.builder(PaperSimpleSenderMapper.simpleSenderMapper())
                 .executionCoordinator(ExecutionCoordinator.simpleCoordinator())
                 .buildOnEnable(this);
 
         if (commandManager.hasBrigadierManager()) {
             commandManager.brigadierManager().registerMapping(
-                    new TypeToken<SpeciesParser<CommandSourceStack>>() {},
+                    new TypeToken<SpeciesParser<Source>>() {},
+                    builder -> builder.toConstant(ArgumentTypes.key()).cloudSuggestions()
+            );
+            commandManager.brigadierManager().registerMapping(
+                    new TypeToken<KeyParser<Source>>() {},
                     builder -> builder.toConstant(ArgumentTypes.key()).cloudSuggestions()
             );
         }
 
         commandManager.parserRegistry().registerParser(SpeciesParser.speciesParser(core.getSpeciesRegistry()));
+        commandManager.parserRegistry().registerParser(KeyParser.keyParser());
 
-        AnnotationParser<CommandSourceStack> annotationParser = new AnnotationParser<>(
+        AnnotationParser<Source> annotationParser = new AnnotationParser<>(
                 commandManager,
-                CommandSourceStack.class
+                Source.class
         );
         annotationParser.parse(new CroppyCommands(
                 this,
@@ -303,27 +313,51 @@ public class CroppyPlugin extends JavaPlugin {
         getLogger().info("Registered " + core.getSpeciesRegistry().size() + " crop species into SpeciesRegistry.");
     }
 
+    private void preloadShutdownClasses() {
+        try {
+            Class.forName(ChunkPosition.class.getName());
+        } catch (ClassNotFoundException e) {
+            getLogger().log(Level.WARNING, "Failed to preload ChunkPosition class for shutdown safety", e);
+        }
+    }
+
     @Override
     public void onDisable() {
         getLogger().info("Disabling Croppy plugin...");
         if (this.growthTicker != null) {
-            this.growthTicker.stop();
+            try {
+                this.growthTicker.stop();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error stopping growth ticker during shutdown", t);
+            }
             this.growthTicker = null;
         }
 
         if (this.rainTask != null && !this.rainTask.isCancelled()) {
-            this.rainTask.cancel();
+            try {
+                this.rainTask.cancel();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error cancelling rain task during shutdown", t);
+            }
             this.rainTask = null;
         }
 
         flushActiveCrops();
 
         if (this.storage != null) {
-            this.storage.shutdown();
+            try {
+                this.storage.shutdown();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error shutting down storage backend", t);
+            }
             this.storage = null;
         }
         if (this.core != null) {
-            this.core.shutdown();
+            try {
+                this.core.shutdown();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error shutting down core", t);
+            }
         }
         getLogger().info("Croppy disabled cleanly.");
     }
@@ -333,17 +367,21 @@ public class CroppyPlugin extends JavaPlugin {
             return;
         }
 
-        Map<ChunkPosition, List<CropInstance>> chunkMap = new HashMap<>();
+        try {
+            Map<ChunkPosition, List<CropInstance>> chunkMap = new HashMap<>();
 
-        for (CropInstance crop : core.getCropManager().getAllCrops()) {
-            ChunkPosition coord = crop.getPosition().toChunkPosition();
-            chunkMap.computeIfAbsent(coord, k -> new ArrayList<>()).add(crop);
-        }
+            for (CropInstance crop : core.getCropManager().getAllCrops()) {
+                ChunkPosition coord = crop.getPosition().toChunkPosition();
+                chunkMap.computeIfAbsent(coord, k -> new ArrayList<>()).add(crop);
+            }
 
-        for (Map.Entry<ChunkPosition, List<CropInstance>> entry : chunkMap.entrySet()) {
-            storage.saveChunk(entry.getKey().worldName(), entry.getKey().x(), entry.getKey().z(), entry.getValue());
+            for (Map.Entry<ChunkPosition, List<CropInstance>> entry : chunkMap.entrySet()) {
+                storage.saveChunk(entry.getKey().worldName(), entry.getKey().x(), entry.getKey().z(), entry.getValue());
+            }
+            getLogger().info("Flushed " + core.getCropManager().count() + " active crop instances across " + chunkMap.size() + " chunks.");
+        } catch (Throwable t) {
+            getLogger().log(Level.SEVERE, "Failed to flush active crops during plugin shutdown", t);
         }
-        getLogger().info("Flushed " + core.getCropManager().count() + " active crop instances across " + chunkMap.size() + " chunks.");
     }
 
     public CroppyCore getCore() {

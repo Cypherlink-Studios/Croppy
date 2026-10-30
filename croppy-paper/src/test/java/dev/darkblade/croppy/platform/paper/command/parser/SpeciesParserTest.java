@@ -7,7 +7,7 @@ import dev.darkblade.croppy.api.species.HarvestDefinition;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.incendo.cloud.paper.util.sender.Source;
 import org.incendo.cloud.context.CommandInput;
 import org.incendo.cloud.parser.ArgumentParseResult;
 import org.incendo.cloud.suggestion.Suggestion;
@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SpeciesParserTest {
 
     private DefaultSpeciesRegistry registry;
-    private SpeciesParser<CommandSourceStack> parser;
+    private SpeciesParser<Source> parser;
 
     @BeforeEach
     void setUp() {

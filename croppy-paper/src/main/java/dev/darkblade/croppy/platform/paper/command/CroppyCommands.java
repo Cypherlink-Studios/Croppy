@@ -15,7 +15,6 @@ import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -37,6 +36,7 @@ import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 import org.incendo.cloud.context.CommandContext;
 import org.incendo.cloud.context.CommandInput;
+import org.incendo.cloud.paper.util.sender.Source;
 
 import java.util.Collection;
 import java.util.List;
@@ -93,7 +93,7 @@ public class CroppyCommands {
     // ---------------------------------------------------------------------------------------------
 
     @Suggestions("item_categories")
-    public List<String> suggestItemCategories(CommandContext<CommandSourceStack> context, CommandInput input) {
+    public List<String> suggestItemCategories(CommandContext<Source> context, CommandInput input) {
         if (itemRegistry == null) {
             return List.of();
         }
@@ -101,11 +101,11 @@ public class CroppyCommands {
     }
 
     @Suggestions("category_items")
-    public List<String> suggestCategoryItems(CommandContext<CommandSourceStack> context, CommandInput input) {
+    public List<String> suggestCategoryItems(CommandContext<Source> context, CommandInput input) {
         if (itemRegistry == null) {
             return List.of();
         }
-        String category = context.getOrDefault("category", null);
+        String category = (context != null) ? context.getOrDefault("category", null) : null;
         if (category != null && !category.isBlank()) {
             return itemRegistry.getByCategory(category).stream()
                     .map(def -> def.key().asString())
@@ -116,6 +116,21 @@ public class CroppyCommands {
                 .toList();
     }
 
+    @Suggestions("fertilizer_items")
+    public List<String> suggestFertilizerItems(CommandContext<Source> context, CommandInput input) {
+        if (fertilizerRegistry != null && !fertilizerRegistry.values().isEmpty()) {
+            return fertilizerRegistry.values().stream()
+                    .map(f -> f.getKey().asString())
+                    .toList();
+        }
+        if (itemRegistry != null) {
+            return itemRegistry.getByCategory("fertilizers").stream()
+                    .map(def -> def.key().asString())
+                    .toList();
+        }
+        return List.of();
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Unified Item Commands
     // ---------------------------------------------------------------------------------------------
@@ -123,14 +138,14 @@ public class CroppyCommands {
     @Command("croppy item give <category> <item_id> [quantity]")
     @Permission("croppy.admin")
     public void giveItem(
-            CommandSourceStack source,
+            Source source,
             @Argument(value = "category", suggestions = "item_categories") String category,
-            @Argument(value = "item_id", suggestions = "category_items") String itemId,
+            @Argument(value = "item_id", suggestions = "category_items") Key itemId,
             @Argument("quantity") @Default("1") int quantity,
             @Flag("target") Player targetPlayer,
             @Flag("silent") boolean silent
     ) {
-        CommandSender sender = source.getSender();
+        CommandSender sender = source.source();
         Player recipient = targetPlayer;
         if (recipient == null) {
             if (sender instanceof Player p) {
@@ -146,17 +161,9 @@ public class CroppyCommands {
             return;
         }
 
-        Key key;
-        try {
-            key = itemId.contains(":") ? Key.parse(itemId) : Key.of("croppy", itemId);
-        } catch (Exception e) {
-            sender.sendMessage(miniMessage.deserialize("<red>Identificador de ítem inválido: " + itemId + "</red>"));
-            return;
-        }
-
-        Optional<ItemDefinition> defOpt = itemRegistry.get(key);
+        Optional<ItemDefinition> defOpt = itemRegistry.get(itemId);
         if (defOpt.isEmpty()) {
-            sender.sendMessage(miniMessage.deserialize("<red>Ítem no encontrado en el registro: " + key.asString() + "</red>"));
+            sender.sendMessage(miniMessage.deserialize("<red>Ítem no encontrado en el registro: " + itemId.asString() + "</red>"));
             return;
         }
 
@@ -184,10 +191,10 @@ public class CroppyCommands {
     @Command("croppy item list [category]")
     @Permission("croppy.admin")
     public void listItemDefinitions(
-            CommandSourceStack source,
+            Source source,
             @Argument(value = "category", suggestions = "item_categories") @Default("") String category
     ) {
-        CommandSender sender = source.getSender();
+        CommandSender sender = source.source();
         if (itemRegistry == null) {
             sender.sendMessage(miniMessage.deserialize("<red>El registro de ítems no está inicializado.</red>"));
             return;
@@ -222,8 +229,8 @@ public class CroppyCommands {
 
     @Command("croppy inspect")
     @Permission("croppy.admin")
-    public void inspectRaycast(CommandSourceStack source) {
-        CommandSender sender = source.getSender();
+    public void inspectRaycast(Source source) {
+        CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
             sender.sendMessage(miniMessage.deserialize("<red>Console must specify coordinates: /croppy inspect <x> <y> <z>"));
             return;
@@ -247,13 +254,15 @@ public class CroppyCommands {
     @Command("croppy inspect <x> <y> <z>")
     @Permission("croppy.admin")
     public void inspectCoordinates(
-            CommandSourceStack source,
+            Source source,
             @Argument("x") int x,
             @Argument("y") int y,
             @Argument("z") int z
     ) {
-        CommandSender sender = source.getSender();
-        World world = (sender instanceof Player player) ? player.getWorld() : Bukkit.getWorlds().get(0);
+        CommandSender sender = source.source();
+        World world = (sender instanceof Player player)
+                ? player.getWorld()
+                : (source.stack().getLocation().getWorld() != null ? source.stack().getLocation().getWorld() : Bukkit.getWorlds().get(0));
         BlockPosition pos = BlockPosition.of(world.getName(), x, y, z);
         Optional<Component> card = inspectorService.inspect(pos);
         if (card.isPresent()) {
@@ -265,8 +274,8 @@ public class CroppyCommands {
 
     @Command("croppy reload")
     @Permission("croppy.admin")
-    public void reload(CommandSourceStack source) {
-        CommandSender sender = source.getSender();
+    public void reload(Source source) {
+        CommandSender sender = source.source();
         try {
             plugin.reloadPlugin();
             sender.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "reload-success"));
@@ -282,8 +291,8 @@ public class CroppyCommands {
 
     @Command("croppy water")
     @Permission("croppy.admin")
-    public void waterTarget(CommandSourceStack source) {
-        CommandSender sender = source.getSender();
+    public void waterTarget(Source source) {
+        CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
             sender.sendMessage(miniMessage.deserialize("<red>Only players can execute targeting commands."));
             return;
@@ -324,10 +333,10 @@ public class CroppyCommands {
     @Command("croppy fertilize <fertilizer>")
     @Permission("croppy.admin")
     public void fertilizeTarget(
-            CommandSourceStack source,
-            @Argument(value = "fertilizer", suggestions = "category_items") String fertilizerId
+            Source source,
+            @Argument(value = "fertilizer", suggestions = "fertilizer_items") Key fertilizerKey
     ) {
-        CommandSender sender = source.getSender();
+        CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
             sender.sendMessage(miniMessage.deserialize("<red>Only players can execute targeting commands."));
             return;
@@ -351,21 +360,20 @@ public class CroppyCommands {
         }
 
         CropInstance crop = cropOpt.get();
-        Key fertKey = fertilizerId.contains(":") ? Key.parse(fertilizerId) : Key.of("croppy", fertilizerId);
-        crop.setFertilizerKey(fertKey);
+        crop.setFertilizerKey(fertilizerKey);
 
         target.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, target.getLocation().add(0.5, 0.5, 0.5), 12, 0.2, 0.2, 0.2, 0.1);
         player.playSound(target.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.1f);
-        player.sendMessage(miniMessage.deserialize("<green>¡Fertilizante <yellow>" + fertKey.asString() + "</yellow> aplicado al cultivo!</green>"));
+        player.sendMessage(miniMessage.deserialize("<green>¡Fertilizante <yellow>" + fertilizerKey.asString() + "</yellow> aplicado al cultivo!</green>"));
     }
 
     @Command("croppy setstage <stageIndex>")
     @Permission("croppy.admin")
     public void setStage(
-            CommandSourceStack source,
+            Source source,
             @Argument("stageIndex") int stageIndex
     ) {
-        CommandSender sender = source.getSender();
+        CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
             sender.sendMessage(miniMessage.deserialize("<red>Only players can execute targeting commands."));
             return;
@@ -414,10 +422,10 @@ public class CroppyCommands {
     @Command("croppy setprogress <progress>")
     @Permission("croppy.admin")
     public void setProgress(
-            CommandSourceStack source,
+            Source source,
             @Argument("progress") double progress
     ) {
-        CommandSender sender = source.getSender();
+        CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
             sender.sendMessage(miniMessage.deserialize("<red>Only players can execute targeting commands."));
             return;

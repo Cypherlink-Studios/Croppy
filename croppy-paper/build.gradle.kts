@@ -30,6 +30,15 @@ dependencies {
 tasks {
     shadowJar {
         archiveClassifier.set("")
+        relocate("org.incendo.cloud", "dev.darkblade.croppy.libs.cloud")
+        relocate("io.leangen.geantyref", "dev.darkblade.croppy.libs.geantyref")
+        relocate("net.byteflux.libby", "dev.darkblade.croppy.libs.libby")
+    }
+    jar {
+        archiveClassifier.set("plain")
+    }
+    assemble {
+        dependsOn(shadowJar)
     }
     build {
         dependsOn(shadowJar)
