@@ -147,4 +147,26 @@ class CropInspectorServiceTest {
         String textNoWater = PlainTextComponentSerializer.plainText().serialize(cardNoWater);
         assertTrue(textNoWater.contains("Insufficient Water"));
     }
+
+    @Test
+    void testFormatCropCardHydrationAndFertilizer() {
+        BlockPosition pos = new BlockPosition("world", 40, 64, 40);
+        DefaultCropInstance crop = new DefaultCropInstance(testSpecies.getKey(), pos);
+        crop.setLastWateredDay(5L);
+        crop.setFertilizerKey(Key.of("croppy", "speed_gro"));
+
+        CropEnvironment env = CropEnvironment.of(15, 8);
+
+        // When currentDay is 5 (watered today)
+        Component cardWatered = inspectorService.formatCropCard(crop, testSpecies, env, 5L);
+        String textWatered = PlainTextComponentSerializer.plainText().serialize(cardWatered);
+        assertTrue(textWatered.contains("Hydration: Regado hoy"));
+        assertTrue(textWatered.contains("Fertilizer: croppy:speed_gro"));
+        assertTrue(textWatered.contains("Unwatered Policy: PAUSE"));
+
+        // When currentDay is 7 (dry for 2 days)
+        Component cardDry = inspectorService.formatCropCard(crop, testSpecies, env, 7L);
+        String textDry = PlainTextComponentSerializer.plainText().serialize(cardDry);
+        assertTrue(textDry.contains("Seco (hace 2 día(s))"));
+    }
 }

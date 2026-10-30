@@ -21,9 +21,15 @@ import java.util.Optional;
 public class CropPlantListener implements Listener {
 
     private final CroppyCore core;
+    private final dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService fertilizerService;
+
+    public CropPlantListener(CroppyCore core, dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService fertilizerService) {
+        this.core = core;
+        this.fertilizerService = fertilizerService;
+    }
 
     public CropPlantListener(CroppyCore core) {
-        this.core = core;
+        this(core, null);
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -66,6 +72,9 @@ public class CropPlantListener implements Listener {
         BlockPosition pos = BlockPosition.of(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
 
         CropInstance instance = new DefaultCropInstance(species.getKey(), pos);
+        if (fertilizerService != null) {
+            fertilizerService.consumeBufferedSoilFertilizer(pos).ifPresent(instance::setFertilizerKey);
+        }
 
         CropPlantEvent plantEvent = new CropPlantEvent(event.getPlayer(), species, block, instance);
         Bukkit.getPluginManager().callEvent(plantEvent);

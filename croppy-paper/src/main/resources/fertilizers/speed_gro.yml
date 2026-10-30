@@ -1,0 +1,9 @@
+id: "croppy:speed_gro"
+name: "<green>Fertilizante Rápido</green>"
+description:
+  - "<gray>Acelera la velocidad de crecimiento en un 25%.</gray>"
+type: SPEED
+speed_multiplier: 1.25
+item:
+  material: BONE_MEAL
+  custom_model_data: 1001

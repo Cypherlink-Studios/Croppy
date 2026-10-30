@@ -61,9 +61,20 @@ public class SqliteCropStorage implements CropStorage {
                     progress DOUBLE NOT NULL,
                     planted_at BIGINT NOT NULL,
                     last_updated BIGINT NOT NULL,
+                    last_watered_day BIGINT NOT NULL DEFAULT -1,
+                    fertilizer VARCHAR(128),
                     PRIMARY KEY (world, x, y, z)
                 );
             """);
+
+            // Defensive migrations for pre-existing tables
+            try {
+                stmt.execute("ALTER TABLE croppy_crops ADD COLUMN last_watered_day BIGINT DEFAULT -1;");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.execute("ALTER TABLE croppy_crops ADD COLUMN fertilizer VARCHAR(128);");
+            } catch (SQLException ignored) {}
+
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_croppy_chunk ON croppy_crops (world, chunk_x, chunk_z);");
             logger.info("SQLite database storage initialized and schema verified.");
         } catch (SQLException e) {
@@ -74,7 +85,7 @@ public class SqliteCropStorage implements CropStorage {
 
     @Override
     public Collection<CropInstance> loadChunk(String worldName, int chunkX, int chunkZ) {
-        String sql = "SELECT species, x, y, z, stage_index, progress, planted_at, last_updated FROM croppy_crops WHERE world = ? AND chunk_x = ? AND chunk_z = ?";
+        String sql = "SELECT species, x, y, z, stage_index, progress, planted_at, last_updated, last_watered_day, fertilizer FROM croppy_crops WHERE world = ? AND chunk_x = ? AND chunk_z = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, worldName);
@@ -92,9 +103,12 @@ public class SqliteCropStorage implements CropStorage {
                     double progress = rs.getDouble("progress");
                     long plantedAt = rs.getLong("planted_at");
                     long lastUpdated = rs.getLong("last_updated");
+                    long lastWateredDay = rs.getLong("last_watered_day");
+                    String fertStr = rs.getString("fertilizer");
+                    Key fertilizerKey = (fertStr != null && !fertStr.isBlank()) ? Key.parse(fertStr) : null;
 
                     BlockPosition pos = BlockPosition.of(worldName, x, y, z);
-                    list.add(new DefaultCropInstance(speciesKey, pos, stageIndex, progress, plantedAt, lastUpdated));
+                    list.add(new DefaultCropInstance(speciesKey, pos, stageIndex, progress, plantedAt, lastUpdated, lastWateredDay, fertilizerKey));
                 }
                 return list;
             }
@@ -120,8 +134,8 @@ public class SqliteCropStorage implements CropStorage {
                 // Batch insert current crops
                 if (crops != null && !crops.isEmpty()) {
                     String insertSql = """
-                        INSERT INTO croppy_crops (world, x, y, z, chunk_x, chunk_z, species, stage_index, progress, planted_at, last_updated)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO croppy_crops (world, x, y, z, chunk_x, chunk_z, species, stage_index, progress, planted_at, last_updated, last_watered_day, fertilizer)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """;
                     try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
                         for (CropInstance crop : crops) {
@@ -137,6 +151,8 @@ public class SqliteCropStorage implements CropStorage {
                             ins.setDouble(9, crop.getProgress());
                             ins.setLong(10, crop.getPlantedAtMillis());
                             ins.setLong(11, crop.getLastUpdatedMillis());
+                            ins.setLong(12, crop.getLastWateredDay());
+                            ins.setString(13, crop.getFertilizerKey() != null ? crop.getFertilizerKey().asString() : null);
                             ins.addBatch();
                         }
                         ins.executeBatch();
@@ -160,12 +176,14 @@ public class SqliteCropStorage implements CropStorage {
         BlockPosition pos = crop.getPosition();
 
         String sql = """
-            INSERT INTO croppy_crops (world, x, y, z, chunk_x, chunk_z, species, stage_index, progress, planted_at, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO croppy_crops (world, x, y, z, chunk_x, chunk_z, species, stage_index, progress, planted_at, last_updated, last_watered_day, fertilizer)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(world, x, y, z) DO UPDATE SET
                 stage_index = excluded.stage_index,
                 progress = excluded.progress,
-                last_updated = excluded.last_updated
+                last_updated = excluded.last_updated,
+                last_watered_day = excluded.last_watered_day,
+                fertilizer = excluded.fertilizer
         """;
 
         try (Connection conn = dataSource.getConnection();
@@ -181,6 +199,8 @@ public class SqliteCropStorage implements CropStorage {
             ps.setDouble(9, crop.getProgress());
             ps.setLong(10, crop.getPlantedAtMillis());
             ps.setLong(11, crop.getLastUpdatedMillis());
+            ps.setLong(12, crop.getLastWateredDay());
+            ps.setString(13, crop.getFertilizerKey() != null ? crop.getFertilizerKey().asString() : null);
             ps.executeUpdate();
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Failed to save crop at " + pos + " to SQLite", e);

@@ -1,8 +1,12 @@
 package dev.darkblade.croppy.platform.paper.service;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.fertilizer.Fertilizer;
+import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.growth.CropEnvironment;
 import dev.darkblade.croppy.api.growth.EnvironmentProvider;
+import dev.darkblade.croppy.api.growth.UnwateredPolicy;
+import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.species.CropRequirements;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
@@ -13,6 +17,8 @@ import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Server;
+import org.bukkit.World;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -30,17 +36,40 @@ public class CropInspectorService {
     private final CropManager cropManager;
     private final SpeciesRegistry speciesRegistry;
     private final EnvironmentProvider environmentProvider;
+    private final FertilizerRegistry fertilizerRegistry;
+    private final Server server;
     private final MiniMessage miniMessage;
+
+    public CropInspectorService(
+            CropManager cropManager,
+            SpeciesRegistry speciesRegistry,
+            EnvironmentProvider environmentProvider,
+            FertilizerRegistry fertilizerRegistry,
+            Server server
+    ) {
+        this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
+        this.speciesRegistry = Objects.requireNonNull(speciesRegistry, "speciesRegistry cannot be null");
+        this.environmentProvider = Objects.requireNonNull(environmentProvider, "environmentProvider cannot be null");
+        this.fertilizerRegistry = fertilizerRegistry;
+        this.server = server;
+        this.miniMessage = MiniMessage.miniMessage();
+    }
+
+    public CropInspectorService(
+            CropManager cropManager,
+            SpeciesRegistry speciesRegistry,
+            EnvironmentProvider environmentProvider,
+            FertilizerRegistry fertilizerRegistry
+    ) {
+        this(cropManager, speciesRegistry, environmentProvider, fertilizerRegistry, null);
+    }
 
     public CropInspectorService(
             CropManager cropManager,
             SpeciesRegistry speciesRegistry,
             EnvironmentProvider environmentProvider
     ) {
-        this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
-        this.speciesRegistry = Objects.requireNonNull(speciesRegistry, "speciesRegistry cannot be null");
-        this.environmentProvider = Objects.requireNonNull(environmentProvider, "environmentProvider cannot be null");
-        this.miniMessage = MiniMessage.miniMessage();
+        this(cropManager, speciesRegistry, environmentProvider, null, null);
     }
 
     /**
@@ -63,14 +92,26 @@ public class CropInspectorService {
             ));
         }
 
+        long currentDay = -1L;
+        if (server != null) {
+            World world = server.getWorld(position.worldName());
+            if (world != null) {
+                currentDay = world.getFullTime() / 24000L;
+            }
+        }
+
         CropEnvironment environment = environmentProvider.getEnvironment(position);
-        return Optional.of(formatCropCard(crop, speciesOpt.get(), environment));
+        return Optional.of(formatCropCard(crop, speciesOpt.get(), environment, currentDay));
+    }
+
+    public Component formatCropCard(CropInstance crop, Species species, CropEnvironment environment) {
+        return formatCropCard(crop, species, environment, -1L);
     }
 
     /**
      * Formats a complete crop status card into a rich Kyori Adventure Component.
      */
-    public Component formatCropCard(CropInstance crop, Species species, CropEnvironment environment) {
+    public Component formatCropCard(CropInstance crop, Species species, CropEnvironment environment, long currentDay) {
         int totalStages = Math.max(1, species.getTotalStages());
         int currentStageIdx = Math.min(crop.getStageIndex(), totalStages - 1);
         StageDefinition stage = species.getStage(currentStageIdx);
@@ -115,11 +156,47 @@ public class CropInspectorService {
         String lightColor = lightOk ? "<green>" : "<red>";
         String waterColor = waterOk ? "<blue>" : "<red>";
 
+        // Daily Hydration string
+        String hydrationStr;
+        if (currentDay >= 0) {
+            if (crop.isWateredOn(currentDay)) {
+                hydrationStr = "<blue>Regado hoy 💧</blue>";
+            } else {
+                long dryDays = crop.getLastWateredDay() >= 0 ? (currentDay - crop.getLastWateredDay()) : (currentDay + 1);
+                hydrationStr = "<red>Seco (hace " + dryDays + " día(s)) 🥀</red>";
+            }
+        } else {
+            hydrationStr = crop.getLastWateredDay() >= 0
+                    ? "<blue>Regado (Día " + crop.getLastWateredDay() + ") 💧</blue>"
+                    : "<gray>Sin regar 🥀</gray>";
+        }
+
+        // Fertilizer string
+        String fertilizerStr;
+        Key fertKey = crop.getFertilizerKey();
+        if (fertKey != null) {
+            if (fertilizerRegistry != null && fertilizerRegistry.get(fertKey).isPresent()) {
+                Fertilizer fert = fertilizerRegistry.get(fertKey).get();
+                fertilizerStr = "<green>" + fert.name() + " (" + fert.type().name() + ")</green>";
+            } else {
+                fertilizerStr = "<green>" + fertKey.asString() + "</green>";
+            }
+        } else {
+            fertilizerStr = "<gray>Ninguno</gray>";
+        }
+
+        // Unwatered policy string
+        UnwateredPolicy policy = species.getUnwateredPolicy();
+        String policyStr = policy != null ? policy.type().name() : "PAUSE";
+
         String card = """
                 <gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Crop Inspection
                 <dark_gray>├─ <gold>Species: <yellow>%s <gray>(%s)
                 <dark_gray>├─ <gold>Stage: <yellow>%d/%d <gray>(ID: %s)
                 <dark_gray>├─ <gold>Progress: %s <gray>(%s)
+                <dark_gray>├─ <gold>Hydration: %s
+                <dark_gray>├─ <gold>Fertilizer: %s
+                <dark_gray>├─ <gold>Unwatered Policy: <yellow>%s</yellow>
                 <dark_gray>├─ <gold>Light Level: %s%d <gray>(Min: %d)
                 <dark_gray>├─ <gold>Water Level: %s%d/8 <gray>(Min: %d)
                 <dark_gray>└─ <gold>Status: %s"""
@@ -131,6 +208,9 @@ public class CropInspectorService {
                         stage.id(),
                         progressBar,
                         pctStr,
+                        hydrationStr,
+                        fertilizerStr,
+                        policyStr,
                         lightColor,
                         currentLight,
                         reqLight,
@@ -145,7 +225,6 @@ public class CropInspectorService {
 
     /**
      * Renders a 10-bar visual progress indicator.
-     * Example: [■■■■■□□□□□]
      */
     public static String renderProgressBar(double ratio, int totalBars) {
         double clamped = Math.max(0.0, Math.min(1.0, ratio));

@@ -16,17 +16,19 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Compact binary serializer/deserializer for spatial crop instances.
+ * Compact binary serializer/deserializer for spatial crop instances supporting schema versioning.
  */
 public final class CropBinaryCodec {
 
     private static final int MAGIC = 0x43525059; // 'CRPY'
-    private static final int VERSION = 1;
+    public static final int VERSION_1 = 1;
+    public static final int VERSION_2 = 2;
+    public static final int CURRENT_VERSION = VERSION_2;
 
     private CropBinaryCodec() {}
 
     /**
-     * Serializes a collection of crop instances into a compact byte array.
+     * Serializes a collection of crop instances into a compact byte array using current schema version (V2).
      */
     public static byte[] serialize(Collection<CropInstance> crops) {
         if (crops == null || crops.isEmpty()) {
@@ -36,7 +38,7 @@ public final class CropBinaryCodec {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(baos)) {
             out.writeInt(MAGIC);
-            out.writeInt(VERSION);
+            out.writeInt(CURRENT_VERSION);
             out.writeInt(crops.size());
             for (CropInstance crop : crops) {
                 out.writeUTF(crop.getSpeciesKey().asString());
@@ -48,6 +50,13 @@ public final class CropBinaryCodec {
                 out.writeDouble(crop.getProgress());
                 out.writeLong(crop.getPlantedAtMillis());
                 out.writeLong(crop.getLastUpdatedMillis());
+                out.writeLong(crop.getLastWateredDay());
+                if (crop.getFertilizerKey() != null) {
+                    out.writeBoolean(true);
+                    out.writeUTF(crop.getFertilizerKey().asString());
+                } else {
+                    out.writeBoolean(false);
+                }
             }
         } catch (IOException e) {
             throw new IllegalStateException("Failed to serialize crop collection", e);
@@ -57,7 +66,7 @@ public final class CropBinaryCodec {
     }
 
     /**
-     * Deserializes a byte array into a list of crop instances.
+     * Deserializes a byte array into a list of crop instances, supporting V1 and V2 formats.
      */
     public static List<CropInstance> deserialize(byte[] data) {
         if (data == null || data.length == 0) {
@@ -70,7 +79,7 @@ public final class CropBinaryCodec {
                 throw new IllegalArgumentException("Invalid binary crop data header: " + Integer.toHexString(magic));
             }
             int version = in.readInt();
-            if (version != VERSION) {
+            if (version != VERSION_1 && version != VERSION_2) {
                 throw new IllegalArgumentException("Unsupported binary crop data version: " + version);
             }
             int count = in.readInt();
@@ -86,8 +95,19 @@ public final class CropBinaryCodec {
                 long plantedAt = in.readLong();
                 long lastUpdated = in.readLong();
 
+                long lastWateredDay = -1L;
+                Key fertilizerKey = null;
+
+                if (version >= VERSION_2) {
+                    lastWateredDay = in.readLong();
+                    boolean hasFertilizer = in.readBoolean();
+                    if (hasFertilizer) {
+                        fertilizerKey = Key.parse(in.readUTF());
+                    }
+                }
+
                 BlockPosition pos = BlockPosition.of(world, x, y, z);
-                list.add(new DefaultCropInstance(speciesKey, pos, stageIndex, progress, plantedAt, lastUpdated));
+                list.add(new DefaultCropInstance(speciesKey, pos, stageIndex, progress, plantedAt, lastUpdated, lastWateredDay, fertilizerKey));
             }
             return list;
         } catch (IOException e) {

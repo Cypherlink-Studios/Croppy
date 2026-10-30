@@ -87,4 +87,47 @@ public interface CropInstance {
     default boolean isMature(Species species) {
         return species != null && species.isMature(getStageIndex());
     }
+
+    /**
+     * @return world day index (world.getFullTime() / 24000L) when this crop was last watered, or -1 if unwatered
+     */
+    long getLastWateredDay();
+
+    /**
+     * Sets the world day index when this crop was last watered.
+     *
+     * @param lastWateredDay world day index
+     */
+    void setLastWateredDay(long lastWateredDay);
+
+    /**
+     * Checks if this crop is considered watered on the specified world day.
+     *
+     * @param currentDay the current world day index
+     * @return true if last watered day equals current day
+     */
+    default boolean isWateredOn(long currentDay) {
+        return getLastWateredDay() == currentDay;
+    }
+
+    /**
+     * @return the key of the active fertilizer applied to this crop, or null if none
+     */
+    Key getFertilizerKey();
+
+    /**
+     * Sets the active fertilizer key applied to this crop.
+     *
+     * @param fertilizerKey fertilizer key or null
+     */
+    void setFertilizerKey(Key fertilizerKey);
+
+    /**
+     * Checks if this crop has an active fertilizer applied.
+     *
+     * @return true if fertilizer key is not null
+     */
+    default boolean hasFertilizer() {
+        return getFertilizerKey() != null;
+    }
 }

@@ -1,29 +1,41 @@
 package dev.darkblade.croppy.platform.paper;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.fertilizer.Fertilizer;
+import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.api.world.ChunkPosition;
 import dev.darkblade.croppy.core.CroppyCore;
+import dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry;
+import dev.darkblade.croppy.core.fertilizer.YamlFertilizerLoader;
+import dev.darkblade.croppy.core.growth.FertilizerGrowthModifier;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.species.YamlSpeciesLoader;
 import dev.darkblade.croppy.platform.paper.command.CroppyCommands;
 import dev.darkblade.croppy.platform.paper.command.parser.SpeciesParser;
 import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import dev.darkblade.croppy.platform.paper.event.CropGrowEvent;
+import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
 import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
 import dev.darkblade.croppy.platform.paper.growth.PaperEnvironmentProvider;
 import dev.darkblade.croppy.platform.paper.growth.PaperGrowthTicker;
+import dev.darkblade.croppy.platform.paper.growth.RainHydrationTask;
 import dev.darkblade.croppy.platform.paper.listener.ChunkLifecycleListener;
 import dev.darkblade.croppy.platform.paper.listener.CropBreakListener;
 import dev.darkblade.croppy.platform.paper.listener.CropGrowthListener;
 import dev.darkblade.croppy.platform.paper.listener.CropPhysicsListener;
 import dev.darkblade.croppy.platform.paper.listener.CropPlantListener;
+import dev.darkblade.croppy.platform.paper.listener.FertilizerListener;
 import dev.darkblade.croppy.platform.paper.listener.InspectionToolListener;
+import dev.darkblade.croppy.platform.paper.listener.TimeSkipListener;
+import dev.darkblade.croppy.platform.paper.listener.WateringListener;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.storage.CropStorageFactory;
 import dev.darkblade.croppy.platform.paper.storage.LibbyDependencyLoader;
+import dev.darkblade.croppy.platform.paper.watering.DailyTransitionService;
+import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
 import io.leangen.geantyref.TypeToken;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
@@ -31,6 +43,7 @@ import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.PaperCommandManager;
@@ -57,6 +70,13 @@ public class CroppyPlugin extends JavaPlugin {
     private PluginConfig pluginConfig;
     private CropInspectorService inspectorService;
 
+    // Soil moisture & fertilizer services
+    private FertilizerRegistry fertilizerRegistry;
+    private FertilizerService fertilizerService;
+    private WateringCanService wateringCanService;
+    private DailyTransitionService dailyTransitionService;
+    private BukkitTask rainTask;
+
     @Override
     public void onEnable() {
         getLogger().info("Enabling Croppy plugin on Paper 1.21.8...");
@@ -73,6 +93,7 @@ public class CroppyPlugin extends JavaPlugin {
             this.storage = CropStorageFactory.create(this, libbyLoader);
             this.core.setStorage(storage);
 
+            setupFertilizers();
             setupSpeciesDefinitions();
             loadActiveChunkCrops();
             setupGrowthSimulation();
@@ -104,12 +125,33 @@ public class CroppyPlugin extends JavaPlugin {
     private void registerListeners() {
         var pm = getServer().getPluginManager();
         pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, getLogger()), this);
-        pm.registerEvents(new CropPlantListener(core), this);
+        pm.registerEvents(new CropPlantListener(core, this.fertilizerService), this);
         pm.registerEvents(new CropGrowthListener(core), this);
         pm.registerEvents(new CropBreakListener(core), this);
         pm.registerEvents(new CropPhysicsListener(core), this);
         pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
-        getLogger().info("Registered crop lifecycle, chunk, and inspection listeners.");
+        pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager()), this);
+        pm.registerEvents(new TimeSkipListener(this.dailyTransitionService), this);
+        pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager()), this);
+        getLogger().info("Registered crop lifecycle, chunk, inspection, watering, and fertilizer listeners.");
+    }
+
+    private void setupFertilizers() {
+        this.fertilizerRegistry = new DefaultFertilizerRegistry();
+        this.fertilizerService = new FertilizerService(this, this.fertilizerRegistry);
+        this.wateringCanService = new WateringCanService(this);
+        this.dailyTransitionService = new DailyTransitionService(core.getCropManager(), this.fertilizerRegistry);
+
+        Path fertDir = getDataFolder().toPath().resolve("fertilizers");
+        if (!Files.exists(fertDir)) {
+            saveResource("fertilizers/speed_gro.yml", false);
+            saveResource("fertilizers/retaining_soil.yml", false);
+            saveResource("fertilizers/quality_fertilizer.yml", false);
+        }
+
+        YamlFertilizerLoader fertLoader = new YamlFertilizerLoader();
+        int loaded = fertLoader.loadDirectory(fertDir, getLogger(), this.fertilizerRegistry);
+        getLogger().info("Registered " + loaded + " fertilizer definitions into FertilizerRegistry.");
     }
 
     private void setupGrowthSimulation() {
@@ -119,6 +161,7 @@ public class CroppyPlugin extends JavaPlugin {
 
         GrowthEngine growthEngine = core.getGrowthEngine();
         growthEngine.setBaseProgress(baseProgress);
+        growthEngine.addModifier(new FertilizerGrowthModifier(this.fertilizerRegistry));
 
         this.environmentProvider = new PaperEnvironmentProvider(getServer(), waterSearchRadius);
         this.displaySynchronizer = new PaperDisplaySynchronizer(getServer(), getLogger());
@@ -142,8 +185,12 @@ public class CroppyPlugin extends JavaPlugin {
             return false;
         });
 
-        this.growthTicker = new PaperGrowthTicker(this, core, this.environmentProvider);
+        this.growthTicker = new PaperGrowthTicker(this, core, this.environmentProvider, this.dailyTransitionService);
         this.growthTicker.start(tickInterval);
+
+        // Schedule periodic rain hydration task (every 5 seconds / 100 ticks)
+        this.rainTask = getServer().getScheduler().runTaskTimer(this, new RainHydrationTask(getServer(), core.getCropManager()), 100L, 100L);
+
         getLogger().info("Started PaperGrowthTicker with interval of " + tickInterval + " ticks (base progress: " + baseProgress + ").");
     }
 
@@ -151,7 +198,9 @@ public class CroppyPlugin extends JavaPlugin {
         this.inspectorService = new CropInspectorService(
                 core.getCropManager(),
                 core.getSpeciesRegistry(),
-                this.environmentProvider
+                this.environmentProvider,
+                this.fertilizerRegistry,
+                getServer()
         );
 
         PaperCommandManager<CommandSourceStack> commandManager = PaperCommandManager.builder()
@@ -171,7 +220,14 @@ public class CroppyPlugin extends JavaPlugin {
                 commandManager,
                 CommandSourceStack.class
         );
-        annotationParser.parse(new CroppyCommands(this, this.inspectorService, this.pluginConfig));
+        annotationParser.parse(new CroppyCommands(
+                this,
+                this.inspectorService,
+                this.pluginConfig,
+                this.wateringCanService,
+                this.fertilizerService,
+                this.fertilizerRegistry
+        ));
         getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
     }
 
@@ -179,8 +235,10 @@ public class CroppyPlugin extends JavaPlugin {
         reloadConfig();
         this.pluginConfig.load(getConfig());
         this.core.getSpeciesRegistry().clear();
+        this.fertilizerRegistry.clear();
+        setupFertilizers();
         setupSpeciesDefinitions();
-        getLogger().info("Croppy configuration and species definitions reloaded successfully.");
+        getLogger().info("Croppy configuration, fertilizers, and species definitions reloaded successfully.");
     }
 
     private void setupSpeciesDefinitions() {
@@ -205,6 +263,11 @@ public class CroppyPlugin extends JavaPlugin {
         if (this.growthTicker != null) {
             this.growthTicker.stop();
             this.growthTicker = null;
+        }
+
+        if (this.rainTask != null && !this.rainTask.isCancelled()) {
+            this.rainTask.cancel();
+            this.rainTask = null;
         }
 
         flushActiveCrops();
@@ -237,23 +300,14 @@ public class CroppyPlugin extends JavaPlugin {
         getLogger().info("Flushed " + core.getCropManager().count() + " active crop instances across " + chunkMap.size() + " chunks.");
     }
 
-    /**
-     * @return the central core domain orchestrator
-     */
     public CroppyCore getCore() {
         return core;
     }
 
-    /**
-     * @return the active growth ticker task
-     */
     public PaperGrowthTicker getGrowthTicker() {
         return growthTicker;
     }
 
-    /**
-     * @return the active crop storage engine
-     */
     public CropStorage getStorage() {
         return storage;
     }
@@ -272,5 +326,21 @@ public class CroppyPlugin extends JavaPlugin {
 
     public PaperEnvironmentProvider getEnvironmentProvider() {
         return environmentProvider;
+    }
+
+    public FertilizerRegistry getFertilizerRegistry() {
+        return fertilizerRegistry;
+    }
+
+    public FertilizerService getFertilizerService() {
+        return fertilizerService;
+    }
+
+    public WateringCanService getWateringCanService() {
+        return wateringCanService;
+    }
+
+    public DailyTransitionService getDailyTransitionService() {
+        return dailyTransitionService;
     }
 }

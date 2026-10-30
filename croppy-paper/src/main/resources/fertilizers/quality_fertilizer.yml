@@ -1,0 +1,9 @@
+id: "croppy:quality_fertilizer"
+name: "<gold>Fertilizante de Calidad</gold>"
+description:
+  - "<gray>Mejora la probabilidad de cosechas de mayor calidad.</gray>"
+type: QUALITY
+quality_boost: 0.20
+item:
+  material: GLOWSTONE_DUST
+  custom_model_data: 1003

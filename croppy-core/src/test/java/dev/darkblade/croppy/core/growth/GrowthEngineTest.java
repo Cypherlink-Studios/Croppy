@@ -231,4 +231,123 @@ class GrowthEngineTest {
         assertEquals(1, crop.getStageIndex());
         assertEquals("stage_1", syncedStageId.get());
     }
+
+    @Test
+    @DisplayName("FertilizerGrowthModifier multiplies base progress by speed multiplier")
+    void testFertilizerGrowthModifier() {
+        dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry registry = new dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry();
+        dev.darkblade.croppy.api.identifier.Key speedKey = dev.darkblade.croppy.api.identifier.Key.of("croppy", "speed_gro");
+        registry.register(new dev.darkblade.croppy.api.fertilizer.Fertilizer(
+                speedKey, "Speed", java.util.List.of(), dev.darkblade.croppy.api.fertilizer.FertilizerType.SPEED,
+                1.5, 0.0, 0.0, "BONE_MEAL", 0
+        ));
+
+        engine.addModifier(new FertilizerGrowthModifier(registry));
+        engine.setBaseProgress(2.0);
+
+        DefaultCropInstance crop = new DefaultCropInstance(wheatSpecies.getKey(), position);
+        crop.setFertilizerKey(speedKey);
+        crop.setLastWateredDay(1);
+
+        GrowthResult result = engine.processCrop(crop, wheatSpecies, CropEnvironment.of(15, 8), 1);
+        assertEquals(3.0, result.progressAdded(), 0.001);
+        assertEquals(3.0, crop.getProgress(), 0.001);
+    }
+
+    @Test
+    @DisplayName("Unwatered crop with PAUSE policy accumulates zero progress")
+    void testUnwateredPolicyPause() {
+        engine.setBaseProgress(5.0);
+        DefaultCropInstance crop = new DefaultCropInstance(wheatSpecies.getKey(), position);
+        crop.setLastWateredDay(0); // watered on day 0, today is day 1
+
+        GrowthResult result = engine.processCrop(crop, wheatSpecies, CropEnvironment.of(15, 8), 1);
+        assertEquals(0.0, result.progressAdded(), 0.001);
+        assertEquals(0.0, crop.getProgress(), 0.001);
+    }
+
+    @Test
+    @DisplayName("Unwatered crop with SLOW policy accumulates reduced progress")
+    void testUnwateredPolicySlow() {
+        engine.setBaseProgress(10.0);
+        Species slowSpecies = new Species() {
+            @Override public dev.darkblade.croppy.api.identifier.Key getKey() { return wheatSpecies.getKey(); }
+            @Override public String getName() { return wheatSpecies.getName(); }
+            @Override public dev.darkblade.croppy.api.species.CropDisplay getDisplay() { return wheatSpecies.getDisplay(); }
+            @Override public java.util.List<dev.darkblade.croppy.api.species.StageDefinition> getStages() { return wheatSpecies.getStages(); }
+            @Override public dev.darkblade.croppy.api.species.CropRequirements getRequirements() { return wheatSpecies.getRequirements(); }
+            @Override public dev.darkblade.croppy.api.species.HarvestDefinition getHarvest() { return wheatSpecies.getHarvest(); }
+            @Override public dev.darkblade.croppy.api.growth.UnwateredPolicy getUnwateredPolicy() {
+                return dev.darkblade.croppy.api.growth.UnwateredPolicy.slow(0.2);
+            }
+        };
+
+        DefaultCropInstance crop = new DefaultCropInstance(slowSpecies.getKey(), position);
+        crop.setLastWateredDay(0);
+
+        GrowthResult result = engine.processCrop(crop, slowSpecies, CropEnvironment.of(15, 8), 1);
+        assertEquals(2.0, result.progressAdded(), 0.001);
+        assertEquals(2.0, crop.getProgress(), 0.001);
+    }
+
+    @Test
+    @DisplayName("Unwatered crop with DECAY_PROGRESS loses progress")
+    void testUnwateredPolicyDecay() {
+        Species decaySpecies = new Species() {
+            @Override public dev.darkblade.croppy.api.identifier.Key getKey() { return wheatSpecies.getKey(); }
+            @Override public String getName() { return wheatSpecies.getName(); }
+            @Override public dev.darkblade.croppy.api.species.CropDisplay getDisplay() { return wheatSpecies.getDisplay(); }
+            @Override public java.util.List<dev.darkblade.croppy.api.species.StageDefinition> getStages() { return wheatSpecies.getStages(); }
+            @Override public dev.darkblade.croppy.api.species.CropRequirements getRequirements() { return wheatSpecies.getRequirements(); }
+            @Override public dev.darkblade.croppy.api.species.HarvestDefinition getHarvest() { return wheatSpecies.getHarvest(); }
+            @Override public dev.darkblade.croppy.api.growth.UnwateredPolicy getUnwateredPolicy() {
+                return dev.darkblade.croppy.api.growth.UnwateredPolicy.decay(3.0);
+            }
+        };
+
+        DefaultCropInstance crop = new DefaultCropInstance(decaySpecies.getKey(), position);
+        crop.setProgress(8.0);
+        crop.setLastWateredDay(0);
+
+        GrowthResult result = engine.processCrop(crop, decaySpecies, CropEnvironment.of(15, 8), 1);
+        assertEquals(-3.0, result.progressAdded(), 0.001);
+        assertEquals(5.0, crop.getProgress(), 0.001);
+    }
+
+    @Test
+    @DisplayName("Unwatered crop with WITHER policy triggers withering after exceeding maxDryDays")
+    void testUnwateredPolicyWither() {
+        Species witherSpecies = new Species() {
+            @Override public dev.darkblade.croppy.api.identifier.Key getKey() { return wheatSpecies.getKey(); }
+            @Override public String getName() { return wheatSpecies.getName(); }
+            @Override public dev.darkblade.croppy.api.species.CropDisplay getDisplay() { return wheatSpecies.getDisplay(); }
+            @Override public java.util.List<dev.darkblade.croppy.api.species.StageDefinition> getStages() { return wheatSpecies.getStages(); }
+            @Override public dev.darkblade.croppy.api.species.CropRequirements getRequirements() { return wheatSpecies.getRequirements(); }
+            @Override public dev.darkblade.croppy.api.species.HarvestDefinition getHarvest() { return wheatSpecies.getHarvest(); }
+            @Override public dev.darkblade.croppy.api.growth.UnwateredPolicy getUnwateredPolicy() {
+                return dev.darkblade.croppy.api.growth.UnwateredPolicy.wither(2);
+            }
+        };
+
+        AtomicBoolean witheredCalled = new AtomicBoolean(false);
+        engine.setWitherHandler((c, s) -> witheredCalled.set(true));
+
+        DefaultCropInstance crop = new DefaultCropInstance(witherSpecies.getKey(), position);
+        crop.setLastWateredDay(0);
+
+        // Day 1: 1 dry day (<= 2), pauses
+        GrowthResult r1 = engine.processCrop(crop, witherSpecies, CropEnvironment.of(15, 8), 1);
+        assertFalse(r1.withered());
+        assertFalse(witheredCalled.get());
+
+        // Day 2: 2 dry days (<= 2), pauses
+        GrowthResult r2 = engine.processCrop(crop, witherSpecies, CropEnvironment.of(15, 8), 2);
+        assertFalse(r2.withered());
+        assertFalse(witheredCalled.get());
+
+        // Day 3: 3 dry days (> 2), withers!
+        GrowthResult r3 = engine.processCrop(crop, witherSpecies, CropEnvironment.of(15, 8), 3);
+        assertTrue(r3.withered());
+        assertTrue(witheredCalled.get());
+    }
 }

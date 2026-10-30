@@ -6,6 +6,8 @@ import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
 import dev.darkblade.croppy.api.growth.GrowthContext;
 import dev.darkblade.croppy.api.growth.GrowthModifier;
 import dev.darkblade.croppy.api.growth.StageAdvanceInterceptor;
+import dev.darkblade.croppy.api.growth.UnwateredPolicy;
+import dev.darkblade.croppy.api.growth.WitherHandler;
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.species.CropRequirements;
 import dev.darkblade.croppy.api.species.Species;
@@ -18,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Service orchestrating deterministic agricultural growth simulation, condition checks,
- * modifier pipeline calculation, and stage progression.
+ * modifier pipeline calculation, hydration/unwatered policy execution, and stage progression.
  */
 public class GrowthEngine implements Service {
 
@@ -26,6 +28,7 @@ public class GrowthEngine implements Service {
     private final List<GrowthModifier> modifiers = new CopyOnWriteArrayList<>();
     private DisplaySynchronizer displaySynchronizer;
     private StageAdvanceInterceptor stageAdvanceInterceptor = (c, s, from, to) -> true;
+    private WitherHandler witherHandler;
 
     public GrowthEngine() {}
 
@@ -77,6 +80,14 @@ public class GrowthEngine implements Service {
         this.stageAdvanceInterceptor = Objects.requireNonNull(stageAdvanceInterceptor, "stageAdvanceInterceptor must not be null");
     }
 
+    public WitherHandler witherHandler() {
+        return witherHandler;
+    }
+
+    public void setWitherHandler(WitherHandler witherHandler) {
+        this.witherHandler = witherHandler;
+    }
+
     /**
      * Checks if the ambient environment satisfies the requirements for the given species.
      */
@@ -98,9 +109,16 @@ public class GrowthEngine implements Service {
     }
 
     /**
-     * Evaluates a crop instance for growth progress in the current cycle.
+     * Evaluates a crop instance for growth progress without day-based hydration checks.
      */
     public GrowthResult processCrop(CropInstance crop, Species species, CropEnvironment environment) {
+        return processCrop(crop, species, environment, -1L);
+    }
+
+    /**
+     * Evaluates a crop instance for growth progress in the current cycle, taking current world day into account.
+     */
+    public GrowthResult processCrop(CropInstance crop, Species species, CropEnvironment environment, long currentDay) {
         Objects.requireNonNull(crop, "crop must not be null");
         Objects.requireNonNull(species, "species must not be null");
         Objects.requireNonNull(environment, "environment must not be null");
@@ -110,12 +128,18 @@ public class GrowthEngine implements Service {
             return GrowthResult.skipped();
         }
 
-        // Verify environmental requirements
+        // Verify environmental requirements (light, water fluid level)
         if (!isEnvironmentSuitable(species, environment)) {
             return GrowthResult.requirementsNotMet();
         }
 
-        // Calculate progress with modifier chain
+        // Check daily hydration if day tracking is enabled (currentDay >= 0)
+        boolean isWatered = (currentDay < 0) || crop.isWateredOn(currentDay);
+        if (!isWatered) {
+            return handleUnwateredCrop(crop, species, currentDay);
+        }
+
+        // Standard growth with modifier chain
         GrowthContext context = new GrowthContext(crop, species, environment, this.baseProgress);
         double effectiveProgress = this.baseProgress;
         for (GrowthModifier modifier : this.modifiers) {
@@ -127,8 +151,52 @@ public class GrowthEngine implements Service {
         }
 
         crop.addProgress(effectiveProgress);
+        boolean advanced = checkStageAdvance(crop, species);
 
-        // Check stage progression
+        return GrowthResult.progressed(effectiveProgress, advanced);
+    }
+
+    private GrowthResult handleUnwateredCrop(CropInstance crop, Species species, long currentDay) {
+        UnwateredPolicy policy = species.getUnwateredPolicy();
+        if (policy == null) {
+            policy = UnwateredPolicy.pause();
+        }
+
+        return switch (policy.type()) {
+            case PAUSE -> GrowthResult.progressed(0.0, false);
+            case SLOW -> {
+                double effectiveProgress = this.baseProgress * policy.slowRateMultiplier();
+                for (GrowthModifier modifier : this.modifiers) {
+                    effectiveProgress *= modifier.calculateModifier(new GrowthContext(crop, species, CropEnvironment.of(15, 8), this.baseProgress));
+                }
+                if (effectiveProgress < 0.0) {
+                    effectiveProgress = 0.0;
+                }
+                crop.addProgress(effectiveProgress);
+                boolean advanced = checkStageAdvance(crop, species);
+                yield GrowthResult.progressed(effectiveProgress, advanced);
+            }
+            case DECAY_PROGRESS -> {
+                double decay = policy.decayAmount();
+                double newProgress = Math.max(0.0, crop.getProgress() - decay);
+                crop.setProgress(newProgress);
+                yield GrowthResult.progressed(-decay, false);
+            }
+            case WITHER -> {
+                long lastWatered = crop.getLastWateredDay();
+                long dryDays = (lastWatered >= 0) ? (currentDay - lastWatered) : (currentDay + 1);
+                if (dryDays > policy.maxDryDays()) {
+                    if (this.witherHandler != null) {
+                        this.witherHandler.onWither(crop, species);
+                    }
+                    yield GrowthResult.ofWithered();
+                }
+                yield GrowthResult.progressed(0.0, false);
+            }
+        };
+    }
+
+    private boolean checkStageAdvance(CropInstance crop, Species species) {
         int currentStageIndex = crop.getStageIndex();
         StageDefinition currentStage = species.getStage(currentStageIndex);
         boolean advanced = false;
@@ -146,16 +214,16 @@ public class GrowthEngine implements Service {
                     this.displaySynchronizer.synchronizeDisplay(crop, species, newStage);
                 }
             } else {
-                // Event vetoed/cancelled: cap progress at the threshold to avoid infinite overflow
+                // Event vetoed/cancelled: cap progress at the threshold
                 crop.setProgress(currentStage.progressRequired());
             }
         }
-
-        return GrowthResult.progressed(effectiveProgress, advanced);
+        return advanced;
     }
 
     public void shutdown() {
         this.modifiers.clear();
         this.displaySynchronizer = null;
+        this.witherHandler = null;
     }
 }

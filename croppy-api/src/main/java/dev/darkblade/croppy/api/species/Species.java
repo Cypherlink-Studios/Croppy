@@ -1,5 +1,6 @@
 package dev.darkblade.croppy.api.species;
 
+import dev.darkblade.croppy.api.growth.UnwateredPolicy;
 import dev.darkblade.croppy.api.identifier.Keyed;
 
 import java.util.List;
@@ -56,4 +57,11 @@ public interface Species extends Keyed {
      * @return harvest drop definitions
      */
     HarvestDefinition getHarvest();
+
+    /**
+     * @return unwatered policy for this species, defaults to PAUSE if not specified
+     */
+    default UnwateredPolicy getUnwateredPolicy() {
+        return UnwateredPolicy.pause();
+    }
 }

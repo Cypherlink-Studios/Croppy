@@ -1,0 +1,9 @@
+id: "croppy:retaining_soil"
+name: "<aqua>Hidrogel Retenedor</aqua>"
+description:
+  - "<gray>33% de probabilidad de conservar la hidratación al amanecer.</gray>"
+type: RETAINING
+retention_chance: 0.33
+item:
+  material: CLAY_BALL
+  custom_model_data: 1002
