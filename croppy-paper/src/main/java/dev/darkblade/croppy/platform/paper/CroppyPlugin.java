@@ -122,6 +122,7 @@ public class CroppyPlugin extends JavaPlugin {
             setupStationDefinitions();
             setupInteractionDefinitions();
             setupRuleDefinitions();
+            setupMenuServices();
             loadActiveChunkCrops();
             loadActiveChunkStations();
             setupGrowthSimulation();
@@ -129,7 +130,7 @@ public class CroppyPlugin extends JavaPlugin {
             registerListeners();
             getLogger().info("Croppy enabled successfully!");
         } catch (Exception e) {
-            getLogger().severe("Failed to initialize Croppy: " + e.getMessage());
+            getLogger().log(Level.SEVERE, "Failed to initialize Croppy", e);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -150,6 +151,13 @@ public class CroppyPlugin extends JavaPlugin {
         getLogger().info("Restored " + loadedCount + " crop instances from currently loaded chunks.");
     }
 
+    private void setupMenuServices() {
+        this.menuRenderer = new dev.darkblade.croppy.platform.paper.menu.PaperMenuRenderer(this.itemFactory);
+        this.menuTicker = new dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker(this.menuRenderer, core.getProcessRegistry());
+        this.menuService = new dev.darkblade.croppy.platform.paper.menu.PaperMenuService(core.getMenuRegistry(), this.menuRenderer, core.getProcessRegistry(), this.menuTicker, getLogger());
+        this.menuListener = new dev.darkblade.croppy.platform.paper.menu.PaperMenuListener(this, core.getProcessEngine(), this.itemFactory, this.menuRenderer);
+    }
+
     private void registerListeners() {
         var pm = getServer().getPluginManager();
         pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getStationManager(), this.stationStorage, getLogger()), this);
@@ -163,10 +171,6 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager()), this);
 
         // Station & Process listeners
-        this.menuRenderer = new dev.darkblade.croppy.platform.paper.menu.PaperMenuRenderer(this.itemFactory);
-        this.menuTicker = new dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker(this.menuRenderer, core.getProcessRegistry());
-        this.menuService = new dev.darkblade.croppy.platform.paper.menu.PaperMenuService(core.getMenuRegistry(), this.menuRenderer, core.getProcessRegistry(), this.menuTicker, getLogger());
-        this.menuListener = new dev.darkblade.croppy.platform.paper.menu.PaperMenuListener(this, core.getProcessEngine(), this.itemFactory, this.menuRenderer);
         this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
                 core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.menuService,
                 core.getInteractionRouter(), core.getRuleEngine());
@@ -437,12 +441,18 @@ public class CroppyPlugin extends JavaPlugin {
         this.core.getSpeciesRegistry().clear();
         this.core.getItemRegistry().clear();
         this.core.getMenuRegistry().clear();
+        this.core.getStationRegistry().clear();
+        this.core.getInteractionRegistry().clear();
+        this.core.getRuleRegistry().clear();
         this.fertilizerRegistry.clear();
         setupItemDefinitions();
         setupFertilizers();
         setupCropDefinitions();
         setupMenuDefinitions();
-        getLogger().info("Croppy configuration, items, fertilizers, menus, and crop definitions reloaded successfully.");
+        setupStationDefinitions();
+        setupInteractionDefinitions();
+        setupRuleDefinitions();
+        getLogger().info("Croppy configuration, items, fertilizers, menus, stations, interactions, rules, and crop definitions reloaded successfully.");
     }
 
     private void setupCropDefinitions() {
