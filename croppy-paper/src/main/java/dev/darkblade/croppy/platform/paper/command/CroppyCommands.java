@@ -28,6 +28,7 @@ import org.bukkit.block.data.type.Farmland;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.Default;
@@ -192,7 +193,7 @@ public class CroppyCommands {
     @Permission("croppy.admin")
     public void listItemDefinitions(
             Source source,
-            @Argument(value = "category", suggestions = "item_categories") @Default("") String category
+            @Argument(value = "category", suggestions = "item_categories") @Nullable String category
     ) {
         CommandSender sender = source.source();
         if (itemRegistry == null) {

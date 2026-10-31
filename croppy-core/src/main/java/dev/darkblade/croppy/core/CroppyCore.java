@@ -1,13 +1,19 @@
 package dev.darkblade.croppy.core;
 
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
+import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.item.DefaultItemRegistry;
+import dev.darkblade.croppy.core.process.DefaultProcessRegistry;
+import dev.darkblade.croppy.core.process.ProcessEngine;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
+import dev.darkblade.croppy.core.station.DefaultStationManager;
+import dev.darkblade.croppy.core.station.DefaultStationRegistry;
 
 import java.util.Map;
 import java.util.Objects;
@@ -26,8 +32,12 @@ public class CroppyCore {
     private final Map<Class<? extends Service>, Service> services = new ConcurrentHashMap<>();
     private final DefaultSpeciesRegistry speciesRegistry = new DefaultSpeciesRegistry();
     private final DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
+    private final DefaultStationRegistry stationRegistry = new DefaultStationRegistry();
+    private final DefaultProcessRegistry processRegistry = new DefaultProcessRegistry();
     private final CropManager cropManager = new CropManager();
+    private final DefaultStationManager stationManager = new DefaultStationManager();
     private final GrowthEngine growthEngine = new GrowthEngine();
+    private final ProcessEngine processEngine = new ProcessEngine(processRegistry);
     private CropStorage storage;
     private final AtomicBoolean active = new AtomicBoolean(false);
 
@@ -51,9 +61,14 @@ public class CroppyCore {
         logger.info("Initializing Croppy core domain services...");
         speciesRegistry.clear();
         itemRegistry.clear();
+        stationRegistry.clear();
+        processRegistry.clear();
         cropManager.clear();
+        stationManager.clear();
         registerService(SpeciesRegistry.class, speciesRegistry);
         registerService(ItemRegistry.class, itemRegistry);
+        registerService(StationRegistry.class, stationRegistry);
+        registerService(ProcessRegistry.class, processRegistry);
         registerService(CropManager.class, cropManager);
         registerService(GrowthEngine.class, growthEngine);
         active.set(true);
@@ -67,7 +82,10 @@ public class CroppyCore {
         logger.info("Shutting down Croppy core domain services...");
         speciesRegistry.clear();
         itemRegistry.clear();
+        stationRegistry.clear();
+        processRegistry.clear();
         cropManager.clear();
+        stationManager.clear();
         growthEngine.shutdown();
         if (storage != null) {
             storage.shutdown();
@@ -123,6 +141,34 @@ public class CroppyCore {
      */
     public GrowthEngine getGrowthEngine() {
         return growthEngine;
+    }
+
+    /**
+     * @return the central station registry
+     */
+    public StationRegistry getStationRegistry() {
+        return stationRegistry;
+    }
+
+    /**
+     * @return the central process recipe registry
+     */
+    public ProcessRegistry getProcessRegistry() {
+        return processRegistry;
+    }
+
+    /**
+     * @return the spatial station manager
+     */
+    public DefaultStationManager getStationManager() {
+        return stationManager;
+    }
+
+    /**
+     * @return the sequential process execution engine
+     */
+    public ProcessEngine getProcessEngine() {
+        return processEngine;
     }
 
     /**

@@ -113,10 +113,11 @@ Paper operates on a tick-driven game loop (50ms per tick) with strict thread res
 - **No `System.out.println`**: Always use an injected `java.util.logging.Logger` (in Core) or `getComponentLogger()` / `getLogger()` (in Paper).
 - In `croppy-core`, constructors must accept a `Logger` or default to `Logger.getLogger(ClassName.class.getName())`.
 
-### 5.4 Player-Facing Messages (Kyori Adventure)
-- All player-facing chat, action bar, item names, and lore MUST use **MiniMessage** formatted text (e.g., `<green>Success</green>`, `<gray>Water: <aqua><level>/8`).
+### 5.4 Language, Messaging & Future i18n Migration (Kyori Adventure)
+- **Standard English Only**: All hardcoded messages, command outputs, feedback notifications, action bars, titles, subtitles, lore, and source code comments MUST be written in **Standard English**.
+- **MiniMessage Formatting**: All player-facing chat, action bar, item names, and lore MUST use **MiniMessage** formatted text (e.g., `<green>Success</green>`, `<gray>Water: <aqua><level>/8`).
 - **Legacy Section Characters (`§`) are strictly prohibited.**
-- Externalize all user-facing strings into `messages.yml` or configurable schemas.
+- **Controlled i18n Migration Readiness**: All user-facing strings and message templates will undergo a controlled migration to a dedicated internationalization (i18n) system in a future phase. Code must be written anticipating this transition (avoid fragmented string concatenations or dynamic grammar assemblies that complicate translation keys).
 
 ---
 

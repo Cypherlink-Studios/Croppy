@@ -63,7 +63,8 @@ import java.util.Map;
 import java.util.logging.Level;
 
 /**
- * Main Paper plugin adapter bridging server lifecycle events to the decoupled core.
+ * Main Paper plugin adapter bridging server lifecycle events to the decoupled
+ * core.
  */
 public class CroppyPlugin extends JavaPlugin {
 
@@ -84,9 +85,16 @@ public class CroppyPlugin extends JavaPlugin {
     private DailyTransitionService dailyTransitionService;
     private BukkitTask rainTask;
 
+    // Station & Process services
+    private dev.darkblade.croppy.api.storage.StationStorage stationStorage;
+    private dev.darkblade.croppy.platform.paper.station.PaperStationTicker stationTicker;
+    private dev.darkblade.croppy.platform.paper.station.gui.StationGuiListener stationGuiListener;
+    private dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener stationInteractListener;
+    private dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener stationBlockListener;
+
     @Override
     public void onEnable() {
-        getLogger().info("Enabling Croppy plugin on Paper 1.21.8...");
+        getLogger().info("Enabling Croppy plugin...");
         saveDefaultConfig();
 
         this.pluginConfig = new PluginConfig();
@@ -100,11 +108,15 @@ public class CroppyPlugin extends JavaPlugin {
             this.libbyLoader = new LibbyDependencyLoader(this);
             this.storage = CropStorageFactory.create(this, libbyLoader);
             this.core.setStorage(storage);
+            this.stationStorage = new dev.darkblade.croppy.platform.paper.storage.PdcStationStorage(this,
+                    core.getStationRegistry());
 
             setupItemDefinitions();
             setupFertilizers();
             setupCropDefinitions();
+            setupStationDefinitions();
             loadActiveChunkCrops();
+            loadActiveChunkStations();
             setupGrowthSimulation();
             setupCommands();
             registerListeners();
@@ -142,7 +154,54 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager()), this);
         pm.registerEvents(new TimeSkipListener(this.dailyTransitionService), this);
         pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager()), this);
-        getLogger().info("Registered crop lifecycle, chunk, inspection, watering, and fertilizer listeners.");
+
+        // Station & Process listeners
+        this.stationGuiListener = new dev.darkblade.croppy.platform.paper.station.gui.StationGuiListener(
+                core.getProcessEngine(), this.itemFactory);
+        this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
+                core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.stationGuiListener);
+        this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
+                core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory);
+
+        pm.registerEvents(this.stationGuiListener, this);
+        pm.registerEvents(this.stationInteractListener, this);
+        pm.registerEvents(this.stationBlockListener, this);
+
+        getLogger().info(
+                "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
+    }
+
+    private void setupStationDefinitions() {
+        Path stationsDir = getDataFolder().toPath().resolve("stations");
+        if (!Files.exists(stationsDir)) {
+            try {
+                Files.createDirectories(stationsDir);
+            } catch (Exception ignored) {
+            }
+        }
+
+        dev.darkblade.croppy.core.station.YamlStationLoader stationLoader = new dev.darkblade.croppy.core.station.YamlStationLoader();
+        int loaded = stationLoader.loadAll(stationsDir, core.getStationRegistry(), getLogger());
+        getLogger().info("Registered " + loaded + " station definitions into StationRegistry.");
+    }
+
+    private void loadActiveChunkStations() {
+        if (this.stationStorage == null)
+            return;
+        int loadedCount = 0;
+        for (World world : getServer().getWorlds()) {
+            for (Chunk chunk : world.getLoadedChunks()) {
+                Collection<dev.darkblade.croppy.api.station.StationInstance> stations = stationStorage
+                        .loadChunk(world.getName(), chunk.getX(), chunk.getZ());
+                for (dev.darkblade.croppy.api.station.StationInstance station : stations) {
+                    if (core.getStationManager().getStation(station.getPosition()).isEmpty()) {
+                        core.getStationManager().addStation(station);
+                        loadedCount++;
+                    }
+                }
+            }
+        }
+        getLogger().info("Restored " + loadedCount + " station instances from currently loaded chunks.");
     }
 
     private void setupItemDefinitions() {
@@ -169,7 +228,8 @@ public class CroppyPlugin extends JavaPlugin {
         YamlItemLoader itemLoader = new YamlItemLoader();
         int loaded = itemLoader.loadAllCategories(itemsDir, getLogger(), core.getItemRegistry());
         this.itemFactory = new ItemFactory(this, core.getItemRegistry());
-        getLogger().info("Registered " + loaded + " custom items across " + core.getItemRegistry().getCategories().size() + " categories.");
+        getLogger().info("Registered " + loaded + " custom items across "
+                + core.getItemRegistry().getCategories().size() + " categories.");
     }
 
     private void saveResourceIfNotExists(String resourcePath) {
@@ -236,9 +296,15 @@ public class CroppyPlugin extends JavaPlugin {
         this.growthTicker.start(tickInterval);
 
         // Schedule periodic rain hydration task (every 5 seconds / 100 ticks)
-        this.rainTask = getServer().getScheduler().runTaskTimer(this, new RainHydrationTask(getServer(), core.getCropManager()), 100L, 100L);
+        this.rainTask = getServer().getScheduler().runTaskTimer(this,
+                new RainHydrationTask(getServer(), core.getCropManager()), 100L, 100L);
 
-        getLogger().info("Started PaperGrowthTicker with interval of " + tickInterval + " ticks (base progress: " + baseProgress + ").");
+        this.stationTicker = new dev.darkblade.croppy.platform.paper.station.PaperStationTicker(this, core.getStationManager(), core.getProcessEngine(), 20L);
+        this.stationTicker.start();
+
+        getLogger().info("Started PaperGrowthTicker with interval of " + tickInterval + " ticks (base progress: "
+                + baseProgress + ").");
+        getLogger().info("Started PaperStationTicker with interval of 20 ticks.");
     }
 
     private void setupCommands() {
@@ -247,22 +313,22 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getSpeciesRegistry(),
                 this.environmentProvider,
                 this.fertilizerRegistry,
-                getServer()
-        );
+                getServer());
 
-        PaperCommandManager<Source> commandManager = PaperCommandManager.builder(PaperSimpleSenderMapper.simpleSenderMapper())
+        PaperCommandManager<Source> commandManager = PaperCommandManager
+                .builder(PaperSimpleSenderMapper.simpleSenderMapper())
                 .executionCoordinator(ExecutionCoordinator.simpleCoordinator())
                 .buildOnEnable(this);
 
         if (commandManager.hasBrigadierManager()) {
             commandManager.brigadierManager().registerMapping(
-                    new TypeToken<SpeciesParser<Source>>() {},
-                    builder -> builder.toConstant(ArgumentTypes.key()).cloudSuggestions()
-            );
+                    new TypeToken<SpeciesParser<Source>>() {
+                    },
+                    builder -> builder.toConstant(ArgumentTypes.key()).cloudSuggestions());
             commandManager.brigadierManager().registerMapping(
-                    new TypeToken<KeyParser<Source>>() {},
-                    builder -> builder.toConstant(ArgumentTypes.key()).cloudSuggestions()
-            );
+                    new TypeToken<KeyParser<Source>>() {
+                    },
+                    builder -> builder.toConstant(ArgumentTypes.key()).cloudSuggestions());
         }
 
         commandManager.parserRegistry().registerParser(SpeciesParser.speciesParser(core.getSpeciesRegistry()));
@@ -270,8 +336,7 @@ public class CroppyPlugin extends JavaPlugin {
 
         AnnotationParser<Source> annotationParser = new AnnotationParser<>(
                 commandManager,
-                Source.class
-        );
+                Source.class);
         annotationParser.parse(new CroppyCommands(
                 this,
                 this.inspectorService,
@@ -280,8 +345,7 @@ public class CroppyPlugin extends JavaPlugin {
                 this.fertilizerService,
                 this.fertilizerRegistry,
                 this.itemFactory,
-                this.core.getItemRegistry()
-        ));
+                this.core.getItemRegistry()));
         getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
     }
 
@@ -342,7 +406,17 @@ public class CroppyPlugin extends JavaPlugin {
             this.rainTask = null;
         }
 
+        if (this.stationTicker != null) {
+            try {
+                this.stationTicker.stop();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error stopping station ticker during shutdown", t);
+            }
+            this.stationTicker = null;
+        }
+
         flushActiveCrops();
+        flushActiveStations();
 
         if (this.storage != null) {
             try {
@@ -378,9 +452,33 @@ public class CroppyPlugin extends JavaPlugin {
             for (Map.Entry<ChunkPosition, List<CropInstance>> entry : chunkMap.entrySet()) {
                 storage.saveChunk(entry.getKey().worldName(), entry.getKey().x(), entry.getKey().z(), entry.getValue());
             }
-            getLogger().info("Flushed " + core.getCropManager().count() + " active crop instances across " + chunkMap.size() + " chunks.");
+            getLogger().info("Flushed " + core.getCropManager().count() + " active crop instances across "
+                    + chunkMap.size() + " chunks.");
         } catch (Throwable t) {
             getLogger().log(Level.SEVERE, "Failed to flush active crops during plugin shutdown", t);
+        }
+    }
+
+    private void flushActiveStations() {
+        if (this.stationStorage == null || this.core == null) {
+            return;
+        }
+
+        try {
+            Map<ChunkPosition, List<dev.darkblade.croppy.api.station.StationInstance>> chunkMap = new HashMap<>();
+
+            for (dev.darkblade.croppy.api.station.StationInstance station : core.getStationManager().getAllStations()) {
+                ChunkPosition coord = station.getPosition().toChunkPosition();
+                chunkMap.computeIfAbsent(coord, k -> new ArrayList<>()).add(station);
+            }
+
+            for (Map.Entry<ChunkPosition, List<dev.darkblade.croppy.api.station.StationInstance>> entry : chunkMap.entrySet()) {
+                stationStorage.saveChunk(entry.getKey().worldName(), entry.getKey().x(), entry.getKey().z(), entry.getValue());
+            }
+            getLogger().info("Flushed " + core.getStationManager().getStationCount() + " active stations across "
+                    + chunkMap.size() + " chunks.");
+        } catch (Throwable t) {
+            getLogger().log(Level.SEVERE, "Failed to flush active stations during plugin shutdown", t);
         }
     }
 
