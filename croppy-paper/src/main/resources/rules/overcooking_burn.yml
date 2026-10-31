@@ -1,0 +1,17 @@
+id: "croppy:overcooking_burn"
+name: "Overcooking Burn"
+trigger: "STATION_TICK"
+severity: "CRITICAL"
+priority: 100
+conditions:
+  - "process.finished == true"
+  - "process.idle_ticks > 200"
+  - "station.temperature > 120"
+actions:
+  - type: "REPLACE_OUTPUT"
+    target_item: "croppy:burnt_food"
+  - type: "EMIT_PARTICLES"
+    particle: "LARGE_SMOKE"
+    count: 8
+  - type: "PLAY_SOUND"
+    sound: "ENTITY_GENERIC_BURN"

@@ -1,0 +1,9 @@
+id: "croppy:thermometer"
+category: "tools"
+material: "minecraft:lightning_rod"
+name: "<gradient:#55ffff:#ff5555>Culinary Thermometer</gradient>"
+lore:
+  - "<gray>Measures the temperature of cookware</gray>"
+  - "<gray>and culinary liquids.</gray>"
+pdc:
+  croppy:durability: "50"

@@ -9,12 +9,14 @@ import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
+import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.process.DefaultProcessInstance;
 import dev.darkblade.croppy.core.station.DefaultStationInstance;
 import dev.darkblade.croppy.core.station.component.DefaultDisplayComponent;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
+import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,7 +36,7 @@ import java.util.function.Function;
 public final class StationBinaryCodec {
 
     private static final int MAGIC = 0x53544154; // 'STAT'
-    public static final int CURRENT_VERSION = 1;
+    public static final int CURRENT_VERSION = 2;
 
     private StationBinaryCodec() {}
 
@@ -111,6 +113,16 @@ public final class StationBinaryCodec {
                     }
                     out.writeUTF(display.getStatusText());
                 }
+
+                // 4. Thermal Component
+                Optional<ThermalComponent> thermalOpt = station.getComponent(ThermalComponent.class);
+                out.writeBoolean(thermalOpt.isPresent());
+                if (thermalOpt.isPresent()) {
+                    ThermalComponent thermal = thermalOpt.get();
+                    out.writeDouble(thermal.getTemperature());
+                    out.writeDouble(thermal.getTargetTemperature());
+                    out.writeBoolean(thermal.isHeated());
+                }
             }
         } catch (IOException e) {
             throw new IllegalStateException("Failed to serialize station collection", e);
@@ -137,7 +149,7 @@ public final class StationBinaryCodec {
                 throw new IllegalArgumentException("Invalid binary station header: " + Integer.toHexString(magic));
             }
             int version = in.readInt();
-            if (version != CURRENT_VERSION) {
+            if (version < 1 || version > CURRENT_VERSION) {
                 throw new IllegalArgumentException("Unsupported binary station data version: " + version);
             }
 
@@ -155,7 +167,7 @@ public final class StationBinaryCodec {
                 Optional<StationDefinition> defOpt = definitionLookup.apply(stationKey);
                 if (defOpt.isEmpty()) {
                     // Definition no longer exists, skip restoring invalid station
-                    skipPayload(in);
+                    skipPayload(in, version);
                     continue;
                 }
                 StationDefinition def = defOpt.get();
@@ -207,6 +219,17 @@ public final class StationBinaryCodec {
                     station.setComponent(DisplayComponent.class, display);
                 }
 
+                // 4. Thermal Component (version 2+)
+                if (version >= 2) {
+                    boolean hasThermal = in.readBoolean();
+                    if (hasThermal) {
+                        double temp = in.readDouble();
+                        double targetTemp = in.readDouble();
+                        boolean heated = in.readBoolean();
+                        station.setComponent(ThermalComponent.class, new DefaultThermalComponent(temp, targetTemp, heated));
+                    }
+                }
+
                 list.add(station);
             }
 
@@ -216,7 +239,7 @@ public final class StationBinaryCodec {
         }
     }
 
-    private static void skipPayload(DataInputStream in) throws IOException {
+    private static void skipPayload(DataInputStream in, int version) throws IOException {
         boolean hasStorage = in.readBoolean();
         if (hasStorage) {
             int inCount = in.readInt();
@@ -237,6 +260,14 @@ public final class StationBinaryCodec {
             boolean hasItem = in.readBoolean();
             if (hasItem) in.readUTF();
             in.readUTF();
+        }
+        if (version >= 2) {
+            boolean hasThermal = in.readBoolean();
+            if (hasThermal) {
+                in.readDouble();
+                in.readDouble();
+                in.readBoolean();
+            }
         }
     }
 }

@@ -9,12 +9,15 @@ import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
+import dev.darkblade.croppy.api.station.component.ThermalComponent;
+import dev.darkblade.croppy.api.station.component.ThermalZone;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.process.DefaultProcessInstance;
 import dev.darkblade.croppy.core.station.DefaultStationInstance;
 import dev.darkblade.croppy.core.station.component.DefaultDisplayComponent;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
+import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -93,6 +96,40 @@ class StationBinaryCodecTest {
         DisplayComponent restoredDisplay = restored.getComponent(DisplayComponent.class).orElseThrow();
         assertEquals(Optional.of(Key.of("croppy", "grape")), restoredDisplay.getDisplayedItem());
         assertEquals("<gray>Fermenting...</gray>", restoredDisplay.getStatusText());
+    }
+
+    @Test
+    void testThermalSerializationRoundtrip() {
+        Key potKey = Key.of("croppy", "cooking_pot");
+        StationDefinition def = new StationDefinition(
+                potKey,
+                "Cooking Pot",
+                "minecraft:player_head",
+                StationInteractionType.HYBRID,
+                6,
+                2,
+                true,
+                List.of(),
+                Map.of()
+        );
+
+        BlockPosition pos = new BlockPosition("world", 10, 64, -20);
+        DefaultStationInstance station = new DefaultStationInstance(potKey, pos, def);
+
+        DefaultThermalComponent thermal = new DefaultThermalComponent(95.5, 120.0, true);
+        station.setComponent(ThermalComponent.class, thermal);
+
+        byte[] bytes = StationBinaryCodec.serialize(List.of(station));
+        assertNotNull(bytes);
+
+        List<StationInstance> deserialized = StationBinaryCodec.deserialize(bytes, k -> Optional.of(def));
+        assertEquals(1, deserialized.size());
+
+        ThermalComponent restored = deserialized.get(0).getComponent(ThermalComponent.class).orElseThrow();
+        assertEquals(95.5, restored.getTemperature(), 0.001);
+        assertEquals(120.0, restored.getTargetTemperature(), 0.001);
+        assertTrue(restored.isHeated());
+        assertEquals(ThermalZone.SIMMER, restored.getThermalZone());
     }
 
     @Test

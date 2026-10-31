@@ -1,0 +1,7 @@
+id: "croppy:burnt_food"
+category: "misc"
+material: "minecraft:charcoal"
+name: "<dark_gray>Burnt Food</dark_gray>"
+lore:
+  - "<gray>Ruined and turned to ash from</gray>"
+  - "<gray>excessive heat exposure.</gray>"

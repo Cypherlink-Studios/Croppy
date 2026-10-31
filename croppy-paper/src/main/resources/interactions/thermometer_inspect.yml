@@ -1,0 +1,6 @@
+id: "croppy:thermometer_inspect"
+trigger: "RIGHT_CLICK"
+match_item: "croppy:thermometer"
+priority: 90
+actions:
+  - type: "SHOW_TEMPERATURE"

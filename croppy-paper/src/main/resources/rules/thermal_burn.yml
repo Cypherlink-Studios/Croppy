@@ -1,0 +1,15 @@
+id: "croppy:thermal_burn"
+name: "Thermal Burn"
+trigger: "STATION_INTERACT"
+severity: "WARNING"
+priority: 80
+conditions:
+  - "hand.is_empty == true"
+  - "station.temperature > 200"
+actions:
+  - type: "DAMAGE_PLAYER"
+    damage: 1.0
+  - type: "PLAY_SOUND"
+    sound: "ENTITY_PLAYER_HURT_ON_FIRE"
+  - type: "SEND_MESSAGE"
+    message: "<red>The cookware is scorching hot! You burned your bare hands.</red>"

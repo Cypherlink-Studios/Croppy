@@ -115,6 +115,8 @@ public class CroppyPlugin extends JavaPlugin {
             setupFertilizers();
             setupCropDefinitions();
             setupStationDefinitions();
+            setupInteractionDefinitions();
+            setupRuleDefinitions();
             loadActiveChunkCrops();
             loadActiveChunkStations();
             setupGrowthSimulation();
@@ -159,7 +161,8 @@ public class CroppyPlugin extends JavaPlugin {
         this.stationGuiListener = new dev.darkblade.croppy.platform.paper.station.gui.StationGuiListener(
                 core.getProcessEngine(), this.itemFactory);
         this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
-                core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.stationGuiListener);
+                core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.stationGuiListener,
+                core.getInteractionRouter(), core.getRuleEngine());
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
                 core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory);
 
@@ -178,11 +181,46 @@ public class CroppyPlugin extends JavaPlugin {
                 Files.createDirectories(stationsDir);
             } catch (Exception ignored) {
             }
+            saveResourceIfNotExists("stations/cooking_pot.yml");
+            saveResourceIfNotExists("stations/skillet.yml");
         }
 
         dev.darkblade.croppy.core.station.YamlStationLoader stationLoader = new dev.darkblade.croppy.core.station.YamlStationLoader();
         int loaded = stationLoader.loadAll(stationsDir, core.getStationRegistry(), getLogger());
         getLogger().info("Registered " + loaded + " station definitions into StationRegistry.");
+    }
+
+    private void setupInteractionDefinitions() {
+        Path dir = getDataFolder().toPath().resolve("interactions");
+        if (!Files.exists(dir)) {
+            try {
+                Files.createDirectories(dir);
+            } catch (Exception ignored) {
+            }
+            saveResourceIfNotExists("interactions/cooking_pot_interactions.yml");
+            saveResourceIfNotExists("interactions/skillet_interactions.yml");
+            saveResourceIfNotExists("interactions/thermometer_inspect.yml");
+        }
+
+        dev.darkblade.croppy.core.interaction.YamlInteractionLoader loader = new dev.darkblade.croppy.core.interaction.YamlInteractionLoader();
+        int loaded = loader.loadAll(dir, core.getInteractionRegistry(), getLogger());
+        getLogger().info("Registered " + loaded + " interaction definitions into InteractionRegistry.");
+    }
+
+    private void setupRuleDefinitions() {
+        Path dir = getDataFolder().toPath().resolve("rules");
+        if (!Files.exists(dir)) {
+            try {
+                Files.createDirectories(dir);
+            } catch (Exception ignored) {
+            }
+            saveResourceIfNotExists("rules/overcooking_burn.yml");
+            saveResourceIfNotExists("rules/thermal_burn.yml");
+        }
+
+        dev.darkblade.croppy.core.rule.YamlRuleLoader loader = new dev.darkblade.croppy.core.rule.YamlRuleLoader();
+        int loaded = loader.loadAll(dir, core.getRuleRegistry(), getLogger());
+        getLogger().info("Registered " + loaded + " rule definitions into RuleRegistry.");
     }
 
     private void loadActiveChunkStations() {
@@ -213,6 +251,9 @@ public class CroppyPlugin extends JavaPlugin {
             saveResourceIfNotExists("items/seeds/potato_seeds.yml");
             // Tools
             saveResourceIfNotExists("items/tools/inspector.yml");
+            saveResourceIfNotExists("items/tools/thermometer.yml");
+            // Misc
+            saveResourceIfNotExists("items/misc/burnt_food.yml");
             // Watering Cans
             saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
             saveResourceIfNotExists("items/watering_cans/copper_can.yml");
@@ -299,7 +340,16 @@ public class CroppyPlugin extends JavaPlugin {
         this.rainTask = getServer().getScheduler().runTaskTimer(this,
                 new RainHydrationTask(getServer(), core.getCropManager()), 100L, 100L);
 
-        this.stationTicker = new dev.darkblade.croppy.platform.paper.station.PaperStationTicker(this, core.getStationManager(), core.getProcessEngine(), 20L);
+        this.stationTicker = new dev.darkblade.croppy.platform.paper.station.PaperStationTicker(
+                this,
+                core.getStationManager(),
+                core.getProcessEngine(),
+                new dev.darkblade.croppy.platform.paper.station.PaperThermalEvaluator(),
+                core.getRuleEngine(),
+                this.displaySynchronizer,
+                this.itemFactory,
+                20L
+        );
         this.stationTicker.start();
 
         getLogger().info("Started PaperGrowthTicker with interval of " + tickInterval + " ticks (base progress: "

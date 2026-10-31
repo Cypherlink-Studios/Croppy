@@ -1,0 +1,6 @@
+id: "croppy:cooking_pot_gui"
+station: "croppy:cooking_pot"
+trigger: "SNEAK_RIGHT_CLICK"
+priority: 100
+actions:
+  - type: "OPEN_GUI"

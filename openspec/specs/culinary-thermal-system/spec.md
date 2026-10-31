@@ -1,0 +1,35 @@
+# culinary-thermal-system Specification
+
+## Purpose
+Provides environmental heat source detection, thermal zone evaluation, and culinary thermometer measurement for cooking cookware and thermal stations.
+
+## Requirements
+
+### Requirement: Thermal Component and Heat Source Evaluation
+The system SHALL attach a thermal state component to stations and evaluate active heat source blocks directly beneath the station coordinate (`y - 1`) on each simulation tick.
+
+#### Scenario: Active heat source heating
+- **WHEN** a cookware station is placed directly above an active heat source block (lit campfire, burning furnace, lit smoker, fire, or magma)
+- **THEN** the thermal component transitions towards the heat source target temperature and reports active heat supply
+
+#### Scenario: Inactive heat source cooling
+- **WHEN** a cookware station has no active heat source beneath it
+- **THEN** the thermal component transitions towards the ambient world temperature and reports no active heat supply
+
+### Requirement: Thermal Zones
+The system SHALL classify station temperature into discrete operational thermal zones (`COLD`, `WARM`, `SIMMER`, `BOIL`, `SEAR`, and `SCORCH`) to drive recipe validity and culinary simulation states.
+
+#### Scenario: Simmer zone classification
+- **WHEN** station temperature is between 75°C and 100°C
+- **THEN** the thermal zone evaluates to `SIMMER`
+
+#### Scenario: Scorch zone classification
+- **WHEN** station temperature exceeds 220°C
+- **THEN** the thermal zone evaluates to `SCORCH` and triggers hazard evaluation
+
+### Requirement: Culinary Thermometer Tool
+The system SHALL provide a `croppy:thermometer` culinary tool that displays station temperature and operational thermal zone readouts via MiniMessage action bar notifications and audio feedback upon right-click interaction.
+
+#### Scenario: Measure cookware temperature
+- **WHEN** a player right-clicks a thermal cookware station holding `croppy:thermometer`
+- **THEN** an action bar message displays the formatted temperature and thermal zone, a mechanical sound plays, and tool durability is consumed if configured

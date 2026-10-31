@@ -1,0 +1,10 @@
+id: "croppy:skillet"
+name: "<gradient:#ffaa00:#ff3300>Skillet</gradient>"
+block: "minecraft:heavy_weighted_pressure_plate"
+interaction: "PHYSICAL"
+input_capacity: 4
+output_capacity: 2
+has_display: true
+properties:
+  thermal: "true"
+  has_thermal: "true"

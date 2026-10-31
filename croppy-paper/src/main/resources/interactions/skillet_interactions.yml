@@ -1,0 +1,10 @@
+id: "croppy:skillet_serve"
+station: "croppy:skillet"
+trigger: "RIGHT_CLICK"
+match_material: "minecraft:bowl"
+conditions:
+  - "process.finished == true"
+priority: 50
+actions:
+  - type: "SERVE_OUTPUT"
+    consume_hand_item: true

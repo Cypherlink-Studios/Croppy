@@ -1,16 +1,22 @@
 package dev.darkblade.croppy.core;
 
+import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.registry.Service;
+import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
+import dev.darkblade.croppy.core.interaction.DefaultInteractionRegistry;
+import dev.darkblade.croppy.core.interaction.InteractionRouter;
 import dev.darkblade.croppy.core.item.DefaultItemRegistry;
 import dev.darkblade.croppy.core.process.DefaultProcessRegistry;
 import dev.darkblade.croppy.core.process.ProcessEngine;
+import dev.darkblade.croppy.core.rule.DefaultRuleRegistry;
+import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.DefaultStationRegistry;
@@ -34,10 +40,14 @@ public class CroppyCore {
     private final DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
     private final DefaultStationRegistry stationRegistry = new DefaultStationRegistry();
     private final DefaultProcessRegistry processRegistry = new DefaultProcessRegistry();
+    private final DefaultInteractionRegistry interactionRegistry = new DefaultInteractionRegistry();
+    private final DefaultRuleRegistry ruleRegistry = new DefaultRuleRegistry();
     private final CropManager cropManager = new CropManager();
     private final DefaultStationManager stationManager = new DefaultStationManager();
     private final GrowthEngine growthEngine = new GrowthEngine();
     private final ProcessEngine processEngine = new ProcessEngine(processRegistry);
+    private final InteractionRouter interactionRouter = new InteractionRouter(interactionRegistry);
+    private final RuleEngine ruleEngine = new RuleEngine(ruleRegistry);
     private CropStorage storage;
     private final AtomicBoolean active = new AtomicBoolean(false);
 
@@ -63,12 +73,16 @@ public class CroppyCore {
         itemRegistry.clear();
         stationRegistry.clear();
         processRegistry.clear();
+        interactionRegistry.clear();
+        ruleRegistry.clear();
         cropManager.clear();
         stationManager.clear();
         registerService(SpeciesRegistry.class, speciesRegistry);
         registerService(ItemRegistry.class, itemRegistry);
         registerService(StationRegistry.class, stationRegistry);
         registerService(ProcessRegistry.class, processRegistry);
+        registerService(InteractionRegistry.class, interactionRegistry);
+        registerService(RuleRegistry.class, ruleRegistry);
         registerService(CropManager.class, cropManager);
         registerService(GrowthEngine.class, growthEngine);
         active.set(true);
@@ -84,6 +98,8 @@ public class CroppyCore {
         itemRegistry.clear();
         stationRegistry.clear();
         processRegistry.clear();
+        interactionRegistry.clear();
+        ruleRegistry.clear();
         cropManager.clear();
         stationManager.clear();
         growthEngine.shutdown();
@@ -155,6 +171,34 @@ public class CroppyCore {
      */
     public ProcessRegistry getProcessRegistry() {
         return processRegistry;
+    }
+
+    /**
+     * @return the interaction definition registry
+     */
+    public InteractionRegistry getInteractionRegistry() {
+        return interactionRegistry;
+    }
+
+    /**
+     * @return the rule definition registry
+     */
+    public RuleRegistry getRuleRegistry() {
+        return ruleRegistry;
+    }
+
+    /**
+     * @return the player interaction router
+     */
+    public InteractionRouter getInteractionRouter() {
+        return interactionRouter;
+    }
+
+    /**
+     * @return the configurable rule evaluation engine
+     */
+    public RuleEngine getRuleEngine() {
+        return ruleEngine;
     }
 
     /**

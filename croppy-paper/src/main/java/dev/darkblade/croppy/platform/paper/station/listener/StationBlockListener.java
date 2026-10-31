@@ -8,6 +8,7 @@ import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
+import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.storage.StationStorage;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.station.DefaultStationInstance;
@@ -15,6 +16,7 @@ import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.component.DefaultDisplayComponent;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
+import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -69,6 +71,12 @@ public final class StationBlockListener implements Listener {
         station.setComponent(ProcessComponent.class, new DefaultProcessComponent());
         if (def.hasDisplay()) {
             station.setComponent(DisplayComponent.class, new DefaultDisplayComponent());
+        }
+
+        boolean hasThermal = Boolean.parseBoolean(def.properties().getOrDefault("thermal", "false"))
+                || Boolean.parseBoolean(def.properties().getOrDefault("has_thermal", "false"));
+        if (hasThermal) {
+            station.setComponent(ThermalComponent.class, new DefaultThermalComponent());
         }
 
         stationManager.addStation(station);
