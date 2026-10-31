@@ -82,10 +82,18 @@ public final class YamlStationLoader {
         int inputCapacity = getInt(root, "input_capacity", getInt(root, "inputs", 1));
         int outputCapacity = getInt(root, "output_capacity", getInt(root, "outputs", 1));
 
-        // 6. Display Flag
+        // 6. Menu Key
+        Key menuKey = StationDefinition.DEFAULT_MENU_KEY;
+        Object rawMenu = root.get("menu");
+        if (rawMenu != null && !rawMenu.toString().isBlank()) {
+            String menuStr = rawMenu.toString().trim();
+            menuKey = menuStr.contains(":") ? Key.parse(menuStr) : Key.of("croppy", menuStr);
+        }
+
+        // 7. Display Flag
         boolean hasDisplay = getBoolean(root, "has_display", getBoolean(root, "display", true));
 
-        // 7. Allowed Recipes
+        // 8. Allowed Recipes
         List<Key> allowedRecipes = new ArrayList<>();
         Object rawRecipes = root.get("allowed_recipes");
         if (rawRecipes == null) {
@@ -100,7 +108,7 @@ public final class YamlStationLoader {
             }
         }
 
-        // 8. Properties
+        // 9. Properties
         Map<String, String> properties = new HashMap<>();
         Object rawProps = root.get("properties");
         if (rawProps instanceof Map<?, ?> pMap) {
@@ -118,6 +126,7 @@ public final class YamlStationLoader {
                 interactionType,
                 inputCapacity,
                 outputCapacity,
+                menuKey,
                 hasDisplay,
                 allowedRecipes,
                 properties

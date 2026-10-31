@@ -1,0 +1,38 @@
+id: "croppy:default_station"
+title: "<dark_gray>Station</dark_gray>"
+rows: 3
+pattern:
+  - "X X X X X X X X X"
+  - "X X I . S . O X X"
+  - "X X X X X X X X X"
+elements:
+  'X':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_stained_glass_pane"
+      name: " "
+  'I':
+    type: INPUT
+  'O':
+    type: OUTPUT
+  'S':
+    type: STATUS
+    item:
+      material: "minecraft:compass"
+      name: "<gray>Status: Idle</gray>"
+    states:
+      - condition: "process.state == 'RUNNING'"
+        item:
+          material: "minecraft:soul_campfire"
+          name: "<gold><bold>Processing...</bold></gold>"
+          lore:
+            - "<yellow>Recipe:</yellow> <white>{recipe.name}</white>"
+            - "<yellow>Progress:</yellow> <aqua>{process.progress_percent}%</aqua>"
+            - "<yellow>Time Left:</yellow> <white>{process.remaining_seconds}s</white>"
+          glow: true
+      - condition: "process.state == 'COMPLETED'"
+        item:
+          material: "minecraft:bell"
+          name: "<green><bold>Complete!</bold></green>"
+          lore:
+            - "<gray>Click output to collect result.</gray>"

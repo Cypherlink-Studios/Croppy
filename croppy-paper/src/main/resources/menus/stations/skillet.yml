@@ -1,0 +1,55 @@
+id: "croppy:skillet"
+title: "<gradient:#ffaa00:#ff3300>Skillet</gradient>"
+rows: 3
+pattern:
+  - "X X X X X X X X X"
+  - "X I I . S . O O X"
+  - "X I I X B X X X X"
+elements:
+  'X':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_stained_glass_pane"
+      name: " "
+  'I':
+    type: INPUT
+  'O':
+    type: OUTPUT
+  'S':
+    type: STATUS
+    item:
+      material: "minecraft:heavy_weighted_pressure_plate"
+      name: "<gray>Skillet: <italic>Idle</italic></gray>"
+      lore:
+        - "<dark_gray>Place ingredients to sear.</dark_gray>"
+    states:
+      - condition: "process.state == 'RUNNING'"
+        item:
+          material: "minecraft:campfire"
+          name: "<gold><bold>Searing...</bold></gold>"
+          lore:
+            - "<yellow>Recipe:</yellow> <white>{recipe.name}</white>"
+            - "<yellow>Progress:</yellow> <aqua>{process.progress_percent}%</aqua>"
+            - "<yellow>Time Left:</yellow> <white>{process.remaining_seconds}s</white>"
+            - "<yellow>Heat:</yellow> <white>{station.heat_level}°C</white>"
+          glow: true
+      - condition: "process.state == 'COMPLETED'"
+        item:
+          material: "minecraft:bell"
+          name: "<green><bold>Searing Complete!</bold></green>"
+          lore:
+            - "<gray>Collect your meal.</gray>"
+  'B':
+    type: ACTION
+    item:
+      material: "minecraft:flint_and_steel"
+      name: "<yellow><bold>Sizzle</bold></yellow>"
+      lore:
+        - "<gray>Click to start searing.</gray>"
+    actions:
+      - click: LEFT
+        type: STATION_ACTION
+        action: "START_PROCESS"
+      - click: LEFT
+        type: SOUND
+        sound: "minecraft:item.flintandsteel.use"

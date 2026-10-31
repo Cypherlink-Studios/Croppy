@@ -6,18 +6,22 @@ Provides registration, spatial tracking, physical in-world and GUI interactions,
 ## Requirements
 
 ### Requirement: Station Registration and Identification
-The system SHALL register immutable `StationDefinition` instances identified by unique `Key` identifiers and manage runtime `StationInstance` models bound to discrete `BlockPosition` spatial coordinates.
+The system SHALL register immutable `StationDefinition` instances identified by unique `Key` identifiers, including an optional `menuKey` binding to a configured `MenuDefinition`, and manage runtime `StationInstance` models bound to discrete `BlockPosition` spatial coordinates.
 
 #### Scenario: Register station definition
 - **WHEN** a station definition for `croppy:cooking_pot` is registered
 - **THEN** it is retrievable by its key from the central station registry
+
+#### Scenario: Register station definition with explicit menu key
+- **WHEN** a station definition specifies `menu: "croppy:cooking_pot"`
+- **THEN** its `menuKey()` resolves to `croppy:cooking_pot`, falling back to `croppy:default_station` if omitted
 
 #### Scenario: Instantiate station in world
 - **WHEN** a valid station item is placed at a block coordinate
 - **THEN** a `StationInstance` is spawned at that `BlockPosition` with default component states
 
 ### Requirement: Dual Interaction Modes
-The system SHALL support both physical in-world item interactions (right-clicking the station with an ingredient or tool in hand) and virtual container GUI menus depending on station configuration.
+The system SHALL support both physical in-world item interactions (right-clicking the station with an ingredient or tool in hand) and virtual container GUI menus dynamically rendered from the station's bound `MenuDefinition`.
 
 #### Scenario: Physical right-click interaction
 - **WHEN** player right-clicks a physical-interaction station holding a valid ingredient
@@ -29,7 +33,7 @@ The system SHALL support both physical in-world item interactions (right-clickin
 
 #### Scenario: Virtual inventory GUI interaction
 - **WHEN** player right-clicks a GUI-configured station without sneaking
-- **THEN** a custom inventory GUI opens displaying input, output, and progress slots
+- **THEN** a custom inventory GUI opens rendered from the station's configured `MenuDefinition` accommodating all defined input and output capacities
 
 #### Scenario: Sneak interaction override
 - **WHEN** player sneak-right-clicks a GUI station

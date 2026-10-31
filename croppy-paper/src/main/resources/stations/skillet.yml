@@ -4,6 +4,7 @@ block: "minecraft:heavy_weighted_pressure_plate"
 interaction: "PHYSICAL"
 input_capacity: 4
 output_capacity: 2
+menu: "croppy:skillet"
 has_display: true
 properties:
   thermal: "true"

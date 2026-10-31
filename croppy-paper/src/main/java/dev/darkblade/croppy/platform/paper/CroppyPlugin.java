@@ -88,7 +88,11 @@ public class CroppyPlugin extends JavaPlugin {
     // Station & Process services
     private dev.darkblade.croppy.api.storage.StationStorage stationStorage;
     private dev.darkblade.croppy.platform.paper.station.PaperStationTicker stationTicker;
-    private dev.darkblade.croppy.platform.paper.station.gui.StationGuiListener stationGuiListener;
+    private dev.darkblade.croppy.platform.paper.menu.PaperMenuRenderer menuRenderer;
+    private dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker menuTicker;
+    private dev.darkblade.croppy.platform.paper.menu.PaperMenuListener menuListener;
+    private dev.darkblade.croppy.platform.paper.menu.PaperMenuService menuService;
+    private BukkitTask menuTickerTask;
     private dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener stationInteractListener;
     private dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener stationBlockListener;
 
@@ -114,6 +118,7 @@ public class CroppyPlugin extends JavaPlugin {
             setupItemDefinitions();
             setupFertilizers();
             setupCropDefinitions();
+            setupMenuDefinitions();
             setupStationDefinitions();
             setupInteractionDefinitions();
             setupRuleDefinitions();
@@ -158,20 +163,39 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager()), this);
 
         // Station & Process listeners
-        this.stationGuiListener = new dev.darkblade.croppy.platform.paper.station.gui.StationGuiListener(
-                core.getProcessEngine(), this.itemFactory);
+        this.menuRenderer = new dev.darkblade.croppy.platform.paper.menu.PaperMenuRenderer(this.itemFactory);
+        this.menuTicker = new dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker(this.menuRenderer, core.getProcessRegistry());
+        this.menuService = new dev.darkblade.croppy.platform.paper.menu.PaperMenuService(core.getMenuRegistry(), this.menuRenderer, core.getProcessRegistry(), this.menuTicker, getLogger());
+        this.menuListener = new dev.darkblade.croppy.platform.paper.menu.PaperMenuListener(this, core.getProcessEngine(), this.itemFactory, this.menuRenderer);
         this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
-                core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.stationGuiListener,
+                core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.menuService,
                 core.getInteractionRouter(), core.getRuleEngine());
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
                 core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory);
 
-        pm.registerEvents(this.stationGuiListener, this);
+        pm.registerEvents(this.menuListener, this);
         pm.registerEvents(this.stationInteractListener, this);
         pm.registerEvents(this.stationBlockListener, this);
 
         getLogger().info(
                 "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
+    }
+
+    private void setupMenuDefinitions() {
+        Path menusDir = getDataFolder().toPath().resolve("menus");
+        if (!Files.exists(menusDir)) {
+            try {
+                Files.createDirectories(menusDir);
+            } catch (Exception ignored) {
+            }
+            saveResourceIfNotExists("menus/default_station.yml");
+            saveResourceIfNotExists("menus/stations/cooking_pot.yml");
+            saveResourceIfNotExists("menus/stations/skillet.yml");
+        }
+
+        dev.darkblade.croppy.core.menu.YamlMenuLoader menuLoader = new dev.darkblade.croppy.core.menu.YamlMenuLoader();
+        int loaded = menuLoader.loadAll(menusDir, core.getMenuRegistry(), getLogger());
+        getLogger().info("Registered " + loaded + " menu definitions into MenuRegistry.");
     }
 
     private void setupStationDefinitions() {
@@ -356,9 +380,13 @@ public class CroppyPlugin extends JavaPlugin {
         );
         this.stationTicker.start();
 
+        this.menuTickerTask = getServer().getScheduler().runTaskTimer(this,
+                this.menuTicker, 20L, 10L);
+
         getLogger().info("Started PaperGrowthTicker with interval of " + tickInterval + " ticks (base progress: "
                 + baseProgress + ").");
         getLogger().info("Started PaperStationTicker with interval of 20 ticks.");
+        getLogger().info("Started PaperMenuTicker with interval of 10 ticks.");
     }
 
     private void setupCommands() {
@@ -408,11 +436,13 @@ public class CroppyPlugin extends JavaPlugin {
         this.pluginConfig.load(getConfig());
         this.core.getSpeciesRegistry().clear();
         this.core.getItemRegistry().clear();
+        this.core.getMenuRegistry().clear();
         this.fertilizerRegistry.clear();
         setupItemDefinitions();
         setupFertilizers();
         setupCropDefinitions();
-        getLogger().info("Croppy configuration, items, fertilizers, and crop definitions reloaded successfully.");
+        setupMenuDefinitions();
+        getLogger().info("Croppy configuration, items, fertilizers, menus, and crop definitions reloaded successfully.");
     }
 
     private void setupCropDefinitions() {
@@ -467,6 +497,15 @@ public class CroppyPlugin extends JavaPlugin {
                 getLogger().log(Level.WARNING, "Error stopping station ticker during shutdown", t);
             }
             this.stationTicker = null;
+        }
+
+        if (this.menuTickerTask != null && !this.menuTickerTask.isCancelled()) {
+            try {
+                this.menuTickerTask.cancel();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error cancelling menu ticker task during shutdown", t);
+            }
+            this.menuTickerTask = null;
         }
 
         flushActiveCrops();
@@ -538,6 +577,10 @@ public class CroppyPlugin extends JavaPlugin {
 
     public CroppyCore getCore() {
         return core;
+    }
+
+    public dev.darkblade.croppy.platform.paper.menu.PaperMenuService getMenuService() {
+        return menuService;
     }
 
     public PaperGrowthTicker getGrowthTicker() {

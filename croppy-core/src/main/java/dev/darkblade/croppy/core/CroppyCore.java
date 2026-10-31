@@ -2,6 +2,7 @@ package dev.darkblade.croppy.core;
 
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.menu.MenuRegistry;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
@@ -13,6 +14,7 @@ import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.interaction.DefaultInteractionRegistry;
 import dev.darkblade.croppy.core.interaction.InteractionRouter;
 import dev.darkblade.croppy.core.item.DefaultItemRegistry;
+import dev.darkblade.croppy.core.menu.DefaultMenuRegistry;
 import dev.darkblade.croppy.core.process.DefaultProcessRegistry;
 import dev.darkblade.croppy.core.process.ProcessEngine;
 import dev.darkblade.croppy.core.rule.DefaultRuleRegistry;
@@ -42,6 +44,7 @@ public class CroppyCore {
     private final DefaultProcessRegistry processRegistry = new DefaultProcessRegistry();
     private final DefaultInteractionRegistry interactionRegistry = new DefaultInteractionRegistry();
     private final DefaultRuleRegistry ruleRegistry = new DefaultRuleRegistry();
+    private final DefaultMenuRegistry menuRegistry = new DefaultMenuRegistry();
     private final CropManager cropManager = new CropManager();
     private final DefaultStationManager stationManager = new DefaultStationManager();
     private final GrowthEngine growthEngine = new GrowthEngine();
@@ -75,6 +78,7 @@ public class CroppyCore {
         processRegistry.clear();
         interactionRegistry.clear();
         ruleRegistry.clear();
+        menuRegistry.clear();
         cropManager.clear();
         stationManager.clear();
         registerService(SpeciesRegistry.class, speciesRegistry);
@@ -83,6 +87,7 @@ public class CroppyCore {
         registerService(ProcessRegistry.class, processRegistry);
         registerService(InteractionRegistry.class, interactionRegistry);
         registerService(RuleRegistry.class, ruleRegistry);
+        registerService(MenuRegistry.class, menuRegistry);
         registerService(CropManager.class, cropManager);
         registerService(GrowthEngine.class, growthEngine);
         active.set(true);
@@ -100,6 +105,7 @@ public class CroppyCore {
         processRegistry.clear();
         interactionRegistry.clear();
         ruleRegistry.clear();
+        menuRegistry.clear();
         cropManager.clear();
         stationManager.clear();
         growthEngine.shutdown();
@@ -171,6 +177,13 @@ public class CroppyCore {
      */
     public ProcessRegistry getProcessRegistry() {
         return processRegistry;
+    }
+
+    /**
+     * @return the central menu layout registry
+     */
+    public MenuRegistry getMenuRegistry() {
+        return menuRegistry;
     }
 
     /**

@@ -4,6 +4,7 @@ block: "minecraft:player_head"
 interaction: "HYBRID"
 input_capacity: 6
 output_capacity: 2
+menu: "croppy:cooking_pot"
 has_display: true
 properties:
   thermal: "true"

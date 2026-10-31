@@ -28,6 +28,7 @@ class YamlStationLoaderTest {
                 interaction: "PHYSICAL"
                 input_capacity: 2
                 output_capacity: 1
+                menu: "croppy:keg_menu"
                 display: true
                 allowed_recipes:
                   - "croppy:wine"
@@ -45,10 +46,23 @@ class YamlStationLoaderTest {
         assertEquals(StationInteractionType.PHYSICAL, def.interactionType());
         assertEquals(2, def.inputCapacity());
         assertEquals(1, def.outputCapacity());
+        assertEquals(Key.of("croppy", "keg_menu"), def.menuKey());
         assertTrue(def.hasDisplay());
         assertEquals(2, def.allowedRecipes().size());
         assertTrue(def.allowedRecipes().contains(Key.of("croppy", "wine")));
         assertEquals("fast", def.properties().get("animation_speed"));
+    }
+
+    @Test
+    void testDefaultMenuKeyWhenOmitted() {
+        String yaml = """
+                id: "croppy:pot"
+                name: "Cooking Pot"
+                block: "cauldron"
+                """;
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        StationDefinition def = loader.load(in, "test-pot.yml");
+        assertEquals(StationDefinition.DEFAULT_MENU_KEY, def.menuKey());
     }
 
     @Test

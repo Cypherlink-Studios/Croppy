@@ -24,7 +24,7 @@ import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.rule.RuleExecution;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
-import dev.darkblade.croppy.platform.paper.station.gui.StationGuiListener;
+import dev.darkblade.croppy.platform.paper.menu.PaperMenuService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
@@ -56,7 +56,7 @@ public final class StationInteractListener implements Listener {
     private final DefaultStationManager stationManager;
     private final ProcessEngine processEngine;
     private final ItemFactory itemFactory;
-    private final StationGuiListener guiListener;
+    private final PaperMenuService menuService;
     private final InteractionRouter interactionRouter;
     private final RuleEngine ruleEngine;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
@@ -66,14 +66,14 @@ public final class StationInteractListener implements Listener {
             DefaultStationManager stationManager,
             ProcessEngine processEngine,
             ItemFactory itemFactory,
-            StationGuiListener guiListener,
+            PaperMenuService menuService,
             InteractionRouter interactionRouter,
             RuleEngine ruleEngine
     ) {
         this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
         this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
-        this.guiListener = Objects.requireNonNull(guiListener, "guiListener cannot be null");
+        this.menuService = Objects.requireNonNull(menuService, "menuService cannot be null");
         this.interactionRouter = Objects.requireNonNull(interactionRouter, "interactionRouter cannot be null");
         this.ruleEngine = Objects.requireNonNull(ruleEngine, "ruleEngine cannot be null");
     }
@@ -167,7 +167,7 @@ public final class StationInteractListener implements Listener {
         for (InteractionAction action : def.actions()) {
             String type = action.type().toUpperCase(Locale.ROOT);
             switch (type) {
-                case "OPEN_GUI" -> guiListener.openStationGui(player, station);
+                case "OPEN_GUI" -> menuService.openStationMenu(player, station);
                 case "SHOW_TEMPERATURE" -> handleShowTemperature(player, station, handItem);
                 case "INSERT_INPUT" -> handleInsertInput(player, station, handItem, context);
                 case "SERVE_OUTPUT", "EXTRACT_OUTPUTS" -> handleServeOutput(player, station, handItem, action);
@@ -380,7 +380,7 @@ public final class StationInteractListener implements Listener {
                 || (def.interactionType() == StationInteractionType.HYBRID && !player.isSneaking());
 
         if (openGui) {
-            guiListener.openStationGui(player, station);
+            menuService.openStationMenu(player, station);
             return;
         }
 
