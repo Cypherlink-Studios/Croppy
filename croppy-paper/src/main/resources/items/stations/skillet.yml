@@ -1,0 +1,9 @@
+id: "croppy:skillet"
+category: "stations"
+material: "minecraft:heavy_weighted_pressure_plate"
+name: "<gradient:#ffaa00:#ff3300>Skillet</gradient>"
+lore:
+  - "<gray>A heavy cast iron pan for</gray>"
+  - "<gray>frying, searing, and sautéing.</gray>"
+  - ""
+  - "<yellow>Right-Click</yellow> <gray>with ingredients to cook</gray>"

@@ -1,8 +1,11 @@
 package dev.darkblade.croppy.platform.paper.listener;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.storage.CropStorage;
+import dev.darkblade.croppy.api.storage.StationStorage;
 import dev.darkblade.croppy.core.crop.CropManager;
+import dev.darkblade.croppy.core.station.DefaultStationManager;
 import org.bukkit.Chunk;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -18,32 +21,65 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Coordinates in-memory crop instances with chunk loading and unloading.
+ * Coordinates in-memory crop and crafting station instances with chunk loading and unloading.
  */
 public class ChunkLifecycleListener implements Listener {
 
     private final CropManager cropManager;
-    private final CropStorage storage;
+    private final CropStorage cropStorage;
+    private final DefaultStationManager stationManager;
+    private final StationStorage stationStorage;
     private final Logger logger;
 
-    public ChunkLifecycleListener(CropManager cropManager, CropStorage storage, Logger logger) {
+    public ChunkLifecycleListener(
+            CropManager cropManager,
+            CropStorage cropStorage,
+            DefaultStationManager stationManager,
+            StationStorage stationStorage,
+            Logger logger
+    ) {
         this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
-        this.storage = Objects.requireNonNull(storage, "storage cannot be null");
+        this.cropStorage = Objects.requireNonNull(cropStorage, "cropStorage cannot be null");
+        this.stationManager = stationManager;
+        this.stationStorage = stationStorage;
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+    }
+
+    public ChunkLifecycleListener(CropManager cropManager, CropStorage cropStorage, Logger logger) {
+        this(cropManager, cropStorage, null, null, logger);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkLoad(ChunkLoadEvent event) {
         Chunk chunk = event.getChunk();
+        String worldName = chunk.getWorld().getName();
+        int chunkX = chunk.getX();
+        int chunkZ = chunk.getZ();
+
+        // 1. Restore crops
         try {
-            Collection<CropInstance> crops = storage.loadChunk(chunk.getWorld().getName(), chunk.getX(), chunk.getZ());
+            Collection<CropInstance> crops = cropStorage.loadChunk(worldName, chunkX, chunkZ);
             for (CropInstance crop : crops) {
                 if (!cropManager.hasCrop(crop.getPosition())) {
                     cropManager.registerCrop(crop);
                 }
             }
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error loading crops for chunk [" + chunk.getX() + ", " + chunk.getZ() + "]", e);
+            logger.log(Level.SEVERE, "Error loading crops for chunk [" + chunkX + ", " + chunkZ + "]", e);
+        }
+
+        // 2. Restore stations
+        if (stationManager != null && stationStorage != null) {
+            try {
+                Collection<StationInstance> stations = stationStorage.loadChunk(worldName, chunkX, chunkZ);
+                for (StationInstance station : stations) {
+                    if (stationManager.getStation(station.getPosition()).isEmpty()) {
+                        stationManager.addStation(station);
+                    }
+                }
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Error loading stations for chunk [" + chunkX + ", " + chunkZ + "]", e);
+            }
         }
     }
 
@@ -54,6 +90,7 @@ public class ChunkLifecycleListener implements Listener {
         int chunkX = chunk.getX();
         int chunkZ = chunk.getZ();
 
+        // 1. Persist & evict crops
         try {
             List<CropInstance> chunkCrops = new ArrayList<>();
             for (CropInstance crop : cropManager.getAllCrops()) {
@@ -64,15 +101,35 @@ public class ChunkLifecycleListener implements Listener {
                 }
             }
 
-            // Save chunk state to persistent storage
-            storage.saveChunk(worldName, chunkX, chunkZ, chunkCrops);
+            cropStorage.saveChunk(worldName, chunkX, chunkZ, chunkCrops);
 
-            // Evict crops from active in-memory tracker to maintain minimal RAM usage
             for (CropInstance crop : chunkCrops) {
                 cropManager.removeCrop(crop.getPosition());
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Error saving crops for unloaded chunk [" + chunkX + ", " + chunkZ + "]", e);
+        }
+
+        // 2. Persist & evict stations
+        if (stationManager != null && stationStorage != null) {
+            try {
+                List<StationInstance> chunkStations = new ArrayList<>();
+                for (StationInstance station : stationManager.getAllStations()) {
+                    if (station.getPosition().worldName().equals(worldName)
+                            && (station.getPosition().x() >> 4) == chunkX
+                            && (station.getPosition().z() >> 4) == chunkZ) {
+                        chunkStations.add(station);
+                    }
+                }
+
+                stationStorage.saveChunk(worldName, chunkX, chunkZ, chunkStations);
+
+                for (StationInstance station : chunkStations) {
+                    stationManager.removeStation(station.getPosition());
+                }
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Error saving stations for unloaded chunk [" + chunkX + ", " + chunkZ + "]", e);
+            }
         }
     }
 }

@@ -428,7 +428,47 @@ public final class StationInteractListener implements Listener {
                 EvaluationContext context = EvaluationContext.empty().with("player", player);
                 processEngine.tryStartProcess(station, context);
             }
+            return;
         }
+
+        // 4. Feedback for empty hand interaction
+        sendEmptyPhysicalFeedback(player, station);
+    }
+
+    private void sendEmptyPhysicalFeedback(Player player, StationInstance station) {
+        StationDefinition def = station.getDefinition();
+        Optional<ThermalComponent> thermalOpt = station.getComponent(ThermalComponent.class);
+        double temp = thermalOpt.map(ThermalComponent::getTemperature).orElse(20.0);
+        ThermalZone zone = thermalOpt.map(ThermalComponent::getThermalZone).orElse(ThermalZone.COLD);
+
+        String color = switch (zone) {
+            case COLD -> "#55ffff";
+            case WARM -> "#55ff55";
+            case SIMMER -> "#ffaa00";
+            case BOIL -> "#ff7700";
+            case SEAR -> "#ff3300";
+            case SCORCH -> "#aa0000";
+        };
+
+        Optional<ProcessComponent> processOpt = station.getComponent(ProcessComponent.class);
+        String statusText;
+        if (processOpt.isPresent() && processOpt.get().hasActiveProcess()) {
+            ProcessInstance pi = processOpt.get().getActiveProcess().get();
+            statusText = "<yellow>" + pi.getState().name() + "</yellow>";
+        } else {
+            statusText = "<gray>Empty</gray>";
+        }
+
+        String msg;
+        if (thermalOpt.isPresent()) {
+            msg = String.format("%s <dark_gray>•</dark_gray> %s <dark_gray>•</dark_gray> <gradient:#ffaa00:%s>%.1f°C</gradient>",
+                    def.displayName(), statusText, color, temp);
+        } else {
+            msg = String.format("%s <dark_gray>•</dark_gray> %s", def.displayName(), statusText);
+        }
+
+        player.sendActionBar(miniMessage.deserialize(msg));
+        player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 0.5f, 1.3f);
     }
 
     private Key resolveItemKey(ItemStack item) {
@@ -440,6 +480,10 @@ public final class StationInteractListener implements Listener {
     }
 
     private ItemStack createBukkitItem(StoredItem stored) {
+        Optional<dev.darkblade.croppy.api.item.ItemDefinition> defOpt = itemFactory.getItemRegistry().get(stored.itemKey());
+        if (defOpt.isPresent()) {
+            return itemFactory.createItemStack(defOpt.get(), stored.amount());
+        }
         return itemFactory.createItemStack(new dev.darkblade.croppy.api.item.ItemDefinition(
                 stored.itemKey(),
                 "misc",

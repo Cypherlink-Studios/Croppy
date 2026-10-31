@@ -96,13 +96,19 @@ public final class StationBlockListener implements Listener {
         StationInstance station = stationOpt.get();
         stationStorage.deleteStation(pos);
 
+        World world = block.getWorld();
+        Location dropLoc = block.getLocation().add(0.5, 0.5, 0.5);
+
+        // Drop the station item itself
+        ItemStack stationItem = createStationItem(station);
+        if (stationItem != null && !stationItem.getType().isAir()) {
+            world.dropItemNaturally(dropLoc, stationItem);
+        }
+
         // Drop stored items into the world
         Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
         if (storageOpt.isPresent()) {
             StorageComponent storage = storageOpt.get();
-            World world = block.getWorld();
-            Location dropLoc = block.getLocation().add(0.5, 0.5, 0.5);
-
             for (StoredItem in : storage.getInputs()) {
                 world.dropItemNaturally(dropLoc, createBukkitItem(in));
             }
@@ -112,7 +118,26 @@ public final class StationBlockListener implements Listener {
         }
     }
 
-    private ItemStack createBukkitItem(StoredItem stored) {
+    public ItemStack createStationItem(StationInstance station) {
+        Key stationKey = station.getStationKey();
+        Optional<dev.darkblade.croppy.api.item.ItemDefinition> defOpt = itemFactory.getItemRegistry().get(stationKey);
+        if (defOpt.isPresent()) {
+            return itemFactory.createItemStack(defOpt.get(), 1);
+        }
+        String baseBlock = station.getDefinition().baseBlockMaterial();
+        String matName = baseBlock.contains(":") ? baseBlock.substring(baseBlock.indexOf(':') + 1) : baseBlock;
+        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(matName.toUpperCase(java.util.Locale.ROOT));
+        if (mat != null && !mat.isAir()) {
+            return new ItemStack(mat, 1);
+        }
+        return null;
+    }
+
+    public ItemStack createBukkitItem(StoredItem stored) {
+        Optional<dev.darkblade.croppy.api.item.ItemDefinition> defOpt = itemFactory.getItemRegistry().get(stored.itemKey());
+        if (defOpt.isPresent()) {
+            return itemFactory.createItemStack(defOpt.get(), stored.amount());
+        }
         return itemFactory.createItemStack(new dev.darkblade.croppy.api.item.ItemDefinition(
                 stored.itemKey(),
                 "misc",

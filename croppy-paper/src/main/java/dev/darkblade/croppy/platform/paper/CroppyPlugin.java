@@ -147,7 +147,7 @@ public class CroppyPlugin extends JavaPlugin {
 
     private void registerListeners() {
         var pm = getServer().getPluginManager();
-        pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, getLogger()), this);
+        pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getStationManager(), this.stationStorage, getLogger()), this);
         pm.registerEvents(new CropPlantListener(core, this.fertilizerService), this);
         pm.registerEvents(new CropGrowthListener(core), this);
         pm.registerEvents(new CropBreakListener(core), this);
@@ -244,27 +244,28 @@ public class CroppyPlugin extends JavaPlugin {
 
     private void setupItemDefinitions() {
         Path itemsDir = getDataFolder().toPath().resolve("items");
-        if (!Files.exists(itemsDir)) {
-            // Seeds
-            saveResourceIfNotExists("items/seeds/wheat_seeds.yml");
-            saveResourceIfNotExists("items/seeds/carrot_seeds.yml");
-            saveResourceIfNotExists("items/seeds/potato_seeds.yml");
-            // Tools
-            saveResourceIfNotExists("items/tools/inspector.yml");
-            saveResourceIfNotExists("items/tools/thermometer.yml");
-            // Misc
-            saveResourceIfNotExists("items/misc/burnt_food.yml");
-            // Watering Cans
-            saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
-            saveResourceIfNotExists("items/watering_cans/copper_can.yml");
-            saveResourceIfNotExists("items/watering_cans/silver_can.yml");
-            saveResourceIfNotExists("items/watering_cans/gold_can.yml");
-            saveResourceIfNotExists("items/watering_cans/iridium_can.yml");
-            // Fertilizers
-            saveResourceIfNotExists("items/fertilizers/speed_gro.yml");
-            saveResourceIfNotExists("items/fertilizers/retaining_soil.yml");
-            saveResourceIfNotExists("items/fertilizers/quality_fertilizer.yml");
-        }
+        // Seeds
+        saveResourceIfNotExists("items/seeds/wheat_seeds.yml");
+        saveResourceIfNotExists("items/seeds/carrot_seeds.yml");
+        saveResourceIfNotExists("items/seeds/potato_seeds.yml");
+        // Tools
+        saveResourceIfNotExists("items/tools/inspector.yml");
+        saveResourceIfNotExists("items/tools/thermometer.yml");
+        // Misc
+        saveResourceIfNotExists("items/misc/burnt_food.yml");
+        // Watering Cans
+        saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
+        saveResourceIfNotExists("items/watering_cans/copper_can.yml");
+        saveResourceIfNotExists("items/watering_cans/silver_can.yml");
+        saveResourceIfNotExists("items/watering_cans/gold_can.yml");
+        saveResourceIfNotExists("items/watering_cans/iridium_can.yml");
+        // Fertilizers
+        saveResourceIfNotExists("items/fertilizers/speed_gro.yml");
+        saveResourceIfNotExists("items/fertilizers/retaining_soil.yml");
+        saveResourceIfNotExists("items/fertilizers/quality_fertilizer.yml");
+        // Stations
+        saveResourceIfNotExists("items/stations/cooking_pot.yml");
+        saveResourceIfNotExists("items/stations/skillet.yml");
 
         YamlItemLoader itemLoader = new YamlItemLoader();
         int loaded = itemLoader.loadAllCategories(itemsDir, getLogger(), core.getItemRegistry());
@@ -277,6 +278,9 @@ public class CroppyPlugin extends JavaPlugin {
         Path target = getDataFolder().toPath().resolve(resourcePath);
         if (!Files.exists(target)) {
             try {
+                if (target.getParent() != null && !Files.exists(target.getParent())) {
+                    Files.createDirectories(target.getParent());
+                }
                 saveResource(resourcePath, false);
             } catch (Exception e) {
                 getLogger().warning("Could not extract default resource '" + resourcePath + "': " + e.getMessage());

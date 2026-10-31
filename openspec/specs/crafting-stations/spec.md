@@ -23,6 +23,10 @@ The system SHALL support both physical in-world item interactions (right-clickin
 - **WHEN** player right-clicks a physical-interaction station holding a valid ingredient
 - **THEN** the item is transferred into the station's input storage and visual feedback is triggered
 
+#### Scenario: Empty physical station interaction feedback
+- **WHEN** player right-clicks a physical-interaction station with an empty hand and no completed outputs or active processes
+- **THEN** informative action bar feedback is displayed indicating station status and temperature
+
 #### Scenario: Virtual inventory GUI interaction
 - **WHEN** player right-clicks a GUI-configured station without sneaking
 - **THEN** a custom inventory GUI opens displaying input, output, and progress slots
@@ -38,9 +42,13 @@ The system SHALL persist station state across chunk lifecycles and server restar
 - **WHEN** a chunk containing registered crafting stations is loaded into memory
 - **THEN** all station instances within that chunk are loaded into memory and registered with the station manager
 
+#### Scenario: Chunk unload persistence
+- **WHEN** a chunk containing registered crafting stations unloads from memory
+- **THEN** all active station instances within that chunk are saved to persistent storage and evicted from active station memory
+
 #### Scenario: Block destruction cleanup
 - **WHEN** a player breaks a crafting station block
-- **THEN** stored items and components drop to the ground, runtime state is cleared, and persistence records are deleted
+- **THEN** the station custom item and all stored items drop to the ground, runtime state is cleared, and persistence records are deleted
 
 ### Requirement: Display and Visual Synchronization
 The system SHALL synchronize visual representations including block display entities, item display entities with custom spatial transforms, floating status indicators, and ambient culinary particle and audio loops on the server main thread.

@@ -1,0 +1,9 @@
+id: "croppy:cooking_pot"
+category: "stations"
+material: "minecraft:player_head"
+name: "<gradient:#ffaa00:#ff5555>Cooking Pot</gradient>"
+lore:
+  - "<gray>A versatile heavy pot used for</gray>"
+  - "<gray>stewing, boiling, and simmering.</gray>"
+  - ""
+  - "<yellow>Sneak + Right-Click</yellow> <gray>to open inventory</gray>"
