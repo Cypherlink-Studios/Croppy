@@ -1,0 +1,80 @@
+# ==============================================================================
+# Croppy Localization - English (United States) [Source Locale]
+# ==============================================================================
+general:
+  prefix: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>"
+  no-permission: "<red>You do not have permission to execute this command.</red>"
+  player-not-found: "<red>Player <player> was not found online.</red>"
+  reload-success: "<green>Configuration, items, stations, and localization catalogs reloaded successfully.</green>"
+  reload-failed: "<red>Failed to reload configuration: <error></red>"
+command:
+  player-only: "<red>Only players can execute targeting commands.</red>"
+  give:
+    sender-required: "<red>You must specify a recipient player with --target <player> from the console.</red>"
+    registry-not-initialized: "<red>Item registry is not initialized.</red>"
+    item-not-found: "<red>Item not found in registry: <item></red>"
+    received: "<green>You received <yellow><amount>x</yellow> <item>.</green>"
+    given: "<green>Delivered <yellow><amount>x</yellow> <item> to <player>.</green>"
+    fertilizer-not-found: "<red>Fertilizer item not found: <item></red>"
+  list:
+    empty-category: "<yellow>No items registered in category: <category></yellow>"
+    category-header: "<gold><bold>=== Items in Category: <category> (<count>) ===</bold></gold>"
+    all-header: "<gold><bold>=== Registered Items (<count>) ===</bold></gold>"
+    species-not-found: "<red>Species <species> was not found in the registry.</red>"
+    species-header: "<gold><bold>=== Registered Species (<count>) ===</bold></gold>"
+  inspect:
+    console-needs-coords: "<red>Console must specify coordinates: /croppy inspect <x> <y> <z></red>"
+    no-crop-found: "<red>No active crop found at the targeted location.</red>"
+    tool-given: "<green>You have received the <gradient:#70e000:#38b000>Crop Inspector</gradient> tool.</green>"
+  water:
+    success: "<aqua>Crop successfully watered for today!</aqua>"
+  fertilize:
+    success: "<green>Fertilizer <yellow><fertilizer></yellow> applied to the crop!</green>"
+  state:
+    species-not-found: "<red>Species not found for this crop.</red>"
+    stage-updated: "<green>Updated crop stage to <yellow><stage></yellow>.</green>"
+    progress-updated: "<green>Updated crop progress to <yellow><progress>%</yellow>.</green>"
+    invalid-stage: "<red>Invalid stage index: <stage>. Maximum stage is <max>.</red>"
+inspector:
+  title: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Crop Inspection"
+  species: "<dark_gray>├─ <gold>Species: <yellow><name> <gray>(<key>)</gray>"
+  stage: "<dark_gray>├─ <gold>Stage: <yellow><current>/<total> <gray>(ID: <id>)</gray>"
+  progress: "<dark_gray>├─ <gold>Progress: <bar> <gray>(<percent>)</gray>"
+  hydration: "<dark_gray>├─ <gold>Hydration: <status>"
+  fertilizer: "<dark_gray>├─ <gold>Fertilizer: <status>"
+  policy: "<dark_gray>├─ <gold>Unwatered Policy: <yellow><policy></yellow>"
+  light: "<dark_gray>├─ <gold>Light Level: <color><level> <gray>(Min: <min>)</gray>"
+  water: "<dark_gray>├─ <gold>Water Level: <color><level>/8 <gray>(Min: <min>)</gray>"
+  status: "<dark_gray>└─ <gold>Status: <status>"
+  none: "<gray>None</gray>"
+  states:
+    mature: "<aqua><bold>Mature</bold></aqua>"
+    unloaded: "<red>Unloaded Chunk</red>"
+    stalled-both: "<red>Stalled (Light & Water)</red>"
+    stalled-light: "<red>Stalled (Insufficient Light)</red>"
+    stalled-water: "<red>Stalled (Insufficient Water)</red>"
+    growing: "<green><bold>Growing</bold></green>"
+  hydration-states:
+    watered-today: "<blue>Watered today 💧</blue>"
+    dry-days: "<red>Dry (<days> day(s) ago) 🥀</red>"
+    watered-day: "<blue>Watered (Day <day>) 💧</blue>"
+    unwatered: "<gray>Unwatered 🥀</gray>"
+watering:
+  refilled: "<aqua>Watering can refilled!</aqua>"
+  empty: "<red>The watering can is empty! Refill it with water.</red>"
+fertilizer:
+  already-applied: "<red>This crop already has a fertilizer applied!</red>"
+  applied: "<green>Fertilizer applied: <name>!</green>"
+  soil-enriched: "<green>Soil enriched! Plant a seed within 30s.</green>"
+station:
+  temperature: "<gradient:#ffaa00:{color}>Temperature:</gradient> <white><temperature>°C</white> <gray>[<zone>]</gray>"
+  empty: "<gray>Empty</gray>"
+  empty-feedback: "<name> <dark_gray>•</dark_gray> <status> <dark_gray>•</dark_gray> <gradient:#ffaa00:{color}><temperature>°C</gradient>"
+  empty-feedback-no-thermal: "<name> <dark_gray>•</dark_gray> <status>"
+prompt:
+  temperature-prompt: "<gold>[Croppy]</gold> <yellow>Enter target temperature (</yellow><white><min>°C - <max>°C</white><yellow>) in chat, or type </yellow><red>'cancel'</red><yellow>:</yellow>"
+  temperature-timeout: "<gold>[Croppy]</gold> <gray>Temperature selection timed out.</gray>"
+  temperature-cancelled: "<gold>[Croppy]</gold> <gray>Temperature selection cancelled.</gray>"
+  temperature-bounds: "<gold>[Croppy]</gold> <red>Temperature must be between <min>°C and <max>°C.</red>"
+  temperature-success: "<gold>[Croppy]</gold> <green>Target temperature set to <aqua><val>°C</aqua>!</green>"
+  invalid-number: "<gold>[Croppy]</gold> <red>Invalid number. Type a valid number or 'cancel'.</red>"
