@@ -1,0 +1,123 @@
+id: "croppy:stove_menu"
+title: "<gradient:#ff8800:#ff3300>Stove Controls</gradient>"
+rows: 3
+pattern:
+  - "X X X X T X X X X"
+  - "X A B . F . C D X"
+  - "X P X X X X X S X"
+elements:
+  'X':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_stained_glass_pane"
+      name: " "
+  'T':
+    type: STATUS
+    item:
+      material: "minecraft:comparator"
+      name: "<gray>Stove: <red>OFF</red></gray>"
+      lore:
+        - "<yellow>Target:</yellow> <white>{station.target_temperature}°C</white>"
+        - "<yellow>Output:</yellow> <white>{station.output_temperature}°C</white>"
+        - "<gray>Click Power to start.</gray>"
+    states:
+      - condition: "station.is_active == true && station.is_burning == true"
+        item:
+          material: "minecraft:campfire"
+          name: "<gold><bold>Stove: <green>BURNING</green></bold></gold>"
+          lore:
+            - "<yellow>Target:</yellow> <white>{station.target_temperature}°C</white>"
+            - "<yellow>Output:</yellow> <aqua>{station.output_temperature}°C</aqua>"
+            - "<yellow>Burn Time:</yellow> <white>{station.burn_seconds}s</white>"
+          glow: true
+      - condition: "station.is_active == true && station.is_burning == false"
+        item:
+          material: "minecraft:coal"
+          name: "<yellow><bold>Stove: <red>OUT OF FUEL</red></bold></yellow>"
+          lore:
+            - "<yellow>Target:</yellow> <white>{station.target_temperature}°C</white>"
+            - "<yellow>Output:</yellow> <white>{station.output_temperature}°C</white>"
+            - "<red>Insert fuel to heat up!</red>"
+  'A':
+    type: ACTION
+    item:
+      material: "minecraft:red_dye"
+      name: "<red><bold>-10°C</bold></red>"
+      lore:
+        - "<gray>Click to decrease target by 10°C</gray>"
+    actions:
+      - click: ALL
+        type: STATION_ACTION
+        action: "ADJUST_TEMP:-10"
+      - click: ALL
+        type: SOUND
+        sound: "minecraft:ui.button.click"
+  'B':
+    type: ACTION
+    item:
+      material: "minecraft:orange_dye"
+      name: "<gold><bold>-1°C</bold></gold>"
+      lore:
+        - "<gray>Click to decrease target by 1°C</gray>"
+    actions:
+      - click: ALL
+        type: STATION_ACTION
+        action: "ADJUST_TEMP:-1"
+      - click: ALL
+        type: SOUND
+        sound: "minecraft:ui.button.click"
+  'C':
+    type: ACTION
+    item:
+      material: "minecraft:lime_dye"
+      name: "<green><bold>+1°C</bold></green>"
+      lore:
+        - "<gray>Click to increase target by 1°C</gray>"
+    actions:
+      - click: ALL
+        type: STATION_ACTION
+        action: "ADJUST_TEMP:+1"
+      - click: ALL
+        type: SOUND
+        sound: "minecraft:ui.button.click"
+  'D':
+    type: ACTION
+    item:
+      material: "minecraft:green_dye"
+      name: "<dark_green><bold>+10°C</bold></dark_green>"
+      lore:
+        - "<gray>Click to increase target by 10°C</gray>"
+    actions:
+      - click: ALL
+        type: STATION_ACTION
+        action: "ADJUST_TEMP:+10"
+      - click: ALL
+        type: SOUND
+        sound: "minecraft:ui.button.click"
+  'F':
+    type: INPUT
+  'P':
+    type: ACTION
+    item:
+      material: "minecraft:lever"
+      name: "<yellow><bold>Power ON / OFF</bold></yellow>"
+      lore:
+        - "<gray>Click to toggle stove power.</gray>"
+    actions:
+      - click: ALL
+        type: STATION_ACTION
+        action: "TOGGLE_POWER"
+      - click: ALL
+        type: SOUND
+        sound: "minecraft:block.lever.click"
+  'S':
+    type: ACTION
+    item:
+      material: "minecraft:paper"
+      name: "<aqua><bold>Set Exact Temp</bold></aqua>"
+      lore:
+        - "<gray>Click to enter degrees via chat.</gray>"
+    actions:
+      - click: ALL
+        type: STATION_ACTION
+        action: "PROMPT_CHAT_TEMP"

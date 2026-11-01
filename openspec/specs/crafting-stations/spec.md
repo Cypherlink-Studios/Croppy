@@ -40,7 +40,7 @@ The system SHALL support both physical in-world item interactions (right-clickin
 - **THEN** direct physical extraction or inspection executes without opening the inventory window
 
 ### Requirement: Spatial Lifecycle and Persistence
-The system SHALL persist station state across chunk lifecycles and server restarts, restoring active station data on chunk load.
+The system SHALL persist station state and attached component data across chunk lifecycles and server restarts, restoring active station data on chunk load.
 
 #### Scenario: Chunk load restore
 - **WHEN** a chunk containing registered crafting stations is loaded into memory
@@ -54,16 +54,24 @@ The system SHALL persist station state across chunk lifecycles and server restar
 - **WHEN** a player breaks a crafting station block
 - **THEN** the station custom item and all stored items drop to the ground, runtime state is cleared, and persistence records are deleted
 
+#### Scenario: Heat source station persistence
+- **WHEN** a heat source station with active fuel and temperature settings unloads and reloads
+- **THEN** its active status, output temperature, target temperature, and remaining burn ticks are fully restored from binary storage
+
 ### Requirement: Display and Visual Synchronization
-The system SHALL synchronize visual representations including block display entities, item display entities with custom spatial transforms, floating status indicators, and ambient culinary particle and audio loops on the server main thread.
+The system SHALL synchronize visual representations including client-side virtual display entities (item displays with custom spatial transforms, base models, and floating status holograms) via packet protocols, combined with ambient culinary particle and audio loops on the server main thread.
 
 #### Scenario: Update item display on state change
 - **WHEN** a station enters a new processing phase
-- **THEN** the floating item display updates its rendered model and particles are emitted
+- **THEN** the virtual item display updates its rendered model via packet metadata and ambient particles are emitted
 
 #### Scenario: Synchronize cookware item display orientation
 - **WHEN** items are placed inside a cooking pot or onto a skillet
-- **THEN** an `ItemDisplay` entity renders with height offsets and planar rotation matching the cookware geometry
+- **THEN** a virtual `ItemDisplay` entity renders with height offsets and planar rotation matching the cookware geometry without persisting in the world
+
+#### Scenario: Virtual cleanup on block destruction
+- **WHEN** a crafting station block is broken
+- **THEN** virtual display entities are destroyed for all viewers via packet signals and no orphaned entity remains in the world
 
 ### Requirement: Cookware Station Thermal and Multi-Sensory Ticking
 The system SHALL execute recurring thermal checks and multi-sensory culinary audio and particle feedback loops for active cooking cookware during station ticking.

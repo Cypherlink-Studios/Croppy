@@ -6,6 +6,24 @@ input_capacity: 6
 output_capacity: 2
 menu: "croppy:cooking_pot"
 has_display: true
+visual:
+  process_display:
+    enabled: true
+    type: "ITEM"
+    translation: [0.0, 0.35, 0.0]
+    scale: [0.55, 0.15, 0.55]
+    view_distance: 24
+    interpolation_duration: 3
+  text_display:
+    enabled: true
+    translation: [0.0, 1.35, 0.0]
+    billboard: "CENTER"
+    view_distance: 8
+    line_width: 220
+    format: |
+      <gradient:#ffaa00:#ff5555><bold>{recipe_name}</bold></gradient>
+      {progress_bar} <white>{progress_percent}%</white>
+      <gray>Heat: <aqua>{temperature_c}</aqua> (<gold>{thermal_zone}</gold>)</gray>
 properties:
   thermal: "true"
   has_thermal: "true"

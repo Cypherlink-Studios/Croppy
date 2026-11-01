@@ -6,6 +6,7 @@ import dev.darkblade.croppy.api.process.ProcessDefinition;
 import dev.darkblade.croppy.api.process.ProcessInstance;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.station.StationInstance;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import org.bukkit.Bukkit;
@@ -75,6 +76,24 @@ public final class PaperMenuTicker implements Runnable {
                     .with("station.heat_level", (long) tc.getTemperature())
                     .with("station.is_heated", tc.isHeated())
                     .with("station.thermal_zone", tc.getThermalZone().name());
+        }
+
+        Optional<HeatSourceComponent> heatOpt = station.getComponent(HeatSourceComponent.class);
+        if (heatOpt.isPresent()) {
+            HeatSourceComponent hs = heatOpt.get();
+            ctx = ctx.with("station.is_active", hs.isActive())
+                    .with("station.is_burning", hs.isBurning())
+                    .with("station.target_temperature", (long) hs.getTargetTemperature())
+                    .with("station.output_temperature", (long) hs.getOutputTemperature())
+                    .with("station.burn_ticks", hs.getBurnTicksRemaining())
+                    .with("station.burn_seconds", hs.getBurnTicksRemaining() / 20)
+                    .with("station.min_temperature", (long) hs.getMinTemperature())
+                    .with("station.max_temperature", (long) hs.getMaxTemperature());
+            if (thermalOpt.isEmpty()) {
+                ctx = ctx.with("station.temperature", (long) hs.getOutputTemperature())
+                        .with("station.heat_level", (long) hs.getOutputTemperature())
+                        .with("station.is_heated", hs.isActive());
+            }
         }
 
         Optional<ProcessComponent> processOpt = station.getComponent(ProcessComponent.class);

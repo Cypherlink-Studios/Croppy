@@ -1,8 +1,20 @@
 package dev.darkblade.croppy.platform.paper.station;
 
+import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.station.StationDefinition;
+import dev.darkblade.croppy.api.station.StationInstance;
+import dev.darkblade.croppy.api.station.StationInteractionType;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
+import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.core.station.DefaultStationInstance;
+import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.platform.paper.station.PaperThermalEvaluator.HeatSourceResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -55,14 +67,44 @@ class PaperThermalEvaluatorTest {
     }
 
     @Test
-    @DisplayName("Non-heat blocks evaluate to ambient 20°C")
-    void testNonHeatBlocks() {
-        HeatSourceResult dirt = evaluator.evaluateMaterial("DIRT", false);
-        assertFalse(dirt.isHeated());
-        assertEquals(20.0, dirt.targetTemperature(), 0.001);
+    @DisplayName("Custom heat source station is prioritized over vanilla evaluation")
+    void testCustomHeatSourcePriority() {
+        BlockPosition stovePos = new BlockPosition("world", 10, 64, 10);
+        StationDefinition stoveDef = new StationDefinition(
+                Key.of("croppy", "stove"),
+                "Stove",
+                "minecraft:smoker",
+                StationInteractionType.HYBRID,
+                1, 0, true, List.of(), Map.of("heat_source", "true")
+        );
+        DefaultStationInstance stove = new DefaultStationInstance(stoveDef.key(), stovePos, stoveDef);
+        DefaultHeatSourceComponent heatComp = new DefaultHeatSourceComponent(
+                true, 185.0, 185.0, 1000L, 1000L, 20.0, 350.0, 5.0, 2.0, 1.0
+        );
+        stove.setComponent(HeatSourceComponent.class, heatComp);
 
-        HeatSourceResult stone = evaluator.evaluateMaterial("STONE", true);
-        assertFalse(stone.isHeated());
-        assertEquals(20.0, stone.targetTemperature(), 0.001);
+        PaperThermalEvaluator evaluatorWithStations = new PaperThermalEvaluator(pos -> {
+            if (pos.equals(stovePos)) {
+                return Optional.of(stove);
+            }
+            return Optional.empty();
+        });
+
+        // 1. When stove is active at 185°C
+        HeatSourceResult result = evaluatorWithStations.evaluateHeatSource(stovePos, null);
+        assertTrue(result.isHeated());
+        assertEquals(185.0, result.targetTemperature(), 0.001);
+
+        // 2. When stove is turned off
+        heatComp.setActive(false);
+        HeatSourceResult offResult = evaluatorWithStations.evaluateHeatSource(stovePos, null);
+        assertFalse(offResult.isHeated());
+        assertEquals(20.0, offResult.targetTemperature(), 0.001);
+
+        // 3. When position below has no custom station, fallback to vanilla block evaluation
+        BlockPosition emptyPos = new BlockPosition("world", 20, 64, 20);
+        HeatSourceResult fallbackResult = evaluatorWithStations.evaluateHeatSource(emptyPos, null);
+        assertFalse(fallbackResult.isHeated());
+        assertEquals(20.0, fallbackResult.targetTemperature(), 0.001);
     }
 }

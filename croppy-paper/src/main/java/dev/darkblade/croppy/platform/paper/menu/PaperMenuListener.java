@@ -8,13 +8,15 @@ import dev.darkblade.croppy.api.menu.MenuActionType;
 import dev.darkblade.croppy.api.menu.MenuDefinition;
 import dev.darkblade.croppy.api.menu.SlotDefinition;
 import dev.darkblade.croppy.api.menu.SlotType;
-import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StoredItem;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
+import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.core.menu.MenuExpressionEvaluator;
 import dev.darkblade.croppy.core.process.ProcessEngine;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
+import dev.darkblade.croppy.platform.paper.prompt.ChatPromptService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -46,13 +48,36 @@ public final class PaperMenuListener implements Listener {
     private final ItemFactory itemFactory;
     private final PaperMenuRenderer renderer;
     private final MiniMessage miniMessage;
+    private ChatPromptService chatPromptService;
+    private PaperMenuService menuService;
 
-    public PaperMenuListener(Plugin plugin, ProcessEngine processEngine, ItemFactory itemFactory, PaperMenuRenderer renderer) {
+    public PaperMenuListener(
+            Plugin plugin,
+            ProcessEngine processEngine,
+            ItemFactory itemFactory,
+            PaperMenuRenderer renderer,
+            ChatPromptService chatPromptService,
+            PaperMenuService menuService
+    ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
         this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.renderer = Objects.requireNonNull(renderer, "renderer cannot be null");
+        this.chatPromptService = chatPromptService;
+        this.menuService = menuService;
         this.miniMessage = MiniMessage.miniMessage();
+    }
+
+    public PaperMenuListener(Plugin plugin, ProcessEngine processEngine, ItemFactory itemFactory, PaperMenuRenderer renderer) {
+        this(plugin, processEngine, itemFactory, renderer, null, null);
+    }
+
+    public void setChatPromptService(ChatPromptService chatPromptService) {
+        this.chatPromptService = chatPromptService;
+    }
+
+    public void setMenuService(PaperMenuService menuService) {
+        this.menuService = menuService;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -197,6 +222,51 @@ public final class PaperMenuListener implements Listener {
                         processEngine.tryStartProcess(station, holder.getContext().with("player", player));
                     } else if ("CANCEL_PROCESS".equalsIgnoreCase(target)) {
                         station.getComponent(ProcessComponent.class).ifPresent(ProcessComponent::clearActiveProcess);
+                    } else if ("TOGGLE_POWER".equalsIgnoreCase(target)) {
+                        station.getComponent(HeatSourceComponent.class).ifPresent(heat -> {
+                            heat.setActive(!heat.isActive());
+                        });
+                    } else if (target.toUpperCase(Locale.ROOT).startsWith("ADJUST_TEMP:")
+                            || "INCREASE_HEAT".equalsIgnoreCase(target)
+                            || "DECREASE_HEAT".equalsIgnoreCase(target)) {
+                        station.getComponent(HeatSourceComponent.class).ifPresent(heat -> {
+                            double delta = 0.0;
+                            if ("INCREASE_HEAT".equalsIgnoreCase(target)) {
+                                delta = 10.0;
+                            } else if ("DECREASE_HEAT".equalsIgnoreCase(target)) {
+                                delta = -10.0;
+                            } else {
+                                String rawDelta = target.substring("ADJUST_TEMP:".length()).trim();
+                                if (rawDelta.startsWith("+")) {
+                                    rawDelta = rawDelta.substring(1);
+                                }
+                                try {
+                                    delta = Double.parseDouble(rawDelta);
+                                } catch (NumberFormatException ignored) {}
+                            }
+                            heat.setTargetTemperature(heat.getTargetTemperature() + delta);
+                        });
+                    } else if ("PROMPT_CHAT_TEMP".equalsIgnoreCase(target) || "SET_TEMP_CHAT".equalsIgnoreCase(target)) {
+                        station.getComponent(HeatSourceComponent.class).ifPresent(heat -> {
+                            if (chatPromptService != null) {
+                                chatPromptService.startTemperaturePrompt(
+                                        player,
+                                        heat.getMinTemperature(),
+                                        heat.getMaxTemperature(),
+                                        newTemp -> {
+                                            heat.setTargetTemperature(newTemp);
+                                            if (player.isOnline() && menuService != null) {
+                                                menuService.openStationMenu(player, station);
+                                            }
+                                        },
+                                        () -> {
+                                            if (player.isOnline() && menuService != null) {
+                                                menuService.openStationMenu(player, station);
+                                            }
+                                        }
+                                );
+                            }
+                        });
                     }
                 }
             }

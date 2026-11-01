@@ -87,85 +87,32 @@ public class PaperDisplaySynchronizer implements DisplaySynchronizer {
      * @param world       the Bukkit world
      * @param itemFactory factory constructing ItemStacks from keys
      */
+    /**
+     * Legacy synchronization for station displays.
+     * Prunes legacy world-persisted ItemDisplay entities to prevent ghost entities.
+     * Virtual display projection is handled by {@link dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker}.
+     *
+     * @param station     the station instance
+     * @param world       the Bukkit world
+     * @param itemFactory factory constructing ItemStacks from keys
+     */
     public void synchronizeStationDisplay(StationInstance station, World world, ItemFactory itemFactory) {
         Objects.requireNonNull(station, "station cannot be null");
-        if (world == null || itemFactory == null) {
-            return;
-        }
-
-        Optional<DisplayComponent> displayOpt = station.getComponent(DisplayComponent.class);
-        if (displayOpt.isEmpty()) {
+        if (world == null) {
             return;
         }
 
         BlockPosition pos = station.getPosition();
-        String stationType = station.getStationKey().value().toLowerCase();
-        double yOffset = 1.1; // Default floating icon height
-        float pitchAngle = 0.0f;
-        Vector3f scale = new Vector3f(0.6f, 0.6f, 0.6f);
+        Location loc = new Location(world, pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
 
-        if (stationType.contains("pot")) {
-            // Liquid/contents inside pot interior
-            yOffset = 0.35;
-            scale = new Vector3f(0.55f, 0.15f, 0.55f);
-        } else if (stationType.contains("skillet") || stationType.contains("pan")) {
-            // Flat on the surface of the iron pressure plate
-            yOffset = 0.08;
-            pitchAngle = (float) Math.toRadians(90.0);
-            scale = new Vector3f(0.45f, 0.45f, 0.45f);
-        }
-
-        Location loc = new Location(world, pos.x() + 0.5, pos.y() + yOffset, pos.z() + 0.5);
-        DisplayComponent display = displayOpt.get();
-        Optional<Key> itemKeyOpt = display.getDisplayedItem();
-
-        Collection<Entity> nearby = world.getNearbyEntities(loc, 0.6, 0.8, 0.6,
+        // Prune any legacy world-persisted ItemDisplay entities
+        Collection<Entity> nearby = world.getNearbyEntities(loc, 1.0, 1.5, 1.0,
                 e -> e instanceof ItemDisplay && e.getPersistentDataContainer().has(STATION_DISPLAY_KEY, PersistentDataType.BYTE));
-
-        if (itemKeyOpt.isEmpty()) {
-            // No item to display: remove any existing displays
-            for (Entity e : nearby) {
-                e.remove();
-            }
-            display.setDirty(false);
-            return;
+        for (Entity e : nearby) {
+            e.remove();
         }
 
-        Key itemKey = itemKeyOpt.get();
-        ItemStack stack = itemFactory.createItemStack(new ItemDefinition(
-                itemKey,
-                "misc",
-                itemKey.asString(),
-                0,
-                null,
-                List.of(),
-                java.util.Map.of()
-        ), 1);
-
-        Transformation transformation = new Transformation(
-                new Vector3f(0, 0, 0),
-                new AxisAngle4f(pitchAngle, 1, 0, 0),
-                scale,
-                new AxisAngle4f(0, 0, 1, 0)
-        );
-
-        if (!nearby.isEmpty()) {
-            for (Entity e : nearby) {
-                if (e instanceof ItemDisplay id) {
-                    id.setItemStack(stack);
-                    id.setTransformation(transformation);
-                }
-            }
-        } else {
-            world.spawn(loc, ItemDisplay.class, id -> {
-                id.setItemStack(stack);
-                id.setTransformation(transformation);
-                id.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-                id.getPersistentDataContainer().set(STATION_DISPLAY_KEY, PersistentDataType.BYTE, (byte) 1);
-            });
-        }
-
-        display.setDirty(false);
+        station.getComponent(DisplayComponent.class).ifPresent(d -> d.setDirty(false));
     }
 
     private void synchronizeVanillaDisplay(Block block, CropDisplay display, StageDefinition stage) {

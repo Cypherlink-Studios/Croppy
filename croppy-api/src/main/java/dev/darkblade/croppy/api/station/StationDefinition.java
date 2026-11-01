@@ -2,10 +2,12 @@ package dev.darkblade.croppy.api.station;
 
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.identifier.Keyed;
+import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Immutable definition of a crafting station or machine type.
@@ -20,6 +22,7 @@ import java.util.Objects;
  * @param hasDisplay        whether station renders floating items/text display entities
  * @param allowedRecipes    list of allowed process recipe keys, or empty for all
  * @param properties        arbitrary configuration properties
+ * @param visualDefinition  optional visual layers and packet display configuration
  */
 public record StationDefinition(
         Key key,
@@ -31,7 +34,8 @@ public record StationDefinition(
         Key menuKey,
         boolean hasDisplay,
         List<Key> allowedRecipes,
-        Map<String, String> properties
+        Map<String, String> properties,
+        StationVisualDefinition visualDefinition
 ) implements Keyed {
 
     public static final Key DEFAULT_MENU_KEY = Key.of("croppy", "default_station");
@@ -47,7 +51,25 @@ public record StationDefinition(
     }
 
     /**
-     * Backward-compatible constructor defaulting {@code menuKey} to {@link #DEFAULT_MENU_KEY}.
+     * Backward-compatible constructor defaulting {@code visualDefinition} to null.
+     */
+    public StationDefinition(
+            Key key,
+            String displayName,
+            String baseBlockMaterial,
+            StationInteractionType interactionType,
+            int inputCapacity,
+            int outputCapacity,
+            Key menuKey,
+            boolean hasDisplay,
+            List<Key> allowedRecipes,
+            Map<String, String> properties
+    ) {
+        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, menuKey, hasDisplay, allowedRecipes, properties, null);
+    }
+
+    /**
+     * Backward-compatible constructor defaulting {@code menuKey} to {@link #DEFAULT_MENU_KEY} and {@code visualDefinition} to null.
      */
     public StationDefinition(
             Key key,
@@ -60,11 +82,15 @@ public record StationDefinition(
             List<Key> allowedRecipes,
             Map<String, String> properties
     ) {
-        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, DEFAULT_MENU_KEY, hasDisplay, allowedRecipes, properties);
+        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, DEFAULT_MENU_KEY, hasDisplay, allowedRecipes, properties, null);
     }
 
     @Override
     public Key getKey() {
         return key;
+    }
+
+    public Optional<StationVisualDefinition> getVisualDefinition() {
+        return Optional.ofNullable(visualDefinition);
     }
 }

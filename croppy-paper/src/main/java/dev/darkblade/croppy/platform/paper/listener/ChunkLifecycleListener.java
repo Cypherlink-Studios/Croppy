@@ -29,7 +29,24 @@ public class ChunkLifecycleListener implements Listener {
     private final CropStorage cropStorage;
     private final DefaultStationManager stationManager;
     private final StationStorage stationStorage;
+    private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
     private final Logger logger;
+
+    public ChunkLifecycleListener(
+            CropManager cropManager,
+            CropStorage cropStorage,
+            DefaultStationManager stationManager,
+            StationStorage stationStorage,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            Logger logger
+    ) {
+        this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
+        this.cropStorage = Objects.requireNonNull(cropStorage, "cropStorage cannot be null");
+        this.stationManager = stationManager;
+        this.stationStorage = stationStorage;
+        this.viewerTracker = viewerTracker;
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+    }
 
     public ChunkLifecycleListener(
             CropManager cropManager,
@@ -38,15 +55,11 @@ public class ChunkLifecycleListener implements Listener {
             StationStorage stationStorage,
             Logger logger
     ) {
-        this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
-        this.cropStorage = Objects.requireNonNull(cropStorage, "cropStorage cannot be null");
-        this.stationManager = stationManager;
-        this.stationStorage = stationStorage;
-        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this(cropManager, cropStorage, stationManager, stationStorage, null, logger);
     }
 
     public ChunkLifecycleListener(CropManager cropManager, CropStorage cropStorage, Logger logger) {
-        this(cropManager, cropStorage, null, null, logger);
+        this(cropManager, cropStorage, null, null, null, logger);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -130,6 +143,10 @@ public class ChunkLifecycleListener implements Listener {
             } catch (Exception e) {
                 logger.log(Level.SEVERE, "Error saving stations for unloaded chunk [" + chunkX + ", " + chunkZ + "]", e);
             }
+        }
+
+        if (viewerTracker != null) {
+            viewerTracker.onChunkUnload(worldName, chunkX, chunkZ);
         }
     }
 }

@@ -6,6 +6,7 @@ import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
@@ -14,6 +15,7 @@ import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.station.DefaultStationInstance;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.component.DefaultDisplayComponent;
+import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
 import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
@@ -41,12 +43,24 @@ public final class StationBlockListener implements Listener {
     private final StationRegistry stationRegistry;
     private final StationStorage stationStorage;
     private final ItemFactory itemFactory;
+    private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
 
-    public StationBlockListener(DefaultStationManager stationManager, StationRegistry stationRegistry, StationStorage stationStorage, ItemFactory itemFactory) {
+    public StationBlockListener(
+            DefaultStationManager stationManager,
+            StationRegistry stationRegistry,
+            StationStorage stationStorage,
+            ItemFactory itemFactory,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker
+    ) {
         this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
         this.stationRegistry = Objects.requireNonNull(stationRegistry, "stationRegistry cannot be null");
         this.stationStorage = Objects.requireNonNull(stationStorage, "stationStorage cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
+        this.viewerTracker = viewerTracker;
+    }
+
+    public StationBlockListener(DefaultStationManager stationManager, StationRegistry stationRegistry, StationStorage stationStorage, ItemFactory itemFactory) {
+        this(stationManager, stationRegistry, stationStorage, itemFactory, null);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -79,6 +93,21 @@ public final class StationBlockListener implements Listener {
             station.setComponent(ThermalComponent.class, new DefaultThermalComponent());
         }
 
+        boolean isHeatSource = Boolean.parseBoolean(def.properties().getOrDefault("heat_source", "false"))
+                || Boolean.parseBoolean(def.properties().getOrDefault("is_heat_source", "false"));
+        if (isHeatSource) {
+            double minTemp = parseDoubleOrDefault(def.properties().get("min_temperature"), DefaultHeatSourceComponent.DEFAULT_MIN_TEMP);
+            double maxTemp = parseDoubleOrDefault(def.properties().get("max_temperature"), DefaultHeatSourceComponent.DEFAULT_MAX_TEMP);
+            double heatingRate = parseDoubleOrDefault(def.properties().get("heating_rate"), DefaultHeatSourceComponent.DEFAULT_HEATING_RATE);
+            double coolingRate = parseDoubleOrDefault(def.properties().get("cooling_rate"), DefaultHeatSourceComponent.DEFAULT_COOLING_RATE);
+            double fuelMult = parseDoubleOrDefault(def.properties().get("fuel_burn_multiplier"), DefaultHeatSourceComponent.DEFAULT_FUEL_MULTIPLIER);
+
+            station.setComponent(HeatSourceComponent.class, new DefaultHeatSourceComponent(
+                    false, minTemp, DefaultHeatSourceComponent.DEFAULT_AMBIENT_TEMPERATURE, 0L, 0L,
+                    minTemp, maxTemp, heatingRate, coolingRate, fuelMult
+            ));
+        }
+
         stationManager.addStation(station);
         stationStorage.saveStation(station);
     }
@@ -95,6 +124,10 @@ public final class StationBlockListener implements Listener {
 
         StationInstance station = stationOpt.get();
         stationStorage.deleteStation(pos);
+
+        if (viewerTracker != null) {
+            viewerTracker.destroyStation(pos);
+        }
 
         World world = block.getWorld();
         Location dropLoc = block.getLocation().add(0.5, 0.5, 0.5);
@@ -147,5 +180,16 @@ public final class StationBlockListener implements Listener {
                 List.of(),
                 java.util.Map.of()
         ), stored.amount());
+    }
+
+    private double parseDoubleOrDefault(String val, double def) {
+        if (val == null || val.isBlank()) {
+            return def;
+        }
+        try {
+            return Double.parseDouble(val.trim());
+        } catch (NumberFormatException e) {
+            return def;
+        }
     }
 }

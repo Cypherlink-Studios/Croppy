@@ -11,12 +11,16 @@ dependencies {
     testImplementation("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
     testImplementation("net.kyori:adventure-text-serializer-plain:4.17.0")
 
+    // PacketEvents network and protocol library (provided by server plugin)
+    compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")
+    testImplementation("com.github.retrooper:packetevents-spigot:2.14.0")
+
     // Libby runtime library loader
     implementation("net.byteflux:libby-paper:1.3.2")
 
     // Incendo Cloud 2 Command Framework
     implementation("org.incendo:cloud-paper:2.0.1")
-    implementation("org.incendo:cloud-annotations:2.0.0")
+    implementation("org.incendo:cloud-annotations:2.1.0")
 
     // Compile-only database dependencies (loaded dynamically at runtime via Libby)
     compileOnly("com.zaxxer:HikariCP:7.1.0")

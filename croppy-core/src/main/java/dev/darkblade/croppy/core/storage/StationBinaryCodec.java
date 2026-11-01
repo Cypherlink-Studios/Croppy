@@ -7,6 +7,7 @@ import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
@@ -14,6 +15,7 @@ import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.process.DefaultProcessInstance;
 import dev.darkblade.croppy.core.station.DefaultStationInstance;
 import dev.darkblade.croppy.core.station.component.DefaultDisplayComponent;
+import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
 import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
@@ -36,7 +38,7 @@ import java.util.function.Function;
 public final class StationBinaryCodec {
 
     private static final int MAGIC = 0x53544154; // 'STAT'
-    public static final int CURRENT_VERSION = 2;
+    public static final int CURRENT_VERSION = 3;
 
     private StationBinaryCodec() {}
 
@@ -122,6 +124,23 @@ public final class StationBinaryCodec {
                     out.writeDouble(thermal.getTemperature());
                     out.writeDouble(thermal.getTargetTemperature());
                     out.writeBoolean(thermal.isHeated());
+                }
+
+                // 5. Heat Source Component (version 3+)
+                Optional<HeatSourceComponent> heatSourceOpt = station.getComponent(HeatSourceComponent.class);
+                out.writeBoolean(heatSourceOpt.isPresent());
+                if (heatSourceOpt.isPresent()) {
+                    HeatSourceComponent heatSource = heatSourceOpt.get();
+                    out.writeBoolean(heatSource.isActive());
+                    out.writeDouble(heatSource.getTargetTemperature());
+                    out.writeDouble(heatSource.getOutputTemperature());
+                    out.writeLong(heatSource.getBurnTicksRemaining());
+                    out.writeLong(heatSource.getMaxBurnTicks());
+                    out.writeDouble(heatSource.getMinTemperature());
+                    out.writeDouble(heatSource.getMaxTemperature());
+                    out.writeDouble(heatSource.getHeatingRate());
+                    out.writeDouble(heatSource.getCoolingRate());
+                    out.writeDouble(heatSource.getFuelBurnMultiplier());
                 }
             }
         } catch (IOException e) {
@@ -230,6 +249,26 @@ public final class StationBinaryCodec {
                     }
                 }
 
+                // 5. Heat Source Component (version 3+)
+                if (version >= 3) {
+                    boolean hasHeatSource = in.readBoolean();
+                    if (hasHeatSource) {
+                        boolean active = in.readBoolean();
+                        double targetTemp = in.readDouble();
+                        double outputTemp = in.readDouble();
+                        long burnTicks = in.readLong();
+                        long maxBurnTicks = in.readLong();
+                        double minTemp = in.readDouble();
+                        double maxTemp = in.readDouble();
+                        double heatingRate = in.readDouble();
+                        double coolingRate = in.readDouble();
+                        double fuelMult = in.readDouble();
+                        station.setComponent(HeatSourceComponent.class, new DefaultHeatSourceComponent(
+                                active, targetTemp, outputTemp, burnTicks, maxBurnTicks, minTemp, maxTemp, heatingRate, coolingRate, fuelMult
+                        ));
+                    }
+                }
+
                 list.add(station);
             }
 
@@ -267,6 +306,21 @@ public final class StationBinaryCodec {
                 in.readDouble();
                 in.readDouble();
                 in.readBoolean();
+            }
+        }
+        if (version >= 3) {
+            boolean hasHeatSource = in.readBoolean();
+            if (hasHeatSource) {
+                in.readBoolean();
+                in.readDouble();
+                in.readDouble();
+                in.readLong();
+                in.readLong();
+                in.readDouble();
+                in.readDouble();
+                in.readDouble();
+                in.readDouble();
+                in.readDouble();
             }
         }
     }

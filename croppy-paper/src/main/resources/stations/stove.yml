@@ -1,0 +1,15 @@
+id: "croppy:stove"
+name: "<gradient:#ff8800:#ff3300>Rustic Stove</gradient>"
+block: "minecraft:smoker"
+interaction: "HYBRID"
+input_capacity: 1
+output_capacity: 0
+menu: "croppy:stove_menu"
+has_display: false
+properties:
+  heat_source: "true"
+  min_temperature: "20.0"
+  max_temperature: "350.0"
+  heating_rate: "5.0"
+  cooling_rate: "2.0"
+  fuel_burn_multiplier: "1.0"

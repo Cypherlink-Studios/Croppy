@@ -1,0 +1,9 @@
+id: "croppy:stove"
+category: "stations"
+material: "minecraft:smoker"
+name: "<gradient:#ff8800:#ff3300>Rustic Stove</gradient>"
+lore:
+  - "<gray>A solid stone stove providing</gray>"
+  - "<gray>adjustable heat for cookware placed above.</gray>"
+  - ""
+  - "<yellow>Right-Click</yellow> <gray>to open temperature controls</gray>"

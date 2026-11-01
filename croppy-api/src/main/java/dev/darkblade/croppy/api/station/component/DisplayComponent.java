@@ -34,6 +34,34 @@ public interface DisplayComponent extends StationComponent {
     void setStatusText(String text);
 
     /**
+     * @return current process progress fraction between 0.0f and 1.0f
+     */
+    default float getProgress() {
+        return 0.0f;
+    }
+
+    /**
+     * Sets the process progress fraction.
+     *
+     * @param progress value from 0.0f to 1.0f
+     */
+    default void setProgress(float progress) {}
+
+    /**
+     * @return current visual thermal zone name (e.g. "NONE", "WARM", "BOIL", "SEAR")
+     */
+    default String getThermalZone() {
+        return "NONE";
+    }
+
+    /**
+     * Sets the current visual thermal zone name.
+     *
+     * @param zone zone identifier
+     */
+    default void setThermalZone(String zone) {}
+
+    /**
      * @return true if visual display entities require a synchronization update
      */
     boolean isDirty();

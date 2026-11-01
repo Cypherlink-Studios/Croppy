@@ -4,6 +4,11 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInteractionType;
 import dev.darkblade.croppy.api.station.StationRegistry;
+import dev.darkblade.croppy.api.station.visual.BillboardMode;
+import dev.darkblade.croppy.api.station.visual.DisplayLayerConfig;
+import dev.darkblade.croppy.api.station.visual.DisplayTransform;
+import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
+import dev.darkblade.croppy.api.station.visual.TextDisplayTemplate;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -119,6 +124,9 @@ public final class YamlStationLoader {
             }
         }
 
+        // 10. Visual Definition
+        StationVisualDefinition visualDefinition = parseVisual(root);
+
         return new StationDefinition(
                 key,
                 displayName,
@@ -129,7 +137,8 @@ public final class YamlStationLoader {
                 menuKey,
                 hasDisplay,
                 allowedRecipes,
-                properties
+                properties,
+                visualDefinition
         );
     }
 
@@ -186,6 +195,149 @@ public final class YamlStationLoader {
         }
 
         return loadedCount;
+    }
+
+    @SuppressWarnings("unchecked")
+    private StationVisualDefinition parseVisual(Map<String, Object> root) {
+        Object rawVisual = root.get("visual");
+        if (!(rawVisual instanceof Map<?, ?> vMap)) {
+            return null;
+        }
+        Map<String, Object> visualMap = (Map<String, Object>) vMap;
+
+        DisplayLayerConfig baseModel = null;
+        Object rawBase = visualMap.get("base_model");
+        if (rawBase instanceof Map<?, ?> bMap) {
+            baseModel = parseDisplayLayer((Map<String, Object>) bMap, 48);
+        }
+
+        DisplayLayerConfig processDisplay = null;
+        Object rawProc = visualMap.get("process_display");
+        if (rawProc instanceof Map<?, ?> pMap) {
+            processDisplay = parseDisplayLayer((Map<String, Object>) pMap, 24);
+        }
+
+        TextDisplayTemplate textDisplay = null;
+        Object rawText = visualMap.get("text_display");
+        if (rawText instanceof Map<?, ?> tMap) {
+            textDisplay = parseTextDisplay((Map<String, Object>) tMap);
+        }
+
+        return new StationVisualDefinition(baseModel, processDisplay, textDisplay);
+    }
+
+    private DisplayLayerConfig parseDisplayLayer(Map<String, Object> map, int defaultViewDistance) {
+        if (map == null) {
+            return null;
+        }
+        boolean enabled = getBoolean(map, "enabled", true);
+        String type = getString(map, "type", "ITEM");
+
+        Key itemKey = null;
+        Object rawItem = map.get("item");
+        if (rawItem != null && !rawItem.toString().isBlank()) {
+            String itemStr = rawItem.toString().trim();
+            itemKey = itemStr.contains(":") ? Key.parse(itemStr) : Key.of("croppy", itemStr);
+        }
+
+        String blockState = getString(map, "block_state", getString(map, "block", null));
+        DisplayTransform transform = parseTransform(map);
+        BillboardMode billboard = parseBillboard(map, "billboard", BillboardMode.FIXED);
+        int viewDistance = getInt(map, "view_distance", defaultViewDistance);
+        int interpolationDuration = getInt(map, "interpolation_duration", 0);
+
+        return new DisplayLayerConfig(enabled, type, itemKey, blockState, transform, billboard, viewDistance, interpolationDuration);
+    }
+
+    private TextDisplayTemplate parseTextDisplay(Map<String, Object> map) {
+        if (map == null) {
+            return null;
+        }
+        boolean enabled = getBoolean(map, "enabled", true);
+        String format = getString(map, "format", TextDisplayTemplate.DEFAULT_FORMAT);
+        DisplayTransform transform = parseTransform(map);
+        BillboardMode billboard = parseBillboard(map, "billboard", BillboardMode.CENTER);
+        int viewDistance = getInt(map, "view_distance", 8);
+        int lineWidth = getInt(map, "line_width", 200);
+        int backgroundColor = getInt(map, "background_color", 0);
+        boolean seeThrough = getBoolean(map, "see_through", false);
+        boolean textShadow = getBoolean(map, "text_shadow", true);
+
+        return new TextDisplayTemplate(enabled, format, transform, billboard, viewDistance, lineWidth, backgroundColor, seeThrough, textShadow);
+    }
+
+    private DisplayTransform parseTransform(Map<String, Object> map) {
+        if (map == null) {
+            return DisplayTransform.DEFAULT;
+        }
+        double tx = 0.0, ty = 0.0, tz = 0.0;
+        float sx = 1.0f, sy = 1.0f, sz = 1.0f;
+        float pitch = 0.0f, yaw = 0.0f, roll = 0.0f;
+
+        Object transObj = map.get("translation");
+        if (transObj instanceof List<?> list && list.size() >= 3) {
+            tx = parseDouble(list.get(0), 0.0);
+            ty = parseDouble(list.get(1), 0.0);
+            tz = parseDouble(list.get(2), 0.0);
+        } else {
+            tx = parseDouble(map.get("translation_x"), parseDouble(map.get("tx"), 0.0));
+            ty = parseDouble(map.get("translation_y"), parseDouble(map.get("ty"), 0.0));
+            tz = parseDouble(map.get("translation_z"), parseDouble(map.get("tz"), 0.0));
+        }
+
+        Object scaleObj = map.get("scale");
+        if (scaleObj instanceof List<?> list && list.size() >= 3) {
+            sx = (float) parseDouble(list.get(0), 1.0);
+            sy = (float) parseDouble(list.get(1), 1.0);
+            sz = (float) parseDouble(list.get(2), 1.0);
+        } else if (scaleObj instanceof Number n) {
+            sx = sy = sz = n.floatValue();
+        } else {
+            sx = (float) parseDouble(map.get("scale_x"), 1.0);
+            sy = (float) parseDouble(map.get("scale_y"), 1.0);
+            sz = (float) parseDouble(map.get("scale_z"), 1.0);
+        }
+
+        Object rotObj = map.get("rotation");
+        if (rotObj instanceof List<?> list && list.size() >= 3) {
+            pitch = (float) Math.toRadians(parseDouble(list.get(0), 0.0));
+            yaw = (float) Math.toRadians(parseDouble(list.get(1), 0.0));
+            roll = (float) Math.toRadians(parseDouble(list.get(2), 0.0));
+        } else {
+            if (map.containsKey("rotation_pitch")) {
+                pitch = (float) Math.toRadians(parseDouble(map.get("rotation_pitch"), 0.0));
+            }
+            if (map.containsKey("rotation_yaw")) {
+                yaw = (float) Math.toRadians(parseDouble(map.get("rotation_yaw"), 0.0));
+            }
+            if (map.containsKey("rotation_roll")) {
+                roll = (float) Math.toRadians(parseDouble(map.get("rotation_roll"), 0.0));
+            }
+        }
+
+        return new DisplayTransform(tx, ty, tz, pitch, yaw, roll, sx, sy, sz);
+    }
+
+    private BillboardMode parseBillboard(Map<String, Object> map, String key, BillboardMode def) {
+        Object val = map.get(key);
+        if (val != null) {
+            try {
+                return BillboardMode.valueOf(val.toString().trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return def;
+    }
+
+    private double parseDouble(Object obj, double def) {
+        if (obj instanceof Number n) {
+            return n.doubleValue();
+        }
+        if (obj != null) {
+            try {
+                return Double.parseDouble(obj.toString().trim());
+            } catch (NumberFormatException ignored) {}
+        }
+        return def;
     }
 
     private String getString(Map<String, Object> map, String key, String def) {

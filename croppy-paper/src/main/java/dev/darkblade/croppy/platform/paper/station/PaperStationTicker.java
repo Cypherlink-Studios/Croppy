@@ -1,19 +1,26 @@
 package dev.darkblade.croppy.platform.paper.station;
 
 import dev.darkblade.croppy.api.expression.EvaluationContext;
+import dev.darkblade.croppy.api.fuel.FuelProperties;
+import dev.darkblade.croppy.api.fuel.FuelProvider;
+import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.process.ProcessInstance;
 import dev.darkblade.croppy.api.process.ProcessState;
 import dev.darkblade.croppy.api.rule.RuleAction;
 import dev.darkblade.croppy.api.rule.RuleTrigger;
 import dev.darkblade.croppy.api.station.StationInstance;
+import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
+import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.process.ProcessEngine;
 import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.rule.RuleExecution;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
+import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import org.bukkit.Bukkit;
@@ -44,6 +51,8 @@ public final class PaperStationTicker implements Runnable {
     private final RuleEngine ruleEngine;
     private final PaperDisplaySynchronizer displaySynchronizer;
     private final ItemFactory itemFactory;
+    private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
+    private final FuelProvider fuelProvider;
     private final long tickIntervalTicks;
     private BukkitTask task;
 
@@ -55,6 +64,8 @@ public final class PaperStationTicker implements Runnable {
             RuleEngine ruleEngine,
             PaperDisplaySynchronizer displaySynchronizer,
             ItemFactory itemFactory,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            FuelProvider fuelProvider,
             long tickIntervalTicks
     ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
@@ -62,9 +73,38 @@ public final class PaperStationTicker implements Runnable {
         this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
         this.thermalEvaluator = Objects.requireNonNull(thermalEvaluator, "thermalEvaluator cannot be null");
         this.ruleEngine = Objects.requireNonNull(ruleEngine, "ruleEngine cannot be null");
-        this.displaySynchronizer = Objects.requireNonNull(displaySynchronizer, "displaySynchronizer cannot be null");
+        this.displaySynchronizer = displaySynchronizer;
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
+        this.viewerTracker = viewerTracker;
+        this.fuelProvider = fuelProvider;
         this.tickIntervalTicks = Math.max(1, tickIntervalTicks);
+    }
+
+    public PaperStationTicker(
+            Plugin plugin,
+            DefaultStationManager stationManager,
+            ProcessEngine processEngine,
+            PaperThermalEvaluator thermalEvaluator,
+            RuleEngine ruleEngine,
+            PaperDisplaySynchronizer displaySynchronizer,
+            ItemFactory itemFactory,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            long tickIntervalTicks
+    ) {
+        this(plugin, stationManager, processEngine, thermalEvaluator, ruleEngine, displaySynchronizer, itemFactory, viewerTracker, null, tickIntervalTicks);
+    }
+
+    public PaperStationTicker(
+            Plugin plugin,
+            DefaultStationManager stationManager,
+            ProcessEngine processEngine,
+            PaperThermalEvaluator thermalEvaluator,
+            RuleEngine ruleEngine,
+            PaperDisplaySynchronizer displaySynchronizer,
+            ItemFactory itemFactory,
+            long tickIntervalTicks
+    ) {
+        this(plugin, stationManager, processEngine, thermalEvaluator, ruleEngine, displaySynchronizer, itemFactory, null, null, tickIntervalTicks);
     }
 
     /**
@@ -103,6 +143,18 @@ public final class PaperStationTicker implements Runnable {
         World world = Bukkit.getWorld(pos.worldName());
         if (world == null || !world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) {
             return;
+        }
+
+        // 0. Heat Source Component Ticking & Fuel Auto-Replenishment
+        Optional<HeatSourceComponent> heatSourceOpt = station.getComponent(HeatSourceComponent.class);
+        if (heatSourceOpt.isPresent()) {
+            HeatSourceComponent heatSource = heatSourceOpt.get();
+            if (heatSource.isActive() && heatSource.getBurnTicksRemaining() <= 0) {
+                station.getComponent(StorageComponent.class).ifPresent(storage -> tryReplenishFuel(heatSource, storage));
+            }
+            if (heatSource instanceof DefaultHeatSourceComponent defaultHeatSource) {
+                defaultHeatSource.tick(tickIntervalTicks);
+            }
         }
 
         // 1. Thermal Convergence Update
@@ -146,10 +198,14 @@ public final class PaperStationTicker implements Runnable {
         // 4. Multi-sensory ambient particles & sound loops
         renderAmbientEffects(world, pos, station, temp, process);
 
-        // 5. Display Component Synchronization
-        Optional<DisplayComponent> displayOpt = station.getComponent(DisplayComponent.class);
-        if (displayOpt.isPresent() && displayOpt.get().isDirty()) {
-            displaySynchronizer.synchronizeStationDisplay(station, world, itemFactory);
+        // 5. Display Component Virtual Packet Synchronization
+        if (viewerTracker != null) {
+            viewerTracker.syncStation(station, world, process);
+        } else if (displaySynchronizer != null) {
+            Optional<DisplayComponent> displayOpt = station.getComponent(DisplayComponent.class);
+            if (displayOpt.isPresent() && displayOpt.get().isDirty()) {
+                displaySynchronizer.synchronizeStationDisplay(station, world, itemFactory);
+            }
         }
     }
 
@@ -187,6 +243,61 @@ public final class PaperStationTicker implements Runnable {
         // Scorching hazard smoke
         if (temp >= 220.0) {
             world.spawnParticle(Particle.LARGE_SMOKE, center.clone().add(0, -0.3, 0), 3, 0.15, 0.1, 0.15, 0.02);
+        }
+
+        // Heat source station colored DUST particles
+        Optional<HeatSourceComponent> heatOpt = station.getComponent(HeatSourceComponent.class);
+        if (heatOpt.isPresent()) {
+            HeatSourceComponent hs = heatOpt.get();
+            if (hs.isActive() && hs.isBurning()) {
+                renderHeatSourceDustParticles(world, pos, hs);
+            }
+        }
+    }
+
+    private void renderHeatSourceDustParticles(World world, BlockPosition pos, HeatSourceComponent heatSource) {
+        Location center = new Location(world, pos.x() + 0.5, pos.y() + 0.95, pos.z() + 0.5);
+        double temp = heatSource.getOutputTemperature();
+
+        org.bukkit.Color color;
+        if (temp < 90.0) {
+            // Warm amber
+            color = org.bukkit.Color.fromRGB(255, 140, 20);
+        } else if (temp <= 220.0) {
+            // Incandescent red/orange
+            color = org.bukkit.Color.fromRGB(240, 50, 10);
+        } else if (temp > 350.0) {
+            // Extreme alchemical cyan/blue
+            color = org.bukkit.Color.fromRGB(40, 220, 255);
+        } else {
+            // High sear bright fiery orange
+            color = org.bukkit.Color.fromRGB(255, 90, 10);
+        }
+
+        try {
+            Particle.DustOptions dust = new Particle.DustOptions(color, 1.2f);
+            world.spawnParticle(Particle.DUST, center, 4, 0.15, 0.05, 0.15, 0.0, dust);
+        } catch (Exception ignored) {}
+    }
+
+    private void tryReplenishFuel(HeatSourceComponent heatSource, StorageComponent storage) {
+        if (fuelProvider == null) {
+            return;
+        }
+        for (StoredItem item : storage.getInputs()) {
+            Key itemKey = item.itemKey();
+            Optional<FuelProperties> fuelOpt = fuelProvider.resolveFuel(itemKey);
+            if (fuelOpt.isPresent()) {
+                FuelProperties props = fuelOpt.get();
+                storage.removeInput(itemKey, 1);
+                if (heatSource instanceof DefaultHeatSourceComponent defaultHeatSource) {
+                    defaultHeatSource.startBurn(props.burnTicks());
+                } else {
+                    heatSource.setBurnTicksRemaining(props.burnTicks());
+                    heatSource.setMaxBurnTicks(props.burnTicks());
+                }
+                break;
+            }
         }
     }
 

@@ -5,3 +5,8 @@ api-version: "1.21"
 description: Configurable agriculture, ingredients, processing and cooking ecosystem for Minecraft Paper servers.
 authors:
   - DarkBladeDev
+dependencies:
+  server:
+    packetevents:
+      load: BEFORE
+      required: true

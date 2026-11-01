@@ -7,6 +7,7 @@ import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StationInteractionType;
 import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
@@ -15,6 +16,7 @@ import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.process.DefaultProcessInstance;
 import dev.darkblade.croppy.core.station.DefaultStationInstance;
 import dev.darkblade.croppy.core.station.component.DefaultDisplayComponent;
+import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
 import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
@@ -130,6 +132,48 @@ class StationBinaryCodecTest {
         assertEquals(120.0, restored.getTargetTemperature(), 0.001);
         assertTrue(restored.isHeated());
         assertEquals(ThermalZone.SIMMER, restored.getThermalZone());
+    }
+
+    @Test
+    void testHeatSourceSerializationRoundtrip() {
+        Key stoveKey = Key.of("croppy", "stove");
+        StationDefinition def = new StationDefinition(
+                stoveKey,
+                "Stove",
+                "minecraft:smoker",
+                StationInteractionType.HYBRID,
+                1,
+                0,
+                true,
+                List.of(),
+                Map.of("heat_source", "true")
+        );
+
+        BlockPosition pos = new BlockPosition("world", 15, 64, 30);
+        DefaultStationInstance station = new DefaultStationInstance(stoveKey, pos, def);
+
+        DefaultHeatSourceComponent heatSource = new DefaultHeatSourceComponent(
+                true, 185.0, 160.0, 1200L, 1600L, 20.0, 350.0, 5.0, 2.0, 1.2
+        );
+        station.setComponent(HeatSourceComponent.class, heatSource);
+
+        byte[] bytes = StationBinaryCodec.serialize(List.of(station));
+        assertNotNull(bytes);
+
+        List<StationInstance> deserialized = StationBinaryCodec.deserialize(bytes, k -> Optional.of(def));
+        assertEquals(1, deserialized.size());
+
+        HeatSourceComponent restored = deserialized.get(0).getComponent(HeatSourceComponent.class).orElseThrow();
+        assertTrue(restored.isActive());
+        assertEquals(185.0, restored.getTargetTemperature(), 0.001);
+        assertEquals(160.0, restored.getOutputTemperature(), 0.001);
+        assertEquals(1200L, restored.getBurnTicksRemaining());
+        assertEquals(1600L, restored.getMaxBurnTicks());
+        assertEquals(20.0, restored.getMinTemperature(), 0.001);
+        assertEquals(350.0, restored.getMaxTemperature(), 0.001);
+        assertEquals(5.0, restored.getHeatingRate(), 0.001);
+        assertEquals(2.0, restored.getCoolingRate(), 0.001);
+        assertEquals(1.2, restored.getFuelBurnMultiplier(), 0.001);
     }
 
     @Test

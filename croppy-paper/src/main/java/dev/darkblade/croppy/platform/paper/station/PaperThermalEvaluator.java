@@ -1,8 +1,10 @@
 package dev.darkblade.croppy.platform.paper.station;
 
 import dev.darkblade.croppy.api.station.StationInstance;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.core.station.DefaultStationManager;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -11,14 +13,29 @@ import org.bukkit.block.data.Lightable;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
- * Paper platform evaluator detecting active heat source blocks beneath crafting stations
+ * Paper platform evaluator detecting active heat source blocks and stations beneath crafting stations
  * and converging thermal component temperatures.
  */
 public final class PaperThermalEvaluator {
 
     public static final double DEFAULT_AMBIENT_TEMPERATURE = 20.0;
+
+    private final Function<BlockPosition, Optional<StationInstance>> stationLookup;
+
+    public PaperThermalEvaluator() {
+        this((Function<BlockPosition, Optional<StationInstance>>) null);
+    }
+
+    public PaperThermalEvaluator(DefaultStationManager stationManager) {
+        this(stationManager != null ? stationManager::getStation : null);
+    }
+
+    public PaperThermalEvaluator(Function<BlockPosition, Optional<StationInstance>> stationLookup) {
+        this.stationLookup = stationLookup;
+    }
 
     /**
      * Immutable result of a heat source evaluation.
@@ -27,6 +44,33 @@ public final class PaperThermalEvaluator {
      * @param targetTemperature target temperature in Celsius
      */
     public record HeatSourceResult(boolean isHeated, double targetTemperature) {}
+
+    /**
+     * Evaluates a heat source at the given coordinate, prioritizing custom Croppy heat source stations
+     * over vanilla block materials.
+     *
+     * @param posBelow   spatial position beneath the station (y - 1)
+     * @param blockBelow live Bukkit block beneath the station (y - 1), or null
+     * @return heat source result
+     */
+    public HeatSourceResult evaluateHeatSource(BlockPosition posBelow, Block blockBelow) {
+        if (stationLookup != null && posBelow != null) {
+            Optional<StationInstance> stationBelow = stationLookup.apply(posBelow);
+            if (stationBelow.isPresent()) {
+                Optional<HeatSourceComponent> heatSourceOpt = stationBelow.get().getComponent(HeatSourceComponent.class);
+                if (heatSourceOpt.isPresent()) {
+                    HeatSourceComponent heatSource = heatSourceOpt.get();
+                    if (heatSource.isActive()) {
+                        return new HeatSourceResult(true, heatSource.getOutputTemperature());
+                    } else {
+                        return new HeatSourceResult(false, DEFAULT_AMBIENT_TEMPERATURE);
+                    }
+                }
+            }
+        }
+
+        return evaluateBlock(blockBelow);
+    }
 
     /**
      * Evaluates a Bukkit block directly.
@@ -117,8 +161,9 @@ public final class PaperThermalEvaluator {
         }
 
         BlockPosition pos = station.getPosition();
+        BlockPosition posBelow = new BlockPosition(pos.worldName(), pos.x(), pos.y() - 1, pos.z());
         Block blockBelow = world.getBlockAt(pos.x(), pos.y() - 1, pos.z());
-        HeatSourceResult result = evaluateBlock(blockBelow);
+        HeatSourceResult result = evaluateHeatSource(posBelow, blockBelow);
 
         ThermalComponent thermal = thermalOpt.get();
         thermal.setHeated(result.isHeated());

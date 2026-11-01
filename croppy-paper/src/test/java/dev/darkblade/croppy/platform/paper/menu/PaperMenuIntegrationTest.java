@@ -64,7 +64,18 @@ class PaperMenuIntegrationTest {
         assertEquals(1, skilletMenu.getSlotsForType(SlotType.ACTION).size());
         menuRegistry.register(skilletMenu);
 
-        // 4. Test PaperMenuService setup
+        // 4. Stove menu
+        InputStream stoveStream = getClass().getClassLoader().getResourceAsStream("menus/stations/stove_menu.yml");
+        assertNotNull(stoveStream, "menus/stations/stove_menu.yml resource must exist");
+        MenuDefinition stoveMenu = loader.load(stoveStream, "stove_menu.yml");
+        assertEquals(Key.of("croppy", "stove_menu"), stoveMenu.getKey());
+        assertEquals(3, stoveMenu.rows());
+        assertEquals(1, stoveMenu.getSlotsForType(SlotType.INPUT).size());
+        assertEquals(1, stoveMenu.getSlotsForType(SlotType.STATUS).size());
+        assertEquals(6, stoveMenu.getSlotsForType(SlotType.ACTION).size());
+        menuRegistry.register(stoveMenu);
+
+        // 5. Test PaperMenuService setup
         DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
         ItemFactory itemFactory = new ItemFactory(null, itemRegistry);
         PaperMenuRenderer renderer = new PaperMenuRenderer(itemFactory);
