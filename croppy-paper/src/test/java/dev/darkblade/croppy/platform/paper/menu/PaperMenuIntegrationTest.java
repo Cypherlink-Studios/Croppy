@@ -75,7 +75,22 @@ class PaperMenuIntegrationTest {
         assertEquals(6, stoveMenu.getSlotsForType(SlotType.ACTION).size());
         menuRegistry.register(stoveMenu);
 
-        // 5. Test PaperMenuService setup
+        // 5. Recipe Compendium menu
+        InputStream recStream = getClass().getClassLoader().getResourceAsStream("menus/recipes_menu.yml");
+        assertNotNull(recStream, "menus/recipes_menu.yml resource must exist");
+        MenuDefinition recMenu = loader.load(recStream, "recipes_menu.yml");
+        assertEquals(CompendiumMenuController.MENU_KEY, recMenu.getKey());
+        assertEquals(6, recMenu.rows());
+        int recipeSlots = 0;
+        for (int i = 0; i < recMenu.size(); i++) {
+            if (Character.toUpperCase(recMenu.getSymbolAt(i)) == 'R') {
+                recipeSlots++;
+            }
+        }
+        assertEquals(28, recipeSlots);
+        menuRegistry.register(recMenu);
+
+        // 6. Test PaperMenuService setup
         DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
         ItemFactory itemFactory = new ItemFactory(null, itemRegistry);
         PaperMenuRenderer renderer = new PaperMenuRenderer(itemFactory);

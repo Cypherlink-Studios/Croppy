@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
  * Service responsible for constructing Bukkit {@link Inventory} containers from {@link MenuDefinition}
  * layouts and synchronizing domain state.
  */
-public final class PaperMenuRenderer {
+public class PaperMenuRenderer {
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{([a-zA-Z0-9_.-]+)\\}");
 

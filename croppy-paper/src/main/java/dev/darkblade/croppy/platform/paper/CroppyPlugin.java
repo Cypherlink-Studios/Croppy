@@ -101,6 +101,12 @@ public class CroppyPlugin extends JavaPlugin {
     private dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener stationBlockListener;
     private dev.darkblade.croppy.platform.paper.i18n.PaperMessageService messageService;
 
+    // Recipe & Discovery services
+    private dev.darkblade.croppy.api.storage.RecipeKnowledgeStorage recipeStorage;
+    private dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController compendiumController;
+    private dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler;
+    private dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackHelper feedbackHelper;
+
     @Override
     public void onEnable() {
         getLogger().info("Enabling Croppy plugin...");
@@ -124,6 +130,7 @@ public class CroppyPlugin extends JavaPlugin {
             setupItemDefinitions();
             setupFertilizers();
             setupCropDefinitions();
+            setupRecipeDefinitions();
             setupMenuDefinitions();
             setupStationDefinitions();
             setupInteractionDefinitions();
@@ -158,12 +165,28 @@ public class CroppyPlugin extends JavaPlugin {
     }
 
     private void setupMenuServices() {
+        this.recipeStorage = new dev.darkblade.croppy.platform.paper.storage.PdcRecipeKnowledgeStorage(this);
+        this.feedbackHelper = new dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackHelper(this.messageService);
+        this.experimentationHandler = new dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler(
+                core.getRecipeRegistry(),
+                core.getRecipeDiscoveryEngine(),
+                this.recipeStorage,
+                this.feedbackHelper
+        );
         this.fuelService = new dev.darkblade.croppy.platform.paper.fuel.PaperFuelService(new dev.darkblade.croppy.core.fuel.DefaultFuelRegistry());
         this.chatPromptService = new dev.darkblade.croppy.platform.paper.prompt.ChatPromptService(this, this.messageService);
         this.menuRenderer = new dev.darkblade.croppy.platform.paper.menu.PaperMenuRenderer(this.itemFactory);
         this.menuTicker = new dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker(this.menuRenderer, core.getProcessRegistry());
         this.menuService = new dev.darkblade.croppy.platform.paper.menu.PaperMenuService(core.getMenuRegistry(), this.menuRenderer, core.getProcessRegistry(), this.menuTicker, getLogger());
         this.menuListener = new dev.darkblade.croppy.platform.paper.menu.PaperMenuListener(this, core.getProcessEngine(), this.itemFactory, this.menuRenderer, this.chatPromptService, this.menuService);
+        this.menuListener.setExperimentationHandler(this.experimentationHandler);
+        this.compendiumController = new dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController(
+                core.getMenuRegistry(),
+                core.getRecipeRegistry(),
+                core.getRecipeDiscoveryEngine(),
+                this.menuRenderer,
+                this.itemFactory
+        );
     }
 
     private void registerListeners() {
@@ -190,6 +213,17 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(this.stationInteractListener, this);
         pm.registerEvents(this.stationBlockListener, this);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.station.listener.StationPlayerConnectionListener(this.stationViewerTracker), this);
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.BukkitRecipeDiscoveryListener(
+                core.getRecipeDiscoveryEngine(),
+                core.getRecipeRegistry(),
+                this.recipeStorage,
+                this.feedbackHelper,
+                getLogger()
+        ), this);
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.RecipeBookItemListener(
+                this.itemFactory,
+                this.compendiumController
+        ), this);
 
         getLogger().info(
                 "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
@@ -202,14 +236,30 @@ public class CroppyPlugin extends JavaPlugin {
                 Files.createDirectories(menusDir);
             } catch (Exception ignored) {
             }
-            saveResourceIfNotExists("menus/default_station.yml");
-            saveResourceIfNotExists("menus/stations/cooking_pot.yml");
-            saveResourceIfNotExists("menus/stations/skillet.yml");
         }
+        saveResourceIfNotExists("menus/default_station.yml");
+        saveResourceIfNotExists("menus/recipes_menu.yml");
+        saveResourceIfNotExists("menus/stations/cooking_pot.yml");
+        saveResourceIfNotExists("menus/stations/skillet.yml");
+        saveResourceIfNotExists("menus/stations/stove_menu.yml");
 
         dev.darkblade.croppy.core.menu.YamlMenuLoader menuLoader = new dev.darkblade.croppy.core.menu.YamlMenuLoader();
         int loaded = menuLoader.loadAll(menusDir, core.getMenuRegistry(), getLogger());
         getLogger().info("Registered " + loaded + " menu definitions into MenuRegistry.");
+    }
+
+    private void setupRecipeDefinitions() {
+        Path recipesDir = getDataFolder().toPath().resolve("recipes");
+        if (!Files.exists(recipesDir)) {
+            try {
+                Files.createDirectories(recipesDir);
+            } catch (Exception ignored) {
+            }
+        }
+
+        dev.darkblade.croppy.core.recipe.YamlRecipeLoader recipeLoader = new dev.darkblade.croppy.core.recipe.YamlRecipeLoader();
+        int loaded = recipeLoader.loadAll(recipesDir, core.getRecipeRegistry(), getLogger());
+        getLogger().info("Registered " + loaded + " recipe definitions into RecipeRegistry.");
     }
 
     private void setupStationDefinitions() {
@@ -291,6 +341,7 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/tools/thermometer.yml");
         // Misc
         saveResourceIfNotExists("items/misc/burnt_food.yml");
+        saveResourceIfNotExists("items/misc/recipe_book.yml");
         // Watering Cans
         saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
         saveResourceIfNotExists("items/watering_cans/copper_can.yml");
@@ -440,7 +491,7 @@ public class CroppyPlugin extends JavaPlugin {
         AnnotationParser<Source> annotationParser = new AnnotationParser<>(
                 commandManager,
                 Source.class);
-        annotationParser.parse(new CroppyCommands(
+        CroppyCommands commands = new CroppyCommands(
                 this,
                 this.inspectorService,
                 this.pluginConfig,
@@ -448,7 +499,13 @@ public class CroppyPlugin extends JavaPlugin {
                 this.fertilizerService,
                 this.fertilizerRegistry,
                 this.itemFactory,
-                this.core.getItemRegistry()));
+                this.core.getItemRegistry());
+        commands.setRecipeServices(
+                core.getRecipeRegistry(),
+                core.getRecipeDiscoveryEngine(),
+                this.recipeStorage,
+                this.compendiumController);
+        annotationParser.parse(commands);
         getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
     }
 
@@ -462,10 +519,12 @@ public class CroppyPlugin extends JavaPlugin {
         this.core.getStationRegistry().clear();
         this.core.getInteractionRegistry().clear();
         this.core.getRuleRegistry().clear();
+        this.core.getRecipeRegistry().clear();
         this.fertilizerRegistry.clear();
         setupItemDefinitions();
         setupFertilizers();
         setupCropDefinitions();
+        setupRecipeDefinitions();
         setupMenuDefinitions();
         setupStationDefinitions();
         setupInteractionDefinitions();

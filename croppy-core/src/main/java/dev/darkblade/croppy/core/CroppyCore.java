@@ -1,15 +1,18 @@
 package dev.darkblade.croppy.core;
 
+import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.menu.MenuRegistry;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
+import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.core.crop.CropManager;
+import dev.darkblade.croppy.core.discovery.DefaultRecipeDiscoveryEngine;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.interaction.DefaultInteractionRegistry;
 import dev.darkblade.croppy.core.interaction.InteractionRouter;
@@ -17,6 +20,7 @@ import dev.darkblade.croppy.core.item.DefaultItemRegistry;
 import dev.darkblade.croppy.core.menu.DefaultMenuRegistry;
 import dev.darkblade.croppy.core.process.DefaultProcessRegistry;
 import dev.darkblade.croppy.core.process.ProcessEngine;
+import dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry;
 import dev.darkblade.croppy.core.rule.DefaultRuleRegistry;
 import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
@@ -45,6 +49,8 @@ public class CroppyCore {
     private final DefaultInteractionRegistry interactionRegistry = new DefaultInteractionRegistry();
     private final DefaultRuleRegistry ruleRegistry = new DefaultRuleRegistry();
     private final DefaultMenuRegistry menuRegistry = new DefaultMenuRegistry();
+    private final DefaultRecipeRegistry recipeRegistry = new DefaultRecipeRegistry();
+    private final DefaultRecipeDiscoveryEngine recipeDiscoveryEngine = new DefaultRecipeDiscoveryEngine();
     private final CropManager cropManager = new CropManager();
     private final DefaultStationManager stationManager = new DefaultStationManager();
     private final GrowthEngine growthEngine = new GrowthEngine();
@@ -79,12 +85,15 @@ public class CroppyCore {
         interactionRegistry.clear();
         ruleRegistry.clear();
         menuRegistry.clear();
+        recipeRegistry.clear();
         cropManager.clear();
         stationManager.clear();
         registerService(SpeciesRegistry.class, speciesRegistry);
         registerService(ItemRegistry.class, itemRegistry);
         registerService(StationRegistry.class, stationRegistry);
         registerService(ProcessRegistry.class, processRegistry);
+        registerService(RecipeRegistry.class, recipeRegistry);
+        registerService(RecipeDiscoveryEngine.class, recipeDiscoveryEngine);
         registerService(InteractionRegistry.class, interactionRegistry);
         registerService(RuleRegistry.class, ruleRegistry);
         registerService(MenuRegistry.class, menuRegistry);
@@ -106,6 +115,7 @@ public class CroppyCore {
         interactionRegistry.clear();
         ruleRegistry.clear();
         menuRegistry.clear();
+        recipeRegistry.clear();
         cropManager.clear();
         stationManager.clear();
         growthEngine.shutdown();
@@ -177,6 +187,20 @@ public class CroppyCore {
      */
     public ProcessRegistry getProcessRegistry() {
         return processRegistry;
+    }
+
+    /**
+     * @return the central culinary recipe registry
+     */
+    public RecipeRegistry getRecipeRegistry() {
+        return recipeRegistry;
+    }
+
+    /**
+     * @return the central recipe discovery engine
+     */
+    public RecipeDiscoveryEngine getRecipeDiscoveryEngine() {
+        return recipeDiscoveryEngine;
     }
 
     /**

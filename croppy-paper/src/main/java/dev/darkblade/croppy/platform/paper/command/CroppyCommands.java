@@ -1,20 +1,27 @@
 package dev.darkblade.croppy.platform.paper.command;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.discovery.DiscoveryResult;
+import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
 import dev.darkblade.croppy.api.fertilizer.Fertilizer;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.recipe.RecipeCategory;
+import dev.darkblade.croppy.api.recipe.RecipeDefinition;
+import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
+import dev.darkblade.croppy.api.storage.RecipeKnowledgeStorage;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.platform.paper.CroppyPlugin;
 import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
 import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
+import dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
 import net.kyori.adventure.text.Component;
@@ -63,6 +70,11 @@ public class CroppyCommands {
     private final PaperMessageService messageService;
     private final MiniMessage miniMessage;
 
+    private RecipeRegistry recipeRegistry;
+    private RecipeDiscoveryEngine discoveryEngine;
+    private RecipeKnowledgeStorage recipeStorage;
+    private CompendiumMenuController compendiumController;
+
     public CroppyCommands(
             CroppyPlugin plugin,
             CropInspectorService inspectorService,
@@ -109,6 +121,18 @@ public class CroppyCommands {
             PluginConfig pluginConfig
     ) {
         this(plugin, inspectorService, pluginConfig, null, null, null, null, null);
+    }
+
+    public void setRecipeServices(
+            RecipeRegistry recipeRegistry,
+            RecipeDiscoveryEngine discoveryEngine,
+            RecipeKnowledgeStorage recipeStorage,
+            CompendiumMenuController compendiumController
+    ) {
+        this.recipeRegistry = recipeRegistry;
+        this.discoveryEngine = discoveryEngine;
+        this.recipeStorage = recipeStorage;
+        this.compendiumController = compendiumController;
     }
 
     private void sendPrefixed(CommandSender sender, MessageKey key, Object... args) {
@@ -168,6 +192,21 @@ public class CroppyCommands {
                     .toList();
         }
         return List.of();
+    }
+
+    @Suggestions("recipe_ids")
+    public List<String> suggestRecipeIds(CommandContext<Source> context, CommandInput input) {
+        if (recipeRegistry == null) {
+            return List.of();
+        }
+        return recipeRegistry.values().stream()
+                .map(r -> r.key().asString())
+                .toList();
+    }
+
+    @Suggestions("compendium_actions")
+    public List<String> suggestCompendiumActions(CommandContext<Source> context, CommandInput input) {
+        return List.of("all", "bakery", "soups", "cooking", "beverages", "preserves", "next", "prev");
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -481,5 +520,109 @@ public class CroppyCommands {
         crop.setProgress(Math.max(0.0, progress));
 
         sendPrefixed(player, MessageKey.of("command.state.progress-updated"), "progress", String.format(Locale.ROOT, "%.1f", crop.getProgress()));
+    }
+
+    @Command("croppy recipes [action]")
+    public void openRecipes(
+            Source source,
+            @Argument(value = "action", suggestions = "compendium_actions") @Nullable String action
+    ) {
+        CommandSender sender = source.source();
+        if (!(sender instanceof Player player)) {
+            sendPrefixed(sender, MessageKey.of("command.player-only"));
+            return;
+        }
+
+        if (compendiumController == null) {
+            sendPrefixed(player, MessageKey.of("recipe.compendium_unavailable"));
+            return;
+        }
+
+        if (action == null || action.isBlank() || "all".equalsIgnoreCase(action)) {
+            compendiumController.openCompendium(player, RecipeCategory.ALL.getKey(), 1);
+        } else if ("next".equalsIgnoreCase(action)) {
+            compendiumController.nextPage(player);
+        } else if ("prev".equalsIgnoreCase(action) || "previous".equalsIgnoreCase(action)) {
+            compendiumController.prevPage(player);
+        } else {
+            Key catKey;
+            try {
+                catKey = Key.parse(action);
+            } catch (IllegalArgumentException e) {
+                sendPrefixed(player, MessageKey.of("recipe.unknown_recipe"), "recipe", action);
+                return;
+            }
+            compendiumController.setCategory(player, catKey);
+        }
+    }
+
+    @Command("croppy recipe give <target> <recipe_id>")
+    @Permission("croppy.admin")
+    public void giveRecipe(
+            Source source,
+            @Argument("target") Player target,
+            @Argument(value = "recipe_id", suggestions = "recipe_ids") Key recipeId
+    ) {
+        CommandSender sender = source.source();
+        if (recipeRegistry == null || discoveryEngine == null) {
+            return;
+        }
+
+        Optional<RecipeDefinition> recipeOpt = recipeRegistry.get(recipeId);
+        if (recipeOpt.isEmpty()) {
+            sendPrefixed(sender, MessageKey.of("recipe.unknown_recipe"), "recipe", recipeId.asString());
+            return;
+        }
+
+        RecipeDefinition recipe = recipeOpt.get();
+        DiscoveryResult result = discoveryEngine.discoverRecipe(target.getUniqueId(), recipe, Key.of("croppy", "admin"));
+        if (result.isDiscovered()) {
+            if (recipeStorage != null) {
+                discoveryEngine.getKnowledge(target.getUniqueId(), recipe.key())
+                        .ifPresent(k -> recipeStorage.saveKnowledge(target.getUniqueId(), k));
+            }
+            sendPrefixed(sender, MessageKey.of("recipe.admin_give_success"), "player", target.getName(), "recipe", recipe.displayName());
+            target.sendMessage(miniMessage.deserialize("<green>An administrator unlocked recipe <white>" + recipe.displayName() + "</white> for you!</green>"));
+        } else {
+            sendPrefixed(sender, MessageKey.of("recipe.already_known"), "player", target.getName(), "recipe", recipe.displayName());
+        }
+    }
+
+    @Command("croppy recipe revoke <target> <recipe_id>")
+    @Permission("croppy.admin")
+    public void revokeRecipe(
+            Source source,
+            @Argument("target") Player target,
+            @Argument(value = "recipe_id", suggestions = "recipe_ids") Key recipeId
+    ) {
+        CommandSender sender = source.source();
+        if (discoveryEngine == null) {
+            return;
+        }
+
+        boolean revoked = discoveryEngine.revokeRecipe(target.getUniqueId(), recipeId);
+        if (revoked) {
+            if (recipeStorage != null) {
+                recipeStorage.deleteKnowledge(target.getUniqueId(), recipeId);
+            }
+            sendPrefixed(sender, MessageKey.of("recipe.admin_revoke_success"), "player", target.getName(), "recipe", recipeId.asString());
+        } else {
+            sendPrefixed(sender, MessageKey.of("recipe.not_known"), "player", target.getName(), "recipe", recipeId.asString());
+        }
+    }
+
+    @Command("croppy recipe list")
+    @Permission("croppy.admin")
+    public void listRecipes(Source source) {
+        CommandSender sender = source.source();
+        if (recipeRegistry == null || recipeRegistry.values().isEmpty()) {
+            sendPrefixed(sender, MessageKey.of("recipe.no_recipes"));
+            return;
+        }
+
+        sender.sendMessage(miniMessage.deserialize("<gold><bold>--- Croppy Registered Recipes (" + recipeRegistry.size() + ") ---</bold></gold>"));
+        for (RecipeDefinition r : recipeRegistry.values()) {
+            sender.sendMessage(miniMessage.deserialize(" <yellow>•</yellow> <white>" + r.key().asString() + "</white> <gray>(" + r.displayName() + ")</gray> <dark_gray>[" + r.categoryKey().value() + " @ " + r.stationKey().value() + "]</dark_gray>"));
+        }
     }
 }

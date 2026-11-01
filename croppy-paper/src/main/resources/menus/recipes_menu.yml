@@ -1,0 +1,119 @@
+id: "croppy:recipes_menu"
+title: "<dark_green><bold>Culinary Compendium</bold></dark_green>"
+rows: 6
+pattern:
+  - "X A B S K V P X X"
+  - "X R R R R R R R X"
+  - "X R R R R R R R X"
+  - "X R R R R R R R X"
+  - "X R R R R R R R X"
+  - "X < X X ? X X > X"
+
+elements:
+  'X':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_stained_glass_pane"
+      name: " "
+
+  'A':
+    type: ACTION
+    item:
+      material: "minecraft:book"
+      name: "<gold><bold>All Recipes</bold></gold>"
+      lore:
+        - "<gray>Click to view all categories.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes all"
+
+  'B':
+    type: ACTION
+    item:
+      material: "minecraft:bread"
+      name: "<yellow><bold>Bakery</bold></yellow>"
+      lore:
+        - "<gray>Breads, pastries, and doughs.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes bakery"
+
+  'S':
+    type: ACTION
+    item:
+      material: "minecraft:bowl"
+      name: "<aqua><bold>Soups & Stews</bold></aqua>"
+      lore:
+        - "<gray>Comforting simmered broths and stews.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes soups"
+
+  'K':
+    type: ACTION
+    item:
+      material: "minecraft:cooked_beef"
+      name: "<red><bold>Cooking & Roasts</bold></red>"
+      lore:
+        - "<gray>Hearty skillet and roasted meals.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes cooking"
+
+  'V':
+    type: ACTION
+    item:
+      material: "minecraft:potion"
+      name: "<green><bold>Beverages</bold></green>"
+      lore:
+        - "<gray>Refreshing teas, juices, and drinks.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes beverages"
+
+  'P':
+    type: ACTION
+    item:
+      material: "minecraft:glass_bottle"
+      name: "<light_purple><bold>Preserves & Jars</bold></light_purple>"
+      lore:
+        - "<gray>Jams, pickles, and fermented foods.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes preserves"
+
+  'R':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_dye"
+      name: "<gray>??? Undiscovered</gray>"
+      lore:
+        - "<dark_gray>Experiment with ingredients to discover!</dark_gray>"
+
+  '<':
+    type: ACTION
+    item:
+      material: "minecraft:arrow"
+      name: "<yellow><bold>Previous Page</bold></yellow>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes prev"
+
+  '>':
+    type: ACTION
+    item:
+      material: "minecraft:arrow"
+      name: "<yellow><bold>Next Page</bold></yellow>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes next"
+
+  '?':
+    type: STATUS
+    item:
+      material: "minecraft:knowledge_book"
+      name: "<gold><bold>Cookbook Overview</bold></gold>"
+      lore:
+        - "<gray>Category: <yellow>{category}</yellow></gray>"
+        - "<gray>Page: <aqua>{page}</aqua> / <aqua>{max_page}</aqua></gray>"
+        - "<dark_gray>Experiment in stations to learn new dishes.</dark_gray>"

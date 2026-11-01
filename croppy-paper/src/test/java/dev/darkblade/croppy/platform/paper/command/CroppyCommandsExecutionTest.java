@@ -120,4 +120,98 @@ class CroppyCommandsExecutionTest {
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy item list non_existent").join());
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("non_existent")));
     }
+
+    @Test
+    @DisplayName("Verify /croppy recipe list executes and outputs registered recipes")
+    void testRecipeCommandsExecution() {
+        CropInspectorService inspector = new CropInspectorService(
+                new CropManager(),
+                new DefaultSpeciesRegistry(),
+                pos -> null
+        );
+
+        CroppyCommands commands = new CroppyCommands(
+                null,
+                inspector,
+                new PluginConfig(),
+                null,
+                null,
+                new DefaultFertilizerRegistry(),
+                null,
+                new DefaultItemRegistry()
+        );
+
+        dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry recipeRegistry = new dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry();
+        dev.darkblade.croppy.core.discovery.DefaultRecipeDiscoveryEngine discoveryEngine = new dev.darkblade.croppy.core.discovery.DefaultRecipeDiscoveryEngine();
+
+        recipeRegistry.register(new dev.darkblade.croppy.api.recipe.RecipeDefinition(
+                Key.of("croppy", "tomato_soup"),
+                "Tomato Soup",
+                dev.darkblade.croppy.api.recipe.RecipeCategory.SOUPS.getKey(),
+                Key.of("croppy", "cooking_pot"),
+                Key.of("croppy", "tomato_soup_p"),
+                List.of(),
+                Key.of("croppy", "tomato_soup"),
+                1,
+                dev.darkblade.croppy.api.recipe.HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        ));
+
+        commands.setRecipeServices(recipeRegistry, discoveryEngine, null, null);
+
+        CommandManager<Source> commandManager = new CommandManager<>(
+                ExecutionCoordinator.simpleCoordinator(),
+                CommandRegistrationHandler.nullCommandRegistrationHandler()
+        ) {
+            @Override
+            public boolean hasPermission(Source sender, String permission) {
+                return true;
+            }
+        };
+
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(org.bukkit.entity.Player.class),
+                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success((org.bukkit.entity.Player) null)
+        );
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(Key.class),
+                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+
+        AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);
+        parser.parse(commands);
+
+        List<String> receivedMessages = new ArrayList<>();
+        CommandSender mockSender = (CommandSender) Proxy.newProxyInstance(
+                CommandSender.class.getClassLoader(),
+                new Class<?>[]{CommandSender.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("sendMessage") && args != null && args.length > 0) {
+                        if (args[0] instanceof Component component) {
+                            receivedMessages.add(PlainTextComponentSerializer.plainText().serialize(component));
+                        } else if (args[0] != null) {
+                            receivedMessages.add(args[0].toString());
+                        }
+                    }
+                    return null;
+                }
+        );
+
+        Source mockSource = (Source) Proxy.newProxyInstance(
+                Source.class.getClassLoader(),
+                new Class<?>[]{Source.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("source")) {
+                        return mockSender;
+                    }
+                    return null;
+                }
+        );
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy recipe list").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Croppy Registered Recipes")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("croppy:tomato_soup")));
+    }
 }

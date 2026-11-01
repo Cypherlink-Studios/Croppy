@@ -85,3 +85,13 @@ prompt:
   temperature-bounds: "<gold>[Croppy]</gold> <red>Temperature must be between <min>°C and <max>°C.</red>"
   temperature-success: "<gold>[Croppy]</gold> <green>Target temperature set to <aqua><val>°C</aqua>!</green>"
   invalid-number: "<gold>[Croppy]</gold> <red>Invalid number. Type a valid number or 'cancel'.</red>"
+
+recipe:
+  compendium_unavailable: "<red>The recipe compendium is currently unavailable.</red>"
+  unknown_recipe: "<red>Unknown recipe: <white><recipe></white>.</red>"
+  already_known: "<yellow><player> already knows recipe <white><recipe></white>.</yellow>"
+  not_known: "<yellow><player> does not have knowledge of <white><recipe></white>.</yellow>"
+  admin_give_success: "<green>Granted knowledge of <white><recipe></white> to <player>!</green>"
+  admin_revoke_success: "<green>Revoked knowledge of <white><recipe></white> from <player>.</green>"
+  no_recipes: "<gray>No recipes are currently registered in the system.</gray>"
+  discovered: "<green>You discovered <white><recipe></white>! View your cookbook with <yellow>/croppy recipes</yellow>.</green>"

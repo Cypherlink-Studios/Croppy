@@ -50,6 +50,7 @@ public final class PaperMenuListener implements Listener {
     private final MiniMessage miniMessage;
     private ChatPromptService chatPromptService;
     private PaperMenuService menuService;
+    private dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler;
 
     public PaperMenuListener(
             Plugin plugin,
@@ -78,6 +79,10 @@ public final class PaperMenuListener implements Listener {
 
     public void setMenuService(PaperMenuService menuService) {
         this.menuService = menuService;
+    }
+
+    public void setExperimentationHandler(dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler) {
+        this.experimentationHandler = experimentationHandler;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -220,6 +225,11 @@ public final class PaperMenuListener implements Listener {
                     if ("START_PROCESS".equalsIgnoreCase(target)) {
                         syncStorageFromGui(holder);
                         processEngine.tryStartProcess(station, holder.getContext().with("player", player));
+                    } else if ("EXPERIMENT".equalsIgnoreCase(target) || "DISCOVER_RECIPE".equalsIgnoreCase(target)) {
+                        syncStorageFromGui(holder);
+                        if (experimentationHandler != null) {
+                            experimentationHandler.handleExperimentation(player, station);
+                        }
                     } else if ("CANCEL_PROCESS".equalsIgnoreCase(target)) {
                         station.getComponent(ProcessComponent.class).ifPresent(ProcessComponent::clearActiveProcess);
                     } else if ("TOGGLE_POWER".equalsIgnoreCase(target)) {
