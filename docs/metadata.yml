@@ -1,0 +1,58 @@
+id: croppy
+name: Croppy
+description: Modular simulation engine for dynamic agriculture, soil nutrients, cooking workstations, variable heat sources, and culinary recipes on Paper.
+
+# Supported platforms
+platforms:
+  - paper
+  - purpur
+
+# Minecraft compatibility
+minecraft:
+  minimum: "1.21.8"
+  supported:
+    - "1.21.x"
+  tested: "1.21.8"
+
+# Java Runtime compatibility
+java:
+  minimum: 21
+  recommended: 21
+
+# Folia support
+folia:
+  supported: false
+  status: unsupported
+  notes: Utilizes synchronized Bukkit/Paper scheduling for physical block interactions and PacketEvents without Folia regional threading support.
+
+# Published releases
+versions:
+  # -------------------------------------------------------------
+  # CURRENT VERSION (LATEST) -> Always index 0
+  # -------------------------------------------------------------
+  - version: "0.2.0"
+    releaseDate: "2026-11-01"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Culinary recipe discovery engine, interactive recipe book compendium GUI, PacketEvents virtual displays, and comprehensive i18n localization system."
+    minecraft:
+      - "1.21.x"
+
+# Plugin dependencies
+dependencies:
+  - id: packetevents
+    name: PacketEvents
+    type: required
+    url: https://github.com/retrooper/packetevents
+
+# External links
+links:
+  github: https://github.com/Cypherlink-Studios/Croppy
+  discord: https://discord.gg/j7ZTRXmQG4
+
+# Documentation engine metadata
+documentation:
+  defaultLocale: en
+  locales:
+    - es
+    - en

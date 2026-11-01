@@ -1,3 +1,10 @@
+---
+title: Localization & i18n
+description: Complete guide to Croppy's BCP-47 locale bundles, fallback resolution, MiniMessage formatting, and Crowdin integration.
+sidebar:
+  order: 15
+---
+
 # Croppy Localization & Internationalization (i18n)
 
 This document describes the design, architecture, key conventions, and workflow for Croppy's internationalization (i18n) system and its integration with Crowdin.
@@ -8,31 +15,31 @@ This document describes the design, architecture, key conventions, and workflow 
 
 Croppy follows a strict **Hexagonal Architecture (Ports and Adapters)** to decouple domain logic from Minecraft/Paper APIs and external translation tooling:
 
-```
-┌────────────────────────────────────────────────────────┐
-│                      croppy-api                        │
-│   Pure Java 21 contracts, zero external dependencies   │
-│   • MessageKey (immutable semantic key record)         │
-│   • LocaleRef (BCP-47 locale tag representation)       │
-│   • TranslationProvider (SPI query port)               │
-└──────────────────────────┬─────────────────────────────┘
-                           │ implemented by
-┌──────────────────────────▼─────────────────────────────┐
-│                      croppy-core                       │
-│   Domain engine & pure in-memory message catalog       │
-│   • DefaultMessageCatalog (thread-safe, atomic swap)   │
-│   • YamlLocaleLoader (SnakeYAML flattener)             │
-│   • LocaleValidator & LocaleValidationReport          │
-└──────────────────────────┬─────────────────────────────┘
-                           │ adapted by
-┌──────────────────────────▼─────────────────────────────┐
-│                     croppy-paper                       │
-│   Paper platform adapter (Paper 1.21.8+)               │
-│   • PaperMessageService (MiniMessage & Adventure)      │
-│   • Argument sanitization (prevents tag injection)     │
-│   • Content localization override resolver             │
-│   • Bundled resource bundles (en-US.yml, es-ES.yml)    │
-└────────────────────────────────────────────────────────┘
+```text
++--------------------------------------------------------+
+|                      croppy-api                        |
+|   Pure Java 21 contracts, zero external dependencies   |
+|   * MessageKey (immutable semantic key record)         |
+|   * LocaleRef (BCP-47 locale tag representation)       |
+|   * TranslationProvider (SPI query port)               |
++--------------------------+-----------------------------+
+                           | implemented by
++--------------------------v-----------------------------+
+|                      croppy-core                       |
+|   Domain engine & pure in-memory message catalog       |
+|   * DefaultMessageCatalog (thread-safe, atomic swap)   |
+|   * YamlLocaleLoader (SnakeYAML flattener)             |
+|   * LocaleValidator & LocaleValidationReport          |
++--------------------------+-----------------------------+
+                           | adapted by
++--------------------------v-----------------------------+
+|                     croppy-paper                       |
+|   Paper platform adapter (Paper 1.21.8+)               |
+|   * PaperMessageService (MiniMessage & Adventure)      |
+|   * Argument sanitization (prevents tag injection)     |
+|   * Content localization override resolver             |
+|   * Bundled resource bundles (en-US.yml, es-ES.yml)    |
++--------------------------------------------------------+
 ```
 
 ---
@@ -73,10 +80,10 @@ content:
   item:
     croppy:
       wheat_seeds:
-        name: "<yellow>Semillas de Trigo Doradas</yellow>"
+        name: "<yellow>Golden Wheat Seeds</yellow>"
         lore:
-          - "<gray>Planta estas semillas en tierra arada.</gray>"
-          - "<gold>Calidad superior garantizada.</gold>"
+          - "<gray>Plant these seeds on tilled farmland.</gray>"
+          - "<gold>Guaranteed superior harvest quality.</gold>"
 ```
 
 `PaperMessageService#resolveItemDisplayName` and `resolveItemLore` will automatically prioritize the localized values over the default definition strings in `items/seeds/wheat_seeds.yml`.
