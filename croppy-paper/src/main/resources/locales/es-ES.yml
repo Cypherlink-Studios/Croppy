@@ -78,7 +78,6 @@ prompt:
   temperature-bounds: "<gold>[Croppy]</gold> <red>La temperatura debe estar entre <min>°C y <max>°C.</red>"
   temperature-success: "<gold>[Croppy]</gold> <green>¡Temperatura objetivo ajustada a <aqua><val>°C</aqua>!</green>"
   invalid-number: "<gold>[Croppy]</gold> <red>Número inválido. Escribe un número válido o 'cancel'.</red>"
-
 recipe:
   compendium_unavailable: "<red>El compendio de recetas no está disponible en este momento.</red>"
   unknown_recipe: "<red>Receta desconocida: <white><recipe></white>.</red>"
