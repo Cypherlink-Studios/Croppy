@@ -18,11 +18,13 @@ import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.station.component.ThermalZone;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.core.interaction.InteractionRouter;
 import dev.darkblade.croppy.core.process.ProcessEngine;
 import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.rule.RuleExecution;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.menu.PaperMenuService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -44,6 +46,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -59,6 +62,7 @@ public final class StationInteractListener implements Listener {
     private final PaperMenuService menuService;
     private final InteractionRouter interactionRouter;
     private final RuleEngine ruleEngine;
+    private final PaperMessageService messageService;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final NamespacedKey durabilityKey = new NamespacedKey("croppy", "durability");
 
@@ -70,12 +74,25 @@ public final class StationInteractListener implements Listener {
             InteractionRouter interactionRouter,
             RuleEngine ruleEngine
     ) {
+        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, null);
+    }
+
+    public StationInteractListener(
+            DefaultStationManager stationManager,
+            ProcessEngine processEngine,
+            ItemFactory itemFactory,
+            PaperMenuService menuService,
+            InteractionRouter interactionRouter,
+            RuleEngine ruleEngine,
+            PaperMessageService messageService
+    ) {
         this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
         this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.menuService = Objects.requireNonNull(menuService, "menuService cannot be null");
         this.interactionRouter = Objects.requireNonNull(interactionRouter, "interactionRouter cannot be null");
         this.ruleEngine = Objects.requireNonNull(ruleEngine, "ruleEngine cannot be null");
+        this.messageService = messageService;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -192,8 +209,20 @@ public final class StationInteractListener implements Listener {
             case SCORCH -> "#aa0000";
         };
 
-        String msg = String.format("<gradient:#ffaa00:%s>Temperature:</gradient> <white>%.1f°C</white> <gray>[%s]</gray>", color, temp, zone.name());
-        player.sendActionBar(miniMessage.deserialize(msg));
+        if (messageService != null) {
+            messageService.sendActionBarWithReplacements(
+                    player,
+                    MessageKey.of("station.temperature"),
+                    Map.of("{color}", color),
+                    PaperMessageService.args(
+                            "temperature", String.format(Locale.ROOT, "%.1f", temp),
+                            "zone", zone.name()
+                    )
+            );
+        } else {
+            String msg = String.format("<gradient:#ffaa00:%s>Temperature:</gradient> <white>%.1f°C</white> <gray>[%s]</gray>", color, temp, zone.name());
+            player.sendActionBar(miniMessage.deserialize(msg));
+        }
         player.playSound(player.getLocation(), Sound.ITEM_LODESTONE_COMPASS_LOCK, 1.0f, 1.2f);
 
         // Apply tool durability damage if applicable
@@ -456,18 +485,43 @@ public final class StationInteractListener implements Listener {
             ProcessInstance pi = processOpt.get().getActiveProcess().get();
             statusText = "<yellow>" + pi.getState().name() + "</yellow>";
         } else {
-            statusText = "<gray>Empty</gray>";
+            statusText = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(player, MessageKey.of("station.empty")))
+                    : "<gray>Empty</gray>";
         }
 
-        String msg;
-        if (thermalOpt.isPresent()) {
-            msg = String.format("%s <dark_gray>•</dark_gray> %s <dark_gray>•</dark_gray> <gradient:#ffaa00:%s>%.1f°C</gradient>",
-                    def.displayName(), statusText, color, temp);
+        if (messageService != null) {
+            if (thermalOpt.isPresent()) {
+                messageService.sendActionBarWithReplacements(
+                        player,
+                        MessageKey.of("station.empty-feedback"),
+                        Map.of("{color}", color),
+                        PaperMessageService.args(
+                                "name", miniMessage.deserialize(def.displayName()),
+                                "status", miniMessage.deserialize(statusText),
+                                "temperature", String.format(Locale.ROOT, "%.1f", temp)
+                        )
+                );
+            } else {
+                messageService.sendActionBar(
+                        player,
+                        MessageKey.of("station.empty-feedback-no-thermal"),
+                        PaperMessageService.args(
+                                "name", miniMessage.deserialize(def.displayName()),
+                                "status", miniMessage.deserialize(statusText)
+                        )
+                );
+            }
         } else {
-            msg = String.format("%s <dark_gray>•</dark_gray> %s", def.displayName(), statusText);
+            String msg;
+            if (thermalOpt.isPresent()) {
+                msg = String.format("%s <dark_gray>•</dark_gray> %s <dark_gray>•</dark_gray> <gradient:#ffaa00:%s>%.1f°C</gradient>",
+                        def.displayName(), statusText, color, temp);
+            } else {
+                msg = String.format("%s <dark_gray>•</dark_gray> %s", def.displayName(), statusText);
+            }
+            player.sendActionBar(miniMessage.deserialize(msg));
         }
-
-        player.sendActionBar(miniMessage.deserialize(msg));
         player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 0.5f, 1.3f);
     }
 

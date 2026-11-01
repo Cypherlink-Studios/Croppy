@@ -1,8 +1,10 @@
 package dev.darkblade.croppy.platform.paper.listener;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.crop.CropManager;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanTier;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -35,11 +37,17 @@ public class WateringListener implements Listener {
 
     private final WateringCanService wateringCanService;
     private final CropManager cropManager;
+    private final PaperMessageService messageService;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    public WateringListener(WateringCanService wateringCanService, CropManager cropManager) {
+    public WateringListener(WateringCanService wateringCanService, CropManager cropManager, PaperMessageService messageService) {
         this.wateringCanService = Objects.requireNonNull(wateringCanService, "wateringCanService cannot be null");
         this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
+        this.messageService = messageService;
+    }
+
+    public WateringListener(WateringCanService wateringCanService, CropManager cropManager) {
+        this(wateringCanService, cropManager, null);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -72,7 +80,11 @@ public class WateringListener implements Listener {
             if (refilled) {
                 world.playSound(clickedBlock.getLocation(), Sound.ITEM_BUCKET_FILL, 0.8f, 1.0f);
                 world.spawnParticle(Particle.SPLASH, clickedBlock.getLocation().add(0.5, 0.8, 0.5), 15, 0.2, 0.2, 0.2, 0.1);
-                player.sendActionBar(miniMessage.deserialize("<aqua>¡Regadera recargada!</aqua>"));
+                if (messageService != null) {
+                    messageService.sendActionBar(player, MessageKey.of("watering.refilled"));
+                } else {
+                    player.sendActionBar(miniMessage.deserialize("<aqua>Watering can refilled!</aqua>"));
+                }
             }
             return;
         }
@@ -88,7 +100,11 @@ public class WateringListener implements Listener {
         if (waterLevel <= 0) {
             event.setCancelled(true);
             player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 0.8f, 1.5f);
-            player.sendActionBar(miniMessage.deserialize("<red>¡La regadera está vacía! Recárgala con agua.</red>"));
+            if (messageService != null) {
+                messageService.sendActionBar(player, MessageKey.of("watering.empty"));
+            } else {
+                player.sendActionBar(miniMessage.deserialize("<red>The watering can is empty! Refill it with water.</red>"));
+            }
             return;
         }
 

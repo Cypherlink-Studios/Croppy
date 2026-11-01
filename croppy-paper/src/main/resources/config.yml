@@ -47,6 +47,7 @@ inspection-tool:
 # Messages (Kyori Adventure MiniMessage format)
 # ==============================================================================
 messages:
+  default-locale: "en-US"
   prefix: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>"
   no-permission: "<red>You do not have permission to execute this command."
   no-crop-found: "<red>No active crop found at the targeted location."

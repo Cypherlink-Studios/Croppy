@@ -99,6 +99,7 @@ public class CroppyPlugin extends JavaPlugin {
     private BukkitTask menuTickerTask;
     private dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener stationInteractListener;
     private dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener stationBlockListener;
+    private dev.darkblade.croppy.platform.paper.i18n.PaperMessageService messageService;
 
     @Override
     public void onEnable() {
@@ -119,6 +120,7 @@ public class CroppyPlugin extends JavaPlugin {
             this.stationStorage = new dev.darkblade.croppy.platform.paper.storage.PdcStationStorage(this,
                     core.getStationRegistry());
 
+            setupLocalization();
             setupItemDefinitions();
             setupFertilizers();
             setupCropDefinitions();
@@ -157,7 +159,7 @@ public class CroppyPlugin extends JavaPlugin {
 
     private void setupMenuServices() {
         this.fuelService = new dev.darkblade.croppy.platform.paper.fuel.PaperFuelService(new dev.darkblade.croppy.core.fuel.DefaultFuelRegistry());
-        this.chatPromptService = new dev.darkblade.croppy.platform.paper.prompt.ChatPromptService(this);
+        this.chatPromptService = new dev.darkblade.croppy.platform.paper.prompt.ChatPromptService(this, this.messageService);
         this.menuRenderer = new dev.darkblade.croppy.platform.paper.menu.PaperMenuRenderer(this.itemFactory);
         this.menuTicker = new dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker(this.menuRenderer, core.getProcessRegistry());
         this.menuService = new dev.darkblade.croppy.platform.paper.menu.PaperMenuService(core.getMenuRegistry(), this.menuRenderer, core.getProcessRegistry(), this.menuTicker, getLogger());
@@ -172,14 +174,14 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new CropBreakListener(core), this);
         pm.registerEvents(new CropPhysicsListener(core), this);
         pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
-        pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager()), this);
+        pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService), this);
         pm.registerEvents(new TimeSkipListener(this.dailyTransitionService), this);
-        pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager()), this);
+        pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager(), this.messageService), this);
 
         // Station & Process listeners
         this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
                 core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.menuService,
-                core.getInteractionRouter(), core.getRuleEngine());
+                core.getInteractionRouter(), core.getRuleEngine(), this.messageService);
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
                 core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory, this.stationViewerTracker);
 
@@ -413,7 +415,8 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getSpeciesRegistry(),
                 this.environmentProvider,
                 this.fertilizerRegistry,
-                getServer());
+                getServer(),
+                this.messageService);
 
         PaperCommandManager<Source> commandManager = PaperCommandManager
                 .builder(PaperSimpleSenderMapper.simpleSenderMapper())
@@ -452,6 +455,7 @@ public class CroppyPlugin extends JavaPlugin {
     public void reloadPlugin() {
         reloadConfig();
         this.pluginConfig.load(getConfig());
+        setupLocalization();
         this.core.getSpeciesRegistry().clear();
         this.core.getItemRegistry().clear();
         this.core.getMenuRegistry().clear();
@@ -649,6 +653,32 @@ public class CroppyPlugin extends JavaPlugin {
 
     public DailyTransitionService getDailyTransitionService() {
         return dailyTransitionService;
+    }
+
+    private void setupLocalization() {
+        Path localesDir = getDataFolder().toPath().resolve("locales");
+        if (!Files.exists(localesDir)) {
+            try {
+                Files.createDirectories(localesDir);
+            } catch (Exception ignored) {}
+        }
+        saveResourceIfNotExists("locales/en-US.yml");
+        saveResourceIfNotExists("locales/es-ES.yml");
+
+        String defaultLocaleStr = getConfig().getString("messages.default-locale", "en-US");
+        dev.darkblade.croppy.api.i18n.LocaleRef defaultLocale = dev.darkblade.croppy.api.i18n.LocaleRef.parse(defaultLocaleStr);
+        dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(defaultLocale, dev.darkblade.croppy.api.i18n.LocaleRef.EN_US);
+
+        dev.darkblade.croppy.core.i18n.YamlLocaleLoader loader = new dev.darkblade.croppy.core.i18n.YamlLocaleLoader();
+        Map<dev.darkblade.croppy.api.i18n.LocaleRef, Map<String, String>> loaded = loader.loadDirectory(localesDir, getLogger());
+        catalog.setCatalogs(loaded);
+
+        this.messageService = new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, getLogger());
+        getLogger().info("Initialized localization service with " + loaded.size() + " locales (default: " + defaultLocale + ").");
+    }
+
+    public dev.darkblade.croppy.platform.paper.i18n.PaperMessageService getMessageService() {
+        return messageService;
     }
 
     public dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker getStationViewerTracker() {

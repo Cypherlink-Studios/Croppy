@@ -3,6 +3,7 @@ package dev.darkblade.croppy.platform.paper.command;
 import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.fertilizer.Fertilizer;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
+import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
@@ -12,6 +13,7 @@ import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.platform.paper.CroppyPlugin;
 import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
@@ -58,6 +60,7 @@ public class CroppyCommands {
     private final FertilizerRegistry fertilizerRegistry;
     private final ItemFactory itemFactory;
     private final ItemRegistry itemRegistry;
+    private final PaperMessageService messageService;
     private final MiniMessage miniMessage;
 
     public CroppyCommands(
@@ -78,6 +81,25 @@ public class CroppyCommands {
         this.fertilizerRegistry = fertilizerRegistry;
         this.itemFactory = itemFactory;
         this.itemRegistry = itemRegistry;
+        if (plugin != null && plugin.getMessageService() != null) {
+            this.messageService = plugin.getMessageService();
+        } else {
+            dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(dev.darkblade.croppy.api.i18n.LocaleRef.EN_US, dev.darkblade.croppy.api.i18n.LocaleRef.EN_US);
+            dev.darkblade.croppy.core.i18n.YamlLocaleLoader loader = new dev.darkblade.croppy.core.i18n.YamlLocaleLoader();
+            try {
+                try (var enIn = CroppyCommands.class.getResourceAsStream("/locales/en-US.yml")) {
+                    if (enIn != null) {
+                        catalog.registerLocale(dev.darkblade.croppy.api.i18n.LocaleRef.EN_US, loader.load(enIn, "en-US.yml"));
+                    }
+                }
+                try (var esIn = CroppyCommands.class.getResourceAsStream("/locales/es-ES.yml")) {
+                    if (esIn != null) {
+                        catalog.registerLocale(dev.darkblade.croppy.api.i18n.LocaleRef.ES_ES, loader.load(esIn, "es-ES.yml"));
+                    }
+                }
+            } catch (Exception ignored) {}
+            this.messageService = new PaperMessageService(catalog, null);
+        }
         this.miniMessage = MiniMessage.miniMessage();
     }
 
@@ -87,6 +109,22 @@ public class CroppyCommands {
             PluginConfig pluginConfig
     ) {
         this(plugin, inspectorService, pluginConfig, null, null, null, null, null);
+    }
+
+    private void sendPrefixed(CommandSender sender, MessageKey key, Object... args) {
+        if (messageService != null) {
+            messageService.sendPrefixedMessage(sender, key, PaperMessageService.args(args));
+        } else {
+            sender.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <red>" + key.key() + "</red>"));
+        }
+    }
+
+    private void sendRaw(CommandSender sender, MessageKey key, Object... args) {
+        if (messageService != null) {
+            messageService.sendMessage(sender, key, PaperMessageService.args(args));
+        } else {
+            sender.sendMessage(miniMessage.deserialize(key.key()));
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -152,19 +190,19 @@ public class CroppyCommands {
             if (sender instanceof Player p) {
                 recipient = p;
             } else {
-                sender.sendMessage(miniMessage.deserialize("<red>Debe especificar un jugador destinatario con --target <jugador> desde la consola.</red>"));
+                sendPrefixed(sender, MessageKey.of("command.give.sender-required"));
                 return;
             }
         }
 
         if (itemRegistry == null || itemFactory == null) {
-            sender.sendMessage(miniMessage.deserialize("<red>El sistema de ítems no está inicializado.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.give.registry-not-initialized"));
             return;
         }
 
         Optional<ItemDefinition> defOpt = itemRegistry.get(itemId);
         if (defOpt.isEmpty()) {
-            sender.sendMessage(miniMessage.deserialize("<red>Ítem no encontrado en el registro: " + itemId.asString() + "</red>"));
+            sendPrefixed(sender, MessageKey.of("command.give.item-not-found"), "item", itemId.asString());
             return;
         }
 
@@ -178,15 +216,19 @@ public class CroppyCommands {
             leftover.values().forEach(rem -> recipientFinal.getWorld().dropItemNaturally(recipientFinal.getLocation(), rem));
         }
 
+        Component recipientItemDisplay = (messageService != null)
+                ? messageService.resolveItemDisplayName(recipientFinal, def)
+                : miniMessage.deserialize(def.displayName());
+
         if (!silent && !recipientFinal.equals(sender)) {
-            recipientFinal.sendMessage(miniMessage.deserialize(
-                    "<green>Has recibido <yellow>" + amount + "x</yellow> " + def.displayName() + ".</green>"
-            ));
+            sendPrefixed(recipientFinal, MessageKey.of("command.give.received"), "amount", amount, "item", recipientItemDisplay);
         }
 
-        sender.sendMessage(miniMessage.deserialize(
-                "<green>Entregado <yellow>" + amount + "x</yellow> " + def.displayName() + " a " + recipientFinal.getName() + ".</green>"
-        ));
+        Component senderItemDisplay = (messageService != null)
+                ? messageService.resolveItemDisplayName(sender, def)
+                : miniMessage.deserialize(def.displayName());
+
+        sendPrefixed(sender, MessageKey.of("command.give.given"), "amount", amount, "item", senderItemDisplay, "player", recipientFinal.getName());
     }
 
     @Command("croppy item list [category]")
@@ -197,23 +239,23 @@ public class CroppyCommands {
     ) {
         CommandSender sender = source.source();
         if (itemRegistry == null) {
-            sender.sendMessage(miniMessage.deserialize("<red>El registro de ítems no está inicializado.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.give.registry-not-initialized"));
             return;
         }
 
         if (category != null && !category.isBlank()) {
             Collection<ItemDefinition> items = itemRegistry.getByCategory(category);
             if (items.isEmpty()) {
-                sender.sendMessage(miniMessage.deserialize("<yellow>No hay ítems registrados en la categoría: " + category + "</yellow>"));
+                sendPrefixed(sender, MessageKey.of("command.list.empty-category"), "category", category);
                 return;
             }
-            sender.sendMessage(miniMessage.deserialize("<gold><bold>=== Ítems en categoría: " + category + " (" + items.size() + ") ===</bold></gold>"));
+            sendRaw(sender, MessageKey.of("command.list.category-header"), "category", category, "count", items.size());
             for (ItemDefinition def : items) {
                 sender.sendMessage(miniMessage.deserialize(" <dark_gray>•</dark_gray> <yellow>" + def.key().asString() + "</yellow> - " + def.displayName()));
             }
         } else {
             Collection<ItemDefinition> all = itemRegistry.values();
-            sender.sendMessage(miniMessage.deserialize("<gold><bold>=== Ítems Registrados (" + all.size() + ") ===</bold></gold>"));
+            sendRaw(sender, MessageKey.of("command.list.all-header"), "count", all.size());
             for (String cat : itemRegistry.getCategories()) {
                 Collection<ItemDefinition> inCat = itemRegistry.getByCategory(cat);
                 sender.sendMessage(miniMessage.deserialize("<aqua>[" + cat + "]</aqua> <gray>(" + inCat.size() + "):</gray>"));
@@ -233,22 +275,22 @@ public class CroppyCommands {
     public void inspectRaycast(Source source) {
         CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(miniMessage.deserialize("<red>Console must specify coordinates: /croppy inspect <x> <y> <z>"));
+            sendPrefixed(sender, MessageKey.of("command.inspect.console-needs-coords"));
             return;
         }
 
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
         BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<Component> card = inspectorService.inspect(pos);
+        Optional<Component> card = inspectorService.inspect(pos, player);
         if (card.isPresent()) {
             player.sendMessage(card.get());
         } else {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
         }
     }
 
@@ -265,11 +307,11 @@ public class CroppyCommands {
                 ? player.getWorld()
                 : (source.stack().getLocation().getWorld() != null ? source.stack().getLocation().getWorld() : Bukkit.getWorlds().get(0));
         BlockPosition pos = BlockPosition.of(world.getName(), x, y, z);
-        Optional<Component> card = inspectorService.inspect(pos);
+        Optional<Component> card = inspectorService.inspect(pos, sender);
         if (card.isPresent()) {
             sender.sendMessage(card.get());
         } else {
-            sender.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(sender, MessageKey.of("command.inspect.no-crop-found"));
         }
     }
 
@@ -279,13 +321,9 @@ public class CroppyCommands {
         CommandSender sender = source.source();
         try {
             plugin.reloadPlugin();
-            sender.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "reload-success"));
+            sendPrefixed(sender, MessageKey.of("general.reload-success"));
         } catch (Exception e) {
-            sender.sendMessage(pluginConfig.getMessage(
-                    plugin.getConfig(),
-                    "reload-failed",
-                    Placeholder.unparsed("error", e.getMessage() != null ? e.getMessage() : "Unknown error")
-            ));
+            sendPrefixed(sender, MessageKey.of("general.reload-failed"), "error", e.getMessage() != null ? e.getMessage() : "Unknown error");
             plugin.getLogger().severe("Failed to reload Croppy: " + e.getMessage());
         }
     }
@@ -295,13 +333,13 @@ public class CroppyCommands {
     public void waterTarget(Source source) {
         CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(miniMessage.deserialize("<red>Only players can execute targeting commands."));
+            sendPrefixed(sender, MessageKey.of("command.player-only"));
             return;
         }
 
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
@@ -312,7 +350,7 @@ public class CroppyCommands {
         }
 
         if (cropOpt.isEmpty()) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
@@ -328,7 +366,7 @@ public class CroppyCommands {
 
         target.getWorld().spawnParticle(Particle.SPLASH, target.getLocation().add(0.5, 0.5, 0.5), 15, 0.2, 0.2, 0.2, 0.1);
         player.playSound(target.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.8f, 1.2f);
-        player.sendMessage(miniMessage.deserialize("<aqua>¡Cultivo regado exitosamente para el día de hoy!</aqua>"));
+        sendPrefixed(player, MessageKey.of("command.water.success"));
     }
 
     @Command("croppy fertilize <fertilizer>")
@@ -339,13 +377,13 @@ public class CroppyCommands {
     ) {
         CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(miniMessage.deserialize("<red>Only players can execute targeting commands."));
+            sendPrefixed(sender, MessageKey.of("command.player-only"));
             return;
         }
 
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
@@ -356,7 +394,7 @@ public class CroppyCommands {
         }
 
         if (cropOpt.isEmpty()) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
@@ -365,7 +403,7 @@ public class CroppyCommands {
 
         target.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, target.getLocation().add(0.5, 0.5, 0.5), 12, 0.2, 0.2, 0.2, 0.1);
         player.playSound(target.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.1f);
-        player.sendMessage(miniMessage.deserialize("<green>¡Fertilizante <yellow>" + fertilizerKey.asString() + "</yellow> aplicado al cultivo!</green>"));
+        sendPrefixed(player, MessageKey.of("command.fertilize.success"), "fertilizer", fertilizerKey.asString());
     }
 
     @Command("croppy setstage <stageIndex>")
@@ -376,35 +414,33 @@ public class CroppyCommands {
     ) {
         CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(miniMessage.deserialize("<red>Only players can execute targeting commands."));
+            sendPrefixed(sender, MessageKey.of("command.player-only"));
             return;
         }
 
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
         BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
         Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCrop(pos);
         if (cropOpt.isEmpty()) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
         CropInstance crop = cropOpt.get();
         Optional<Species> speciesOpt = plugin.getCore().getSpeciesRegistry().get(crop.getSpeciesKey());
         if (speciesOpt.isEmpty()) {
-            player.sendMessage(miniMessage.deserialize("<red>Species not found for this crop."));
+            sendPrefixed(player, MessageKey.of("command.state.species-not-found"));
             return;
         }
 
         Species species = speciesOpt.get();
         if (stageIndex < 0 || stageIndex >= species.getTotalStages()) {
-            player.sendMessage(miniMessage.deserialize(
-                    "<red>Invalid stage index " + stageIndex + ". Valid stages: 0 to " + (species.getTotalStages() - 1)
-            ));
+            sendPrefixed(player, MessageKey.of("command.state.invalid-stage"), "stage", stageIndex, "max", species.getTotalStages() - 1);
             return;
         }
 
@@ -413,11 +449,7 @@ public class CroppyCommands {
         StageDefinition stage = species.getStage(stageIndex);
         plugin.getDisplaySynchronizer().synchronizeDisplay(crop, species, stage);
 
-        player.sendMessage(pluginConfig.getMessage(
-                plugin.getConfig(),
-                "stage-updated",
-                Placeholder.unparsed("stage", String.valueOf(stageIndex))
-        ));
+        sendPrefixed(player, MessageKey.of("command.state.stage-updated"), "stage", stageIndex);
     }
 
     @Command("croppy setprogress <progress>")
@@ -428,30 +460,26 @@ public class CroppyCommands {
     ) {
         CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(miniMessage.deserialize("<red>Only players can execute targeting commands."));
+            sendPrefixed(sender, MessageKey.of("command.player-only"));
             return;
         }
 
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
         BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
         Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCrop(pos);
         if (cropOpt.isEmpty()) {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
         CropInstance crop = cropOpt.get();
         crop.setProgress(Math.max(0.0, progress));
 
-        player.sendMessage(pluginConfig.getMessage(
-                plugin.getConfig(),
-                "progress-updated",
-                Placeholder.unparsed("progress", String.format(Locale.ROOT, "%.1f", crop.getProgress()))
-        ));
+        sendPrefixed(player, MessageKey.of("command.state.progress-updated"), "progress", String.format(Locale.ROOT, "%.1f", crop.getProgress()));
     }
 }

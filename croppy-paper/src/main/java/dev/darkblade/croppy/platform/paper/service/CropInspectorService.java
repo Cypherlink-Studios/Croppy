@@ -13,7 +13,10 @@ import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.crop.CropManager;
+import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.platform.paper.config.PluginConfig;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
+import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
@@ -38,7 +41,25 @@ public class CropInspectorService {
     private final EnvironmentProvider environmentProvider;
     private final FertilizerRegistry fertilizerRegistry;
     private final Server server;
+    private final PaperMessageService messageService;
     private final MiniMessage miniMessage;
+
+    public CropInspectorService(
+            CropManager cropManager,
+            SpeciesRegistry speciesRegistry,
+            EnvironmentProvider environmentProvider,
+            FertilizerRegistry fertilizerRegistry,
+            Server server,
+            PaperMessageService messageService
+    ) {
+        this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
+        this.speciesRegistry = Objects.requireNonNull(speciesRegistry, "speciesRegistry cannot be null");
+        this.environmentProvider = Objects.requireNonNull(environmentProvider, "environmentProvider cannot be null");
+        this.fertilizerRegistry = fertilizerRegistry;
+        this.server = server;
+        this.messageService = messageService;
+        this.miniMessage = MiniMessage.miniMessage();
+    }
 
     public CropInspectorService(
             CropManager cropManager,
@@ -47,12 +68,7 @@ public class CropInspectorService {
             FertilizerRegistry fertilizerRegistry,
             Server server
     ) {
-        this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
-        this.speciesRegistry = Objects.requireNonNull(speciesRegistry, "speciesRegistry cannot be null");
-        this.environmentProvider = Objects.requireNonNull(environmentProvider, "environmentProvider cannot be null");
-        this.fertilizerRegistry = fertilizerRegistry;
-        this.server = server;
-        this.miniMessage = MiniMessage.miniMessage();
+        this(cropManager, speciesRegistry, environmentProvider, fertilizerRegistry, server, null);
     }
 
     public CropInspectorService(
@@ -61,7 +77,7 @@ public class CropInspectorService {
             EnvironmentProvider environmentProvider,
             FertilizerRegistry fertilizerRegistry
     ) {
-        this(cropManager, speciesRegistry, environmentProvider, fertilizerRegistry, null);
+        this(cropManager, speciesRegistry, environmentProvider, fertilizerRegistry, null, null);
     }
 
     public CropInspectorService(
@@ -69,7 +85,7 @@ public class CropInspectorService {
             SpeciesRegistry speciesRegistry,
             EnvironmentProvider environmentProvider
     ) {
-        this(cropManager, speciesRegistry, environmentProvider, null, null);
+        this(cropManager, speciesRegistry, environmentProvider, null, null, null);
     }
 
     /**
@@ -79,6 +95,10 @@ public class CropInspectorService {
      * @return formatted MiniMessage component, or empty if no crop exists at the position
      */
     public Optional<Component> inspect(BlockPosition position) {
+        return inspect(position, null);
+    }
+
+    public Optional<Component> inspect(BlockPosition position, Audience audience) {
         Optional<CropInstance> cropOpt = cropManager.getCrop(position);
         if (cropOpt.isEmpty()) {
             return Optional.empty();
@@ -101,17 +121,21 @@ public class CropInspectorService {
         }
 
         CropEnvironment environment = environmentProvider.getEnvironment(position);
-        return Optional.of(formatCropCard(crop, speciesOpt.get(), environment, currentDay));
+        return Optional.of(formatCropCard(crop, speciesOpt.get(), environment, currentDay, audience));
     }
 
     public Component formatCropCard(CropInstance crop, Species species, CropEnvironment environment) {
-        return formatCropCard(crop, species, environment, -1L);
+        return formatCropCard(crop, species, environment, -1L, null);
+    }
+
+    public Component formatCropCard(CropInstance crop, Species species, CropEnvironment environment, long currentDay) {
+        return formatCropCard(crop, species, environment, currentDay, null);
     }
 
     /**
      * Formats a complete crop status card into a rich Kyori Adventure Component.
      */
-    public Component formatCropCard(CropInstance crop, Species species, CropEnvironment environment, long currentDay) {
+    public Component formatCropCard(CropInstance crop, Species species, CropEnvironment environment, long currentDay, Audience audience) {
         int totalStages = Math.max(1, species.getTotalStages());
         int currentStageIdx = Math.min(crop.getStageIndex(), totalStages - 1);
         StageDefinition stage = species.getStage(currentStageIdx);
@@ -140,17 +164,29 @@ public class CropInspectorService {
 
         String statusStr;
         if (crop.isMature(species)) {
-            statusStr = "<aqua><bold>Mature</bold></aqua>";
+            statusStr = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.states.mature")))
+                    : "<aqua><bold>Mature</bold></aqua>";
         } else if (!environment.isLoaded()) {
-            statusStr = "<red>Unloaded Chunk</red>";
+            statusStr = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.states.unloaded")))
+                    : "<red>Unloaded Chunk</red>";
         } else if (!lightOk && !waterOk) {
-            statusStr = "<red>Stalled (Light & Water)</red>";
+            statusStr = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.states.stalled-both")))
+                    : "<red>Stalled (Light & Water)</red>";
         } else if (!lightOk) {
-            statusStr = "<red>Stalled (Insufficient Light)</red>";
+            statusStr = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.states.stalled-light")))
+                    : "<red>Stalled (Insufficient Light)</red>";
         } else if (!waterOk) {
-            statusStr = "<red>Stalled (Insufficient Water)</red>";
+            statusStr = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.states.stalled-water")))
+                    : "<red>Stalled (Insufficient Water)</red>";
         } else {
-            statusStr = "<green><bold>Growing</bold></green>";
+            statusStr = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.states.growing")))
+                    : "<green><bold>Growing</bold></green>";
         }
 
         String lightColor = lightOk ? "<green>" : "<red>";
@@ -160,15 +196,23 @@ public class CropInspectorService {
         String hydrationStr;
         if (currentDay >= 0) {
             if (crop.isWateredOn(currentDay)) {
-                hydrationStr = "<blue>Regado hoy 💧</blue>";
+                hydrationStr = (messageService != null)
+                        ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.hydration-states.watered-today")))
+                        : "<blue>Watered today 💧</blue>";
             } else {
                 long dryDays = crop.getLastWateredDay() >= 0 ? (currentDay - crop.getLastWateredDay()) : (currentDay + 1);
-                hydrationStr = "<red>Seco (hace " + dryDays + " día(s)) 🥀</red>";
+                hydrationStr = (messageService != null)
+                        ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.hydration-states.dry-days"), PaperMessageService.arg("days", dryDays)))
+                        : "<red>Dry (" + dryDays + " day(s) ago) 🥀</red>";
             }
         } else {
             hydrationStr = crop.getLastWateredDay() >= 0
-                    ? "<blue>Regado (Día " + crop.getLastWateredDay() + ") 💧</blue>"
-                    : "<gray>Sin regar 🥀</gray>";
+                    ? ((messageService != null)
+                            ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.hydration-states.watered-day"), PaperMessageService.arg("day", crop.getLastWateredDay())))
+                            : "<blue>Watered (Day " + crop.getLastWateredDay() + ") 💧</blue>")
+                    : ((messageService != null)
+                            ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.hydration-states.unwatered")))
+                            : "<gray>Unwatered 🥀</gray>");
         }
 
         // Fertilizer string
@@ -182,12 +226,39 @@ public class CropInspectorService {
                 fertilizerStr = "<green>" + fertKey.asString() + "</green>";
             }
         } else {
-            fertilizerStr = "<gray>Ninguno</gray>";
+            fertilizerStr = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(audience, MessageKey.of("inspector.none")))
+                    : "<gray>None</gray>";
         }
 
         // Unwatered policy string
         UnwateredPolicy policy = species.getUnwateredPolicy();
         String policyStr = policy != null ? policy.type().name() : "PAUSE";
+
+        if (messageService != null) {
+            Component title = messageService.render(audience, MessageKey.of("inspector.title"));
+            Component speciesLine = messageService.render(audience, MessageKey.of("inspector.species"), PaperMessageService.args("name", species.getName(), "key", species.getKey().asString()));
+            Component stageLine = messageService.render(audience, MessageKey.of("inspector.stage"), PaperMessageService.args("current", currentStageIdx + 1, "total", totalStages, "id", stage.id()));
+            Component progressLine = messageService.render(audience, MessageKey.of("inspector.progress"), PaperMessageService.args("bar", progressBar, "percent", pctStr));
+            Component hydrationLine = messageService.render(audience, MessageKey.of("inspector.hydration"), PaperMessageService.arg("status", miniMessage.deserialize(hydrationStr)));
+            Component fertilizerLine = messageService.render(audience, MessageKey.of("inspector.fertilizer"), PaperMessageService.arg("status", miniMessage.deserialize(fertilizerStr)));
+            Component policyLine = messageService.render(audience, MessageKey.of("inspector.policy"), PaperMessageService.arg("policy", policyStr));
+            Component lightLine = messageService.render(audience, MessageKey.of("inspector.light"), PaperMessageService.args("color", lightColor, "level", currentLight, "min", reqLight));
+            Component waterLine = messageService.render(audience, MessageKey.of("inspector.water"), PaperMessageService.args("color", waterColor, "level", currentWater, "min", reqWater));
+            Component statusLine = messageService.render(audience, MessageKey.of("inspector.status"), PaperMessageService.arg("status", miniMessage.deserialize(statusStr)));
+
+            return Component.empty()
+                    .append(title).append(Component.newline())
+                    .append(speciesLine).append(Component.newline())
+                    .append(stageLine).append(Component.newline())
+                    .append(progressLine).append(Component.newline())
+                    .append(hydrationLine).append(Component.newline())
+                    .append(fertilizerLine).append(Component.newline())
+                    .append(policyLine).append(Component.newline())
+                    .append(lightLine).append(Component.newline())
+                    .append(waterLine).append(Component.newline())
+                    .append(statusLine);
+        }
 
         String card = """
                 <gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Crop Inspection

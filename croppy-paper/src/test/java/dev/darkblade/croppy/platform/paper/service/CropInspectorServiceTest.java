@@ -160,13 +160,44 @@ class CropInspectorServiceTest {
         // When currentDay is 5 (watered today)
         Component cardWatered = inspectorService.formatCropCard(crop, testSpecies, env, 5L);
         String textWatered = PlainTextComponentSerializer.plainText().serialize(cardWatered);
-        assertTrue(textWatered.contains("Hydration: Regado hoy"));
+        assertTrue(textWatered.contains("Watered today"));
         assertTrue(textWatered.contains("Fertilizer: croppy:speed_gro"));
         assertTrue(textWatered.contains("Unwatered Policy: PAUSE"));
 
         // When currentDay is 7 (dry for 2 days)
         Component cardDry = inspectorService.formatCropCard(crop, testSpecies, env, 7L);
         String textDry = PlainTextComponentSerializer.plainText().serialize(cardDry);
-        assertTrue(textDry.contains("Seco (hace 2 día(s))"));
+        assertTrue(textDry.contains("Dry (2 day(s) ago)"));
+    }
+
+    @Test
+    void testFormatCropCardLocalizedWithService() {
+        dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(
+                dev.darkblade.croppy.api.i18n.LocaleRef.ES_ES, dev.darkblade.croppy.api.i18n.LocaleRef.EN_US
+        );
+        dev.darkblade.croppy.core.i18n.YamlLocaleLoader loader = new dev.darkblade.croppy.core.i18n.YamlLocaleLoader();
+        try (var esIn = getClass().getResourceAsStream("/locales/es-ES.yml")) {
+            assertNotNull(esIn);
+            catalog.registerLocale(dev.darkblade.croppy.api.i18n.LocaleRef.ES_ES, loader.load(esIn, "es-ES.yml"));
+        } catch (Exception e) {
+            fail(e);
+        }
+
+        dev.darkblade.croppy.platform.paper.i18n.PaperMessageService messageService =
+                new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, null);
+
+        CropInspectorService localizedInspector = new CropInspectorService(
+                cropManager, speciesRegistry, pos -> CropEnvironment.of(12, 8), null, null, messageService
+        );
+
+        BlockPosition pos = new BlockPosition("world", 45, 64, 45);
+        DefaultCropInstance crop = new DefaultCropInstance(testSpecies.getKey(), pos);
+        crop.setLastWateredDay(5L);
+
+        Component card = localizedInspector.formatCropCard(crop, testSpecies, CropEnvironment.of(15, 8), 5L, null);
+        String text = PlainTextComponentSerializer.plainText().serialize(card);
+        assertTrue(text.contains("Inspección de Cultivo"));
+        assertTrue(text.contains("Regado hoy 💧"));
+        assertTrue(text.contains("Ninguno"));
     }
 }

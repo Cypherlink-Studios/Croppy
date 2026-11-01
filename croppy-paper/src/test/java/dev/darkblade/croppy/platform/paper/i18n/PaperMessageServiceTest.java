@@ -1,0 +1,156 @@
+package dev.darkblade.croppy.platform.paper.i18n;
+
+import dev.darkblade.croppy.api.i18n.LocaleRef;
+import dev.darkblade.croppy.api.i18n.MessageKey;
+import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.core.i18n.DefaultMessageCatalog;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class PaperMessageServiceTest {
+
+    private DefaultMessageCatalog catalog;
+    private PaperMessageService messageService;
+
+    @BeforeEach
+    void setUp() {
+        catalog = new DefaultMessageCatalog(LocaleRef.EN_US, LocaleRef.EN_US);
+
+        Map<String, String> enUS = Map.of(
+                "general.prefix", "<gold>[Croppy]</gold> ",
+                "command.give.success", "<green>Given <yellow><amount>x</yellow> <item> to <player>.</green>",
+                "test.missing_key", "Only in EN",
+                "content.item.croppy.wheat_seeds.name", "<yellow>Golden Wheat Seeds</yellow>"
+        );
+
+        Map<String, String> esES = Map.of(
+                "general.prefix", "<gold>[Croppy]</gold> ",
+                "command.give.success", "<green>Entregado <yellow><amount>x</yellow> <item> a <player>.</green>",
+                "content.item.croppy.wheat_seeds.name", "<yellow>Semillas de Trigo Doradas</yellow>"
+        );
+
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, enUS,
+                LocaleRef.ES_ES, esES
+        ));
+
+        messageService = new PaperMessageService(catalog, null);
+    }
+
+    @Test
+    void testRenderWithLocaleAndPlaceholders() {
+        Component comp = messageService.render(
+                LocaleRef.ES_ES,
+                MessageKey.of("command.give.success"),
+                PaperMessageService.args("amount", 3, "item", "Trigo", "player", "Steve")
+        );
+
+        String plain = PlainTextComponentSerializer.plainText().serialize(comp);
+        assertEquals("Entregado 3x Trigo a Steve.", plain);
+    }
+
+    @Test
+    void testFallbackToEnglish() {
+        Component comp = messageService.render(
+                LocaleRef.ES_ES,
+                MessageKey.of("test.missing_key")
+        );
+
+        String plain = PlainTextComponentSerializer.plainText().serialize(comp);
+        assertEquals("Only in EN", plain);
+    }
+
+    @Test
+    void testMissingKeyToken() {
+        Component comp = messageService.render(
+                LocaleRef.ES_ES,
+                MessageKey.of("unknown.key")
+        );
+
+        String plain = PlainTextComponentSerializer.plainText().serialize(comp);
+        assertEquals("<missing:croppy:unknown.key>", plain);
+    }
+
+    @Test
+    void testArgumentSanitizationPreventsInjection() {
+        // Player name contains MiniMessage exploit tags
+        String maliciousName = "<red><click:run_command:/op>Steve</click></red>";
+
+        Component comp = messageService.render(
+                LocaleRef.EN_US,
+                MessageKey.of("command.give.success"),
+                PaperMessageService.args("amount", 1, "item", "Wheat", "player", maliciousName)
+        );
+
+        String plain = PlainTextComponentSerializer.plainText().serialize(comp);
+        // The raw tag text should be preserved literally, not executed/stripped
+        assertTrue(plain.contains("<red><click:run_command:/op>Steve</click></red>"));
+    }
+
+    @Test
+    void testContentLocalizationOverride() {
+        ItemDefinition def = new ItemDefinition(
+                Key.of("croppy", "wheat_seeds"),
+                "seeds",
+                "minecraft:wheat_seeds",
+                0,
+                "<green>Default Wheat Seeds</green>",
+                List.of("<gray>Plant me</gray>"),
+                Map.of()
+        );
+
+        // In EN, override exists ("Golden Wheat Seeds")
+        Component nameEN = messageService.resolveItemDisplayName(null, def);
+        assertEquals("Golden Wheat Seeds", PlainTextComponentSerializer.plainText().serialize(nameEN));
+
+        // For item without override, uses definition display name
+        ItemDefinition carrot = new ItemDefinition(
+                Key.of("croppy", "carrot_seeds"),
+                "seeds",
+                "minecraft:carrot",
+                0,
+                "<green>Default Carrot Seeds</green>",
+                List.of(),
+                Map.of()
+        );
+
+        Component carrotName = messageService.resolveItemDisplayName(null, carrot);
+        assertEquals("Default Carrot Seeds", PlainTextComponentSerializer.plainText().serialize(carrotName));
+    }
+
+    @Test
+    void testStationTemperatureTemplate() {
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, Map.of(
+                        "station.temperature", "<gradient:#ffaa00:{color}>Temperature:</gradient> <white><temperature>°C</white> <gray>[<zone>]</gray>",
+                        "station.empty-feedback", "<name> <dark_gray>•</dark_gray> <status> <dark_gray>•</dark_gray> <gradient:#ffaa00:{color}><temperature>°C</gradient>"
+                )
+        ));
+        assertDoesNotThrow(() -> {
+            Component c = messageService.renderWithReplacements(
+                    LocaleRef.EN_US,
+                    MessageKey.of("station.temperature"),
+                    Map.of("{color}", "#55ffff"),
+                    PaperMessageService.args("temperature", "25.0", "zone", "WARM")
+            );
+            assertEquals("Temperature: 25.0°C [WARM]", PlainTextComponentSerializer.plainText().serialize(c));
+
+            Component fb = messageService.renderWithReplacements(
+                    LocaleRef.EN_US,
+                    MessageKey.of("station.empty-feedback"),
+                    Map.of("{color}", "#55ffff"),
+                    PaperMessageService.args("name", "Cooking Pot", "status", "Empty", "temperature", "25.0")
+            );
+            assertEquals("Cooking Pot • Empty • 25.0°C", PlainTextComponentSerializer.plainText().serialize(fb));
+        });
+    }
+}

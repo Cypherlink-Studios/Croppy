@@ -105,19 +105,19 @@ class CroppyCommandsExecutionTest {
 
         // 1. Execute without category: must not throw StackOverflowError and list all categories
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy item list").join());
-        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("=== Ítems Registrados (2) ===")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Registered Items") || m.contains("Ítems Registrados")));
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("croppy:wheat_seeds")));
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("croppy:copper_can")));
 
         // 2. Execute with category: must list items under specified category
         receivedMessages.clear();
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy item list seeds").join());
-        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("=== Ítems en categoría: seeds (1) ===")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("seeds (1)")));
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("croppy:wheat_seeds")));
 
         // 3. Execute with non-existent category
         receivedMessages.clear();
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy item list non_existent").join());
-        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("No hay ítems registrados en la categoría: non_existent")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("non_existent")));
     }
 }

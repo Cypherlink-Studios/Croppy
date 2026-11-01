@@ -1,0 +1,87 @@
+# ==============================================================================
+# Croppy Localization - Spanish (Spain) [Secondary Locale]
+# ==============================================================================
+
+general:
+  prefix: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>"
+  no-permission: "<red>No tienes permisos para ejecutar este comando.</red>"
+  player-not-found: "<red>El jugador <player> no fue encontrado conectado.</red>"
+  reload-success: "<green>Configuración, ítems, estaciones y catálogos de traducción recargados con éxito.</green>"
+  reload-failed: "<red>Error al recargar la configuración: <error></red>"
+
+command:
+  player-only: "<red>Solo los jugadores pueden ejecutar comandos con objetivo.</red>"
+  give:
+    sender-required: "<red>Debes especificar un jugador destinatario con --target <player> desde la consola.</red>"
+    registry-not-initialized: "<red>El registro de ítems no está inicializado.</red>"
+    item-not-found: "<red>Ítem no encontrado en el registro: <item></red>"
+    received: "<green>Has recibido <yellow><amount>x</yellow> <item>.</green>"
+    given: "<green>Entregado <yellow><amount>x</yellow> <item> a <player>.</green>"
+    fertilizer-not-found: "<red>Ítem de fertilizante no encontrado: <item></red>"
+  list:
+    empty-category: "<yellow>No hay ítems registrados en la categoría: <category></yellow>"
+    category-header: "<gold><bold>=== Ítems en categoría: <category> (<count>) ===</bold></gold>"
+    all-header: "<gold><bold>=== Ítems Registrados (<count>) ===</bold></gold>"
+    species-not-found: "<red>La especie <species> no fue encontrada en el registro.</red>"
+    species-header: "<gold><bold>=== Especies Registradas (<count>) ===</bold></gold>"
+  inspect:
+    console-needs-coords: "<red>La consola debe especificar coordenadas: /croppy inspect <x> <y> <z></red>"
+    no-crop-found: "<red>No se encontró ningún cultivo activo en la ubicación objetivo.</red>"
+    tool-given: "<green>Has recibido la herramienta <gradient:#70e000:#38b000>Inspector de Cultivos</gradient>.</green>"
+  water:
+    success: "<aqua>¡Cultivo regado exitosamente para el día de hoy!</aqua>"
+  fertilize:
+    success: "<green>¡Fertilizante <yellow><fertilizer></yellow> aplicado al cultivo!</green>"
+  state:
+    species-not-found: "<red>No se encontró la especie para este cultivo.</red>"
+    stage-updated: "<green>Etapa del cultivo actualizada a <yellow><stage></yellow>.</green>"
+    progress-updated: "<green>Progreso del cultivo actualizado a <yellow><progress>%</yellow>.</green>"
+    invalid-stage: "<red>Índice de etapa inválido: <stage>. La etapa máxima es <max>.</red>"
+
+inspector:
+  title: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Inspección de Cultivo"
+  species: "<dark_gray>├─ <gold>Especie: <yellow><name> <gray>(<key>)</gray>"
+  stage: "<dark_gray>├─ <gold>Etapa: <yellow><current>/<total> <gray>(ID: <id>)</gray>"
+  progress: "<dark_gray>├─ <gold>Progreso: <bar> <gray>(<percent>)</gray>"
+  hydration: "<dark_gray>├─ <gold>Hidratación: <status>"
+  fertilizer: "<dark_gray>├─ <gold>Fertilizante: <status>"
+  policy: "<dark_gray>├─ <gold>Política sin agua: <yellow><policy></yellow>"
+  light: "<dark_gray>├─ <gold>Nivel de Luz: <color><level> <gray>(Mín: <min>)</gray>"
+  water: "<dark_gray>├─ <gold>Nivel de Agua: <color><level>/8 <gray>(Mín: <min>)</gray>"
+  status: "<dark_gray>└─ <gold>Estado: <status>"
+  none: "<gray>Ninguno</gray>"
+  states:
+    mature: "<aqua><bold>Maduro</bold></aqua>"
+    unloaded: "<red>Chunk descargado</red>"
+    stalled-both: "<red>Estancado (Luz y Agua)</red>"
+    stalled-light: "<red>Estancado (Luz insuficiente)</red>"
+    stalled-water: "<red>Estancado (Agua insuficiente)</red>"
+    growing: "<green><bold>Creciendo</bold></green>"
+  hydration-states:
+    watered-today: "<blue>Regado hoy 💧</blue>"
+    dry-days: "<red>Seco (hace <days> día(s)) 🥀</red>"
+    watered-day: "<blue>Regado (Día <day>) 💧</blue>"
+    unwatered: "<gray>Sin regar 🥀</gray>"
+
+watering:
+  refilled: "<aqua>¡Regadera recargada!</aqua>"
+  empty: "<red>¡La regadera está vacía! Recárgala con agua.</red>"
+
+fertilizer:
+  already-applied: "<red>¡Este cultivo ya tiene un fertilizante aplicado!</red>"
+  applied: "<green>¡Fertilizante aplicado: <name>!</green>"
+  soil-enriched: "<green>¡Tierra enriquecida! Planta una semilla en 30s.</green>"
+
+station:
+  temperature: "<gradient:#ffaa00:{color}>Temperatura:</gradient> <white><temperature>°C</white> <gray>[<zone>]</gray>"
+  empty: "<gray>Vacío</gray>"
+  empty-feedback: "<name> <dark_gray>•</dark_gray> <status> <dark_gray>•</dark_gray> <gradient:#ffaa00:{color}><temperature>°C</gradient>"
+  empty-feedback-no-thermal: "<name> <dark_gray>•</dark_gray> <status>"
+
+prompt:
+  temperature-prompt: "<gold>[Croppy]</gold> <yellow>Introduce la temperatura objetivo (</yellow><white><min>°C - <max>°C</white><yellow>) en el chat, o escribe </yellow><red>'cancel'</red><yellow>:</yellow>"
+  temperature-timeout: "<gold>[Croppy]</gold> <gray>La selección de temperatura ha expirado.</gray>"
+  temperature-cancelled: "<gold>[Croppy]</gold> <gray>Selección de temperatura cancelada.</gray>"
+  temperature-bounds: "<gold>[Croppy]</gold> <red>La temperatura debe estar entre <min>°C y <max>°C.</red>"
+  temperature-success: "<gold>[Croppy]</gold> <green>¡Temperatura objetivo ajustada a <aqua><val>°C</aqua>!</green>"
+  invalid-number: "<gold>[Croppy]</gold> <red>Número inválido. Escribe un número válido o 'cancel'.</red>"

@@ -2,9 +2,11 @@ package dev.darkblade.croppy.platform.paper.listener;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.fertilizer.Fertilizer;
+import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -30,11 +32,17 @@ public class FertilizerListener implements Listener {
 
     private final FertilizerService fertilizerService;
     private final CropManager cropManager;
+    private final PaperMessageService messageService;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    public FertilizerListener(FertilizerService fertilizerService, CropManager cropManager) {
+    public FertilizerListener(FertilizerService fertilizerService, CropManager cropManager, PaperMessageService messageService) {
         this.fertilizerService = Objects.requireNonNull(fertilizerService, "fertilizerService cannot be null");
         this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
+        this.messageService = messageService;
+    }
+
+    public FertilizerListener(FertilizerService fertilizerService, CropManager cropManager) {
+        this(fertilizerService, cropManager, null);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -75,7 +83,11 @@ public class FertilizerListener implements Listener {
             if (crop.hasFertilizer()) {
                 event.setCancelled(true);
                 player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 0.8f, 1.5f);
-                player.sendActionBar(miniMessage.deserialize("<red>¡Este cultivo ya tiene un fertilizante aplicado!</red>"));
+                if (messageService != null) {
+                    messageService.sendActionBar(player, MessageKey.of("fertilizer.already-applied"));
+                } else {
+                    player.sendActionBar(miniMessage.deserialize("<red>This crop already has a fertilizer applied!</red>"));
+                }
                 return;
             }
 
@@ -85,7 +97,11 @@ public class FertilizerListener implements Listener {
 
             world.playSound(clickedBlock.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.1f);
             world.spawnParticle(Particle.HAPPY_VILLAGER, clickedBlock.getLocation().add(0.5, 0.5, 0.5), 12, 0.2, 0.2, 0.2, 0.1);
-            player.sendActionBar(miniMessage.deserialize("<green>¡Fertilizante aplicado: " + fertilizer.name() + "!</green>"));
+            if (messageService != null) {
+                messageService.sendActionBar(player, MessageKey.of("fertilizer.applied"), PaperMessageService.arg("name", fertilizer.name()));
+            } else {
+                player.sendActionBar(miniMessage.deserialize("<green>Fertilizer applied: " + fertilizer.name() + "!</green>"));
+            }
             return;
         }
 
@@ -97,7 +113,11 @@ public class FertilizerListener implements Listener {
 
             world.playSound(clickedBlock.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.0f);
             world.spawnParticle(Particle.COMPOSTER, clickedBlock.getLocation().add(0.5, 1.0, 0.5), 10, 0.2, 0.1, 0.2, 0.1);
-            player.sendActionBar(miniMessage.deserialize("<green>¡Tierra enriquecida! Planta una semilla en 30s.</green>"));
+            if (messageService != null) {
+                messageService.sendActionBar(player, MessageKey.of("fertilizer.soil-enriched"));
+            } else {
+                player.sendActionBar(miniMessage.deserialize("<green>Soil enriched! Plant a seed within 30s.</green>"));
+            }
         }
     }
 }

@@ -1,5 +1,7 @@
 package dev.darkblade.croppy.platform.paper.prompt;
 
+import dev.darkblade.croppy.api.i18n.MessageKey;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -25,6 +27,7 @@ import java.util.function.Consumer;
 public final class ChatPromptService implements Listener {
 
     private final Plugin plugin;
+    private final PaperMessageService messageService;
     private final MiniMessage miniMessage;
     private final Map<UUID, PromptSession> activePrompts = new ConcurrentHashMap<>();
 
@@ -38,9 +41,14 @@ public final class ChatPromptService implements Listener {
             BukkitTask timeoutTask
     ) {}
 
-    public ChatPromptService(Plugin plugin) {
+    public ChatPromptService(Plugin plugin, PaperMessageService messageService) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.messageService = messageService;
         this.miniMessage = MiniMessage.miniMessage();
+    }
+
+    public ChatPromptService(Plugin plugin) {
+        this(plugin, null);
     }
 
     /**
@@ -67,9 +75,13 @@ public final class ChatPromptService implements Listener {
 
         player.closeInventory();
 
-        String promptMsg = "<gold>[Croppy]</gold> <yellow>Enter target temperature (</yellow><white>"
-                + minAllowed + "°C - " + maxAllowed + "°C</white><yellow>) in chat, or type </yellow><red>'cancel'</red><yellow>:</yellow>";
-        player.sendMessage(miniMessage.deserialize(promptMsg));
+        if (messageService != null) {
+            messageService.sendMessage(player, MessageKey.of("prompt.temperature-prompt"), PaperMessageService.args("min", minAllowed, "max", maxAllowed));
+        } else {
+            String promptMsg = "<gold>[Croppy]</gold> <yellow>Enter target temperature (</yellow><white>"
+                    + minAllowed + "°C - " + maxAllowed + "°C</white><yellow>) in chat, or type </yellow><red>'cancel'</red><yellow>:</yellow>";
+            player.sendMessage(miniMessage.deserialize(promptMsg));
+        }
 
         long expiryMillis = System.currentTimeMillis() + 30_000L;
         BukkitTask timeoutTask = null;
@@ -79,7 +91,11 @@ public final class ChatPromptService implements Listener {
                 if (session != null) {
                     Player p = Bukkit.getPlayer(playerId);
                     if (p != null && p.isOnline()) {
-                        p.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <gray>Temperature selection timed out.</gray>"));
+                        if (messageService != null) {
+                            messageService.sendMessage(p, MessageKey.of("prompt.temperature-timeout"));
+                        } else {
+                            p.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <gray>Temperature selection timed out.</gray>"));
+                        }
                         try {
                             p.playSound(p.getLocation(), "block.note_block.bass", 1.0f, 0.8f);
                         } catch (Exception ignored) {}
@@ -128,7 +144,11 @@ public final class ChatPromptService implements Listener {
             if (session.timeoutTask() != null) {
                 session.timeoutTask().cancel();
             }
-            player.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <gray>Temperature selection cancelled.</gray>"));
+            if (messageService != null) {
+                messageService.sendMessage(player, MessageKey.of("prompt.temperature-cancelled"));
+            } else {
+                player.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <gray>Temperature selection cancelled.</gray>"));
+            }
             try {
                 player.playSound(player.getLocation(), "block.note_block.bass", 1.0f, 0.8f);
             } catch (Exception ignored) {}
@@ -141,9 +161,13 @@ public final class ChatPromptService implements Listener {
         try {
             double val = Double.parseDouble(trimmed);
             if (val < session.minAllowed() || val > session.maxAllowed()) {
-                String errorMsg = "<gold>[Croppy]</gold> <red>Temperature must be between "
-                        + session.minAllowed() + "°C and " + session.maxAllowed() + "°C.</red>";
-                player.sendMessage(miniMessage.deserialize(errorMsg));
+                if (messageService != null) {
+                    messageService.sendMessage(player, MessageKey.of("prompt.temperature-bounds"), PaperMessageService.args("min", session.minAllowed(), "max", session.maxAllowed()));
+                } else {
+                    String errorMsg = "<gold>[Croppy]</gold> <red>Temperature must be between "
+                            + session.minAllowed() + "°C and " + session.maxAllowed() + "°C.</red>";
+                    player.sendMessage(miniMessage.deserialize(errorMsg));
+                }
                 return true;
             }
 
@@ -152,8 +176,12 @@ public final class ChatPromptService implements Listener {
                 session.timeoutTask().cancel();
             }
 
-            String successMsg = "<gold>[Croppy]</gold> <green>Target temperature set to <aqua>" + val + "°C</aqua>!</green>";
-            player.sendMessage(miniMessage.deserialize(successMsg));
+            if (messageService != null) {
+                messageService.sendMessage(player, MessageKey.of("prompt.temperature-success"), PaperMessageService.arg("val", val));
+            } else {
+                String successMsg = "<gold>[Croppy]</gold> <green>Target temperature set to <aqua>" + val + "°C</aqua>!</green>";
+                player.sendMessage(miniMessage.deserialize(successMsg));
+            }
             try {
                 player.playSound(player.getLocation(), "block.note_block.chime", 1.0f, 1.2f);
             } catch (Exception ignored) {}
@@ -161,7 +189,11 @@ public final class ChatPromptService implements Listener {
             scheduleOnMain(() -> session.onSuccessOnMainThread().accept(val));
             return true;
         } catch (NumberFormatException e) {
-            player.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <red>Invalid number. Type a valid number or 'cancel'.</red>"));
+            if (messageService != null) {
+                messageService.sendMessage(player, MessageKey.of("prompt.invalid-number"));
+            } else {
+                player.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <red>Invalid number. Type a valid number or 'cancel'.</red>"));
+            }
             return true;
         }
     }
