@@ -9,3 +9,5 @@ bin/
 
 # Local files
 .internal
+*.rar
+*.zip

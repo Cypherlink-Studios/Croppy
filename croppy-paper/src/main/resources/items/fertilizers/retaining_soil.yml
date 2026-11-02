@@ -10,6 +10,7 @@ retention_chance: 0.33
 item:
   material: CLAY_BALL
   custom_model_data: 1002
+  item-model: "croppy:retaining_soil"
 pdc:
   type: "RETAINING"
   retention_chance: "0.33"

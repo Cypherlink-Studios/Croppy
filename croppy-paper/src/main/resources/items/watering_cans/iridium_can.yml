@@ -2,6 +2,7 @@ id: "croppy:iridium_can"
 category: "watering_cans"
 material: "NETHERITE_INGOT"
 custom-model-data: 2005
+item-model: "croppy:iridium_can"
 name: "<color:#bf00ff>Regadera de Iridio</color>"
 lore:
   - "<gray>La regadera definitiva imbuida con energía mística.</gray>"

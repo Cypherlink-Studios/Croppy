@@ -64,6 +64,22 @@ public class ItemFactory {
             return item;
         }
 
+        applyToMeta(meta, definition);
+
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
+     * Applies metadata from an ItemDefinition to an existing ItemMeta instance.
+     *
+     * @param meta the item meta to configure
+     * @param definition the domain item definition
+     */
+    public void applyToMeta(ItemMeta meta, ItemDefinition definition) {
+        Objects.requireNonNull(meta, "meta cannot be null");
+        Objects.requireNonNull(definition, "definition cannot be null");
+
         // 1. Display Name
         if (definition.displayName() != null && !definition.displayName().isBlank()) {
             Component name = miniMessage.deserialize(definition.displayName())
@@ -80,24 +96,26 @@ public class ItemFactory {
             meta.lore(lore);
         }
 
-        // 3. Custom Model Data
+        // 3. Custom Model Data & Native Item Model (Minecraft 1.21.4+)
         if (definition.customModelData() > 0) {
             meta.setCustomModelData(definition.customModelData());
+        }
+        if (definition.itemModel() != null) {
+            meta.setItemModel(new NamespacedKey(definition.itemModel().namespace(), definition.itemModel().value()));
         }
 
         // 4. Standardized PersistentDataContainer
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        pdc.set(itemIdKey, PersistentDataType.STRING, definition.key().asString());
-        pdc.set(categoryKey, PersistentDataType.STRING, definition.category());
+        if (pdc != null) {
+            pdc.set(itemIdKey, PersistentDataType.STRING, definition.key().asString());
+            pdc.set(categoryKey, PersistentDataType.STRING, definition.category());
 
-        // 5. Arbitrary YAML PDC properties
-        for (Map.Entry<String, String> entry : definition.pdcProperties().entrySet()) {
-            NamespacedKey key = parseOrMakeKey(entry.getKey());
-            pdc.set(key, PersistentDataType.STRING, entry.getValue());
+            // 5. Arbitrary YAML PDC properties
+            for (Map.Entry<String, String> entry : definition.pdcProperties().entrySet()) {
+                NamespacedKey key = parseOrMakeKey(entry.getKey());
+                pdc.set(key, PersistentDataType.STRING, entry.getValue());
+            }
         }
-
-        item.setItemMeta(meta);
-        return item;
     }
 
     public ItemStack createItemStack(ItemDefinition definition) {

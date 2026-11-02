@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -46,6 +45,8 @@ class YamlItemLoaderTest {
         assertEquals("fertilizers", def.category());
         assertEquals("minecraft:bone_meal", def.materialKey());
         assertEquals(101, def.customModelData());
+        assertNull(def.itemModel());
+        assertTrue(def.getItemModel().isEmpty());
         assertEquals("<green>Speed-Gro</green>", def.displayName());
         assertEquals(2, def.lore().size());
         assertEquals("1.2", def.pdcProperties().get("speed_multiplier"));
@@ -53,7 +54,50 @@ class YamlItemLoaderTest {
     }
 
     @Test
-    @DisplayName("Load item definition with nested 'item' map")
+    @DisplayName("Load flat item definition with item-model")
+    void testLoadFlatYamlWithItemModel() {
+        String yaml = """
+                id: "croppy:speed_gro"
+                material: "minecraft:bone_meal"
+                item-model: "croppy:speed_gro"
+                name: "<green>Speed-Gro</green>"
+                lore:
+                  - "<gray>Increases growth rate</gray>"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        ItemDefinition def = loader.load(in, "fertilizers", "speed_gro.yml");
+
+        assertEquals(Key.of("croppy", "speed_gro"), def.key());
+        assertEquals(0, def.customModelData());
+        assertEquals(Key.of("croppy", "speed_gro"), def.itemModel());
+        assertTrue(def.getItemModel().isPresent());
+        assertEquals(Key.of("croppy", "speed_gro"), def.getItemModel().get());
+    }
+
+    @Test
+    @DisplayName("Load item definition with both custom-model-data and item_model (underscore variant)")
+    void testLoadBothCustomModelDataAndItemModel() {
+        String yaml = """
+                id: "copper_watering_can"
+                category: "watering_cans"
+                material: "COPPER_INGOT"
+                custom_model_data: 2002
+                item_model: "croppy:copper_can"
+                name: "<yellow>Copper Watering Can</yellow>"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        ItemDefinition def = loader.load(in, "tools", "copper_can.yml");
+
+        assertEquals(Key.of("croppy", "copper_watering_can"), def.key());
+        assertEquals(2002, def.customModelData());
+        assertEquals(Key.of("croppy", "copper_can"), def.itemModel());
+        assertTrue(def.getItemModel().isPresent());
+    }
+
+    @Test
+    @DisplayName("Load item definition with nested 'item' map including item-model")
     void testLoadNestedItemYaml() {
         String yaml = """
                 id: "copper_watering_can"
@@ -61,6 +105,7 @@ class YamlItemLoaderTest {
                 item:
                   material: "IRON_HOE"
                   custom_model_data: 2002
+                  item-model: "croppy:copper_watering_can"
                   name: "<yellow>Copper Watering Can</yellow>"
                   lore:
                     - "<gray>Holds 40 charges</gray>"
@@ -76,9 +121,25 @@ class YamlItemLoaderTest {
         assertEquals("watering_cans", def.category());
         assertEquals("IRON_HOE", def.materialKey());
         assertEquals(2002, def.customModelData());
+        assertEquals(Key.of("croppy", "copper_watering_can"), def.itemModel());
         assertEquals("<yellow>Copper Watering Can</yellow>", def.displayName());
         assertEquals(1, def.lore().size());
         assertEquals("40", def.pdcProperties().get("capacity"));
+    }
+
+    @Test
+    @DisplayName("Load item definition with unqualified item-model defaults to croppy namespace")
+    void testUnqualifiedItemModelDefaultsToCroppy() {
+        String yaml = """
+                id: "copper_can"
+                material: "COPPER_INGOT"
+                item-model: "copper_can"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        ItemDefinition def = loader.load(in, "tools", "copper_can.yml");
+
+        assertEquals(Key.of("croppy", "copper_can"), def.itemModel());
     }
 
     @Test

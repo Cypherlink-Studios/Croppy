@@ -10,6 +10,7 @@ quality_boost: 0.20
 item:
   material: GLOWSTONE_DUST
   custom_model_data: 1003
+  item-model: "croppy:quality_fertilizer"
 pdc:
   type: "QUALITY"
   quality_boost: "0.20"

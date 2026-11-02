@@ -2,6 +2,7 @@ id: "croppy:rusty_can"
 category: "watering_cans"
 material: "COPPER_INGOT"
 custom-model-data: 2001
+item-model: "croppy:rusty_can"
 name: "<color:#a0522d>Regadera Oxidada</color>"
 lore:
   - "<gray>Una regadera desgastada para principiantes.</gray>"

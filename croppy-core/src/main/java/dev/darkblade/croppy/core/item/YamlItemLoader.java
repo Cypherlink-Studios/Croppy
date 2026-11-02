@@ -91,7 +91,23 @@ public class YamlItemLoader {
             customModelData = getInt(itemMap, "custom-model-data", getInt(itemMap, "custom_model_data", 0));
         }
 
-        // 4. Display Name
+        // 4. Native Item Model (Minecraft 1.21.4+)
+        String itemModelStr = getString(root, "item-model", getString(root, "item_model", null));
+        if (itemModelStr == null && itemMap != null) {
+            itemModelStr = getString(itemMap, "item-model", getString(itemMap, "item_model", null));
+        }
+        Key itemModel = null;
+        if (itemModelStr != null && !itemModelStr.isBlank()) {
+            String trimmedModel = itemModelStr.trim();
+            try {
+                itemModel = trimmedModel.contains(":") ? Key.parse(trimmedModel) : Key.of("croppy", trimmedModel);
+            } catch (Exception e) {
+                Logger.getLogger(YamlItemLoader.class.getName())
+                        .warning("Invalid item-model key '" + trimmedModel + "' in " + sourceName + ": " + e.getMessage());
+            }
+        }
+
+        // 5. Display Name
         String displayName = getString(root, "name", getString(root, "display_name", getString(root, "display-name", null)));
         if (displayName == null && itemMap != null) {
             displayName = getString(itemMap, "name", getString(itemMap, "display_name", getString(itemMap, "display-name", null)));
@@ -100,7 +116,7 @@ public class YamlItemLoader {
             displayName = key.value();
         }
 
-        // 5. Lore
+        // 6. Lore
         List<String> lore = new ArrayList<>();
         Object rawLore = root.get("lore");
         if (rawLore == null && itemMap != null) {
@@ -114,7 +130,7 @@ public class YamlItemLoader {
             }
         }
 
-        // 6. PDC Properties
+        // 7. PDC Properties
         Map<String, String> pdcProperties = new HashMap<>();
         Object rawPdc = root.get("pdc");
         if (rawPdc instanceof Map<?, ?> pdcMap) {
@@ -130,6 +146,7 @@ public class YamlItemLoader {
                 category.toLowerCase(Locale.ROOT),
                 material,
                 customModelData,
+                itemModel,
                 displayName,
                 lore,
                 pdcProperties

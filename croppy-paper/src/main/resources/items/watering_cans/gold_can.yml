@@ -2,6 +2,7 @@ id: "croppy:gold_can"
 category: "watering_cans"
 material: "GOLD_INGOT"
 custom-model-data: 2004
+item-model: "croppy:gold_can"
 name: "<gold>Regadera de Oro</gold>"
 lore:
   - "<gray>Una regadera dorada de gran capacidad.</gray>"
