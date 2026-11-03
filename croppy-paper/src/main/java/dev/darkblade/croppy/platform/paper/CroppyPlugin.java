@@ -171,68 +171,76 @@ public class CroppyPlugin extends JavaPlugin {
 
     private void setupMenuServices() {
         this.recipeStorage = new dev.darkblade.croppy.platform.paper.storage.PdcRecipeKnowledgeStorage(this);
-        this.feedbackHelper = new dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackHelper(this.messageService);
+        this.feedbackHelper = new dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackHelper(
+                this.messageService);
         this.experimentationHandler = new dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler(
                 core.getRecipeRegistry(),
                 core.getRecipeDiscoveryEngine(),
                 this.recipeStorage,
-                this.feedbackHelper
-        );
-        this.fuelService = new dev.darkblade.croppy.platform.paper.fuel.PaperFuelService(new dev.darkblade.croppy.core.fuel.DefaultFuelRegistry());
-        this.chatPromptService = new dev.darkblade.croppy.platform.paper.prompt.ChatPromptService(this, this.messageService);
+                this.feedbackHelper);
+        this.fuelService = new dev.darkblade.croppy.platform.paper.fuel.PaperFuelService(
+                new dev.darkblade.croppy.core.fuel.DefaultFuelRegistry());
+        this.chatPromptService = new dev.darkblade.croppy.platform.paper.prompt.ChatPromptService(this,
+                this.messageService);
         this.menuRenderer = new dev.darkblade.croppy.platform.paper.menu.PaperMenuRenderer(this.itemFactory);
-        this.menuTicker = new dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker(this.menuRenderer, core.getProcessRegistry());
-        this.menuService = new dev.darkblade.croppy.platform.paper.menu.PaperMenuService(core.getMenuRegistry(), this.menuRenderer, core.getProcessRegistry(), this.menuTicker, getLogger());
-        this.menuListener = new dev.darkblade.croppy.platform.paper.menu.PaperMenuListener(this, core.getProcessEngine(), this.itemFactory, this.menuRenderer, this.chatPromptService, this.menuService);
+        this.menuTicker = new dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker(this.menuRenderer,
+                core.getProcessRegistry());
+        this.menuService = new dev.darkblade.croppy.platform.paper.menu.PaperMenuService(core.getMenuRegistry(),
+                this.menuRenderer, core.getProcessRegistry(), this.menuTicker, getLogger());
+        this.menuListener = new dev.darkblade.croppy.platform.paper.menu.PaperMenuListener(this,
+                core.getProcessEngine(), this.itemFactory, this.menuRenderer, this.chatPromptService, this.menuService);
         this.menuListener.setExperimentationHandler(this.experimentationHandler);
         this.compendiumController = new dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController(
                 core.getMenuRegistry(),
                 core.getRecipeRegistry(),
                 core.getRecipeDiscoveryEngine(),
                 this.menuRenderer,
-                this.itemFactory
-        );
+                this.itemFactory);
     }
 
     private void registerListeners() {
         var pm = getServer().getPluginManager();
-        pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getStationManager(), this.stationStorage, this.stationViewerTracker, getLogger()), this);
+        pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getStationManager(),
+                this.stationStorage, this.stationViewerTracker, getLogger()), this);
         pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer), this);
         pm.registerEvents(new CropGrowthListener(core), this);
         pm.registerEvents(new CropBreakListener(core), this);
         pm.registerEvents(new CropPhysicsListener(core), this);
         pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
-        pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService), this);
+        pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService),
+                this);
         pm.registerEvents(new TimeSkipListener(this.dailyTransitionService), this);
-        pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager(), this.messageService), this);
+        pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager(), this.messageService),
+                this);
 
         // Station & Process listeners
         this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
                 core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.menuService,
                 core.getInteractionRouter(), core.getRuleEngine(), this.messageService);
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
-                core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory, this.stationViewerTracker);
+                core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory,
+                this.stationViewerTracker);
 
         pm.registerEvents(this.chatPromptService, this);
         pm.registerEvents(this.menuListener, this);
         pm.registerEvents(this.stationInteractListener, this);
         pm.registerEvents(this.stationBlockListener, this);
-        pm.registerEvents(new dev.darkblade.croppy.platform.paper.station.listener.StationPlayerConnectionListener(this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.station.listener.StationPlayerConnectionListener(
+                this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
 
         this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
                 this, core, this.virtualBlockDisplayTracker, getLogger());
-        com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager().registerListener(this.virtualInteractionListener);
+        com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
+                .registerListener(this.virtualInteractionListener);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.BukkitRecipeDiscoveryListener(
                 core.getRecipeDiscoveryEngine(),
                 core.getRecipeRegistry(),
                 this.recipeStorage,
                 this.feedbackHelper,
-                getLogger()
-        ), this);
+                getLogger()), this);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.RecipeBookItemListener(
                 this.itemFactory,
-                this.compendiumController
-        ), this);
+                this.compendiumController), this);
 
         getLogger().info(
                 "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
@@ -265,6 +273,9 @@ public class CroppyPlugin extends JavaPlugin {
             } catch (Exception ignored) {
             }
         }
+        saveResourceIfNotExists("recipes/tomato_soup.yml");
+        saveResourceIfNotExists("recipes/vegetable_stew.yml");
+        saveResourceIfNotExists("recipes/fried_egg.yml");
 
         dev.darkblade.croppy.core.recipe.YamlRecipeLoader recipeLoader = new dev.darkblade.croppy.core.recipe.YamlRecipeLoader();
         int loaded = recipeLoader.loadAll(recipesDir, core.getRecipeRegistry(), getLogger());
@@ -280,6 +291,7 @@ public class CroppyPlugin extends JavaPlugin {
             }
             saveResourceIfNotExists("stations/cooking_pot.yml");
             saveResourceIfNotExists("stations/skillet.yml");
+            saveResourceIfNotExists("stations/stove.yml");
         }
 
         dev.darkblade.croppy.core.station.YamlStationLoader stationLoader = new dev.darkblade.croppy.core.station.YamlStationLoader();
@@ -354,6 +366,9 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/misc/recipe_book.yml");
         // Ingredients
         saveResourceIfNotExists("items/ingredients/tomato.yml");
+        saveResourceIfNotExists("items/ingredients/tomato_soup.yml");
+        saveResourceIfNotExists("items/ingredients/vegetable_stew.yml");
+        saveResourceIfNotExists("items/ingredients/fried_egg.yml");
         // Watering Cans
         saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
         saveResourceIfNotExists("items/watering_cans/copper_can.yml");
@@ -367,6 +382,7 @@ public class CroppyPlugin extends JavaPlugin {
         // Stations
         saveResourceIfNotExists("items/stations/cooking_pot.yml");
         saveResourceIfNotExists("items/stations/skillet.yml");
+        saveResourceIfNotExists("items/stations/stove.yml");
 
         YamlItemLoader itemLoader = new YamlItemLoader();
         int loaded = itemLoader.loadAllCategories(itemsDir, getLogger(), core.getItemRegistry());
@@ -417,10 +433,12 @@ public class CroppyPlugin extends JavaPlugin {
         growthEngine.addModifier(new FertilizerGrowthModifier(this.fertilizerRegistry));
 
         this.environmentProvider = new PaperEnvironmentProvider(getServer(), waterSearchRadius);
-        this.packetBlockRenderer = new dev.darkblade.croppy.platform.paper.display.PacketEventsBlockRenderer(getLogger());
+        this.packetBlockRenderer = new dev.darkblade.croppy.platform.paper.display.PacketEventsBlockRenderer(
+                getLogger());
         this.virtualBlockDisplayTracker = new dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker(
                 getServer(), this.packetBlockRenderer, this.itemFactory, getLogger());
-        this.displaySynchronizer = new PaperDisplaySynchronizer(getServer(), getLogger(), this.virtualBlockDisplayTracker);
+        this.displaySynchronizer = new PaperDisplaySynchronizer(getServer(), getLogger(),
+                this.virtualBlockDisplayTracker);
 
         growthEngine.setDisplaySynchronizer(this.displaySynchronizer);
         growthEngine.setStageAdvanceInterceptor((crop, species, fromStage, toStage) -> {
@@ -448,7 +466,8 @@ public class CroppyPlugin extends JavaPlugin {
         this.rainTask = getServer().getScheduler().runTaskTimer(this,
                 new RainHydrationTask(getServer(), core.getCropManager()), 100L, 100L);
 
-        this.packetStationRenderer = new dev.darkblade.croppy.platform.paper.station.display.PacketEventsStationRenderer(getLogger());
+        this.packetStationRenderer = new dev.darkblade.croppy.platform.paper.station.display.PacketEventsStationRenderer(
+                getLogger());
         this.stationViewerTracker = new dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker(
                 getServer(), this.packetStationRenderer, this.itemFactory, getLogger());
 
@@ -462,8 +481,7 @@ public class CroppyPlugin extends JavaPlugin {
                 this.itemFactory,
                 this.stationViewerTracker,
                 this.fuelService,
-                20L
-        );
+                20L);
         this.stationTicker.start();
 
         this.menuTickerTask = getServer().getScheduler().runTaskTimer(this,
@@ -544,7 +562,8 @@ public class CroppyPlugin extends JavaPlugin {
         setupStationDefinitions();
         setupInteractionDefinitions();
         setupRuleDefinitions();
-        getLogger().info("Croppy configuration, items, fertilizers, menus, stations, interactions, rules, and crop definitions reloaded successfully.");
+        getLogger().info(
+                "Croppy configuration, items, fertilizers, menus, stations, interactions, rules, and crop definitions reloaded successfully.");
     }
 
     private void setupCropDefinitions() {
@@ -621,7 +640,8 @@ public class CroppyPlugin extends JavaPlugin {
         }
         if (this.virtualInteractionListener != null) {
             try {
-                com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager().unregisterListener(this.virtualInteractionListener);
+                com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
+                        .unregisterListener(this.virtualInteractionListener);
             } catch (Throwable t) {
                 getLogger().log(Level.WARNING, "Error unregistering virtual interaction listener", t);
             }
@@ -681,8 +701,10 @@ public class CroppyPlugin extends JavaPlugin {
                 chunkMap.computeIfAbsent(coord, k -> new ArrayList<>()).add(station);
             }
 
-            for (Map.Entry<ChunkPosition, List<dev.darkblade.croppy.api.station.StationInstance>> entry : chunkMap.entrySet()) {
-                stationStorage.saveChunk(entry.getKey().worldName(), entry.getKey().x(), entry.getKey().z(), entry.getValue());
+            for (Map.Entry<ChunkPosition, List<dev.darkblade.croppy.api.station.StationInstance>> entry : chunkMap
+                    .entrySet()) {
+                stationStorage.saveChunk(entry.getKey().worldName(), entry.getKey().x(), entry.getKey().z(),
+                        entry.getValue());
             }
             getLogger().info("Flushed " + core.getStationManager().getStationCount() + " active stations across "
                     + chunkMap.size() + " chunks.");
@@ -748,21 +770,26 @@ public class CroppyPlugin extends JavaPlugin {
         if (!Files.exists(localesDir)) {
             try {
                 Files.createDirectories(localesDir);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         saveResourceIfNotExists("locales/en-US.yml");
         saveResourceIfNotExists("locales/es-ES.yml");
 
         String defaultLocaleStr = getConfig().getString("messages.default-locale", "en-US");
-        dev.darkblade.croppy.api.i18n.LocaleRef defaultLocale = dev.darkblade.croppy.api.i18n.LocaleRef.parse(defaultLocaleStr);
-        dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(defaultLocale, dev.darkblade.croppy.api.i18n.LocaleRef.EN_US);
+        dev.darkblade.croppy.api.i18n.LocaleRef defaultLocale = dev.darkblade.croppy.api.i18n.LocaleRef
+                .parse(defaultLocaleStr);
+        dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(
+                defaultLocale, dev.darkblade.croppy.api.i18n.LocaleRef.EN_US);
 
         dev.darkblade.croppy.core.i18n.YamlLocaleLoader loader = new dev.darkblade.croppy.core.i18n.YamlLocaleLoader();
-        Map<dev.darkblade.croppy.api.i18n.LocaleRef, Map<String, String>> loaded = loader.loadDirectory(localesDir, getLogger());
+        Map<dev.darkblade.croppy.api.i18n.LocaleRef, Map<String, String>> loaded = loader.loadDirectory(localesDir,
+                getLogger());
         catalog.setCatalogs(loaded);
 
         this.messageService = new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, getLogger());
-        getLogger().info("Initialized localization service with " + loaded.size() + " locales (default: " + defaultLocale + ").");
+        getLogger().info("Initialized localization service with " + loaded.size() + " locales (default: "
+                + defaultLocale + ").");
     }
 
     public dev.darkblade.croppy.platform.paper.i18n.PaperMessageService getMessageService() {

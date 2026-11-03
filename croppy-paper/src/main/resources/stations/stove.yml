@@ -1,5 +1,5 @@
 id: "croppy:stove"
-name: "<gradient:#ff8800:#ff3300>Rustic Stove</gradient>"
+name: "<gradient:#ff8800:#ff3300>Stove</gradient>"
 block: "minecraft:smoker"
 interaction: "HYBRID"
 input_capacity: 1

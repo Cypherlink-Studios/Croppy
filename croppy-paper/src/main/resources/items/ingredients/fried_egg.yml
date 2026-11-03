@@ -1,0 +1,7 @@
+id: "croppy:fried_egg"
+category: "ingredients"
+material: "COOKED_BEEF"
+custom-model-data: 0
+name: "<gradient:#ffff55:#ffaa00>Fried Egg</gradient>"
+lore:
+  - "<gray>A perfectly crisped fried egg seared on a hot skillet.</gray>"

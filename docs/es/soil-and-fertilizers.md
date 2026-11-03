@@ -41,3 +41,51 @@ Croppy incluye tres tipos principales de fertilizantes configurados en `items/fe
 2. **Aplicación**: Sostén el fertilizante en la mano principal y haz **Clic Derecho** sobre la tierra arada (antes o después de plantar las semillas).
 3. **Efectos Visuales**: Partículas verdes y doradas confirman que las propiedades del fertilizante se han registrado en el PersistentDataContainer (PDC) del bloque.
 4. **Regla de No Acumulación**: Cada bloque de cultivo admite un único fertilizante activo a la vez para mantener el equilibrio del juego.
+
+---
+
+## 4. Especificación del Esquema YAML de Fertilizantes
+
+Los fertilizantes se declaran en `plugins/Croppy/items/fertilizers/*.yml` y son analizados por `YamlFertilizerLoader`.
+
+### Ejemplo Completo YAML (`speed_gro.yml`)
+
+```yaml
+id: "croppy:speed_gro"
+category: "fertilizers"
+name: "<green>Fertilizante Speed-Gro</green>"
+lore:
+  - "<gray>Acelera la velocidad de crecimiento del cultivo en un 25%.</gray>"
+
+# Clasificación funcional: SPEED, QUALITY o RETAINING
+type: SPEED
+
+# Multiplicadores numéricos según clasificación:
+speed_multiplier: 1.25
+# quality_boost: 0.20     # (Para tipo QUALITY)
+# retention_chance: 0.33   # (Para tipo RETAINING)
+
+# Representación del ítem físico
+item:
+  material: BONE_MEAL
+  custom_model_data: 1001
+  item-model: "croppy:speed_gro"
+
+# Etiquetas PDC vinculadas
+pdc:
+  type: "SPEED"
+  speed_multiplier: "1.25"
+```
+
+### Tabla de Referencia de Campos
+
+| Ruta del Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `id` | String (`Key`) | **Sí** | Clave única con namespace (ej. `croppy:speed_gro`). |
+| `type` | Enum | **Sí** | Clasificación: `SPEED`, `QUALITY` o `RETAINING`. |
+| `speed_multiplier` | Double | Para `SPEED` | Multiplicador de crecimiento (ej. `1.25` para +25% de velocidad). |
+| `quality_boost` | Double | Para `QUALITY` | Modificador de tirada de calidad (ej. `0.20` para +20% de probabilidad). |
+| `retention_chance` | Double | Para `RETAINING` | Probabilidad (0.0 a 1.0) de que la tierra retenga el agua al amanecer. |
+| `item.material` | String | **Sí** | Material base Bukkit/Minecraft. |
+| `item.item-model` | String | No | Identificador del Data Component `item_model` para 1.21.4+. |
+| `item.custom_model_data` | Entero | No | Valor numérico CustomModelData para compatibilidad clásica. |

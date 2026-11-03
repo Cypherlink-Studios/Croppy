@@ -2,7 +2,7 @@
 title: Descubrimiento de Recetas
 description: Guía del motor de progresión culinaria, estados de conocimiento (Bloqueado, Con Pista, Desbloqueado) y recetas secretas.
 sidebar:
-  order: 11
+  order: 12
 ---
 
 # Motor de Descubrimiento de Recetas

@@ -2,7 +2,7 @@
 title: Compendio Culinario
 description: Guía de uso del recetario interactivo, navegación por categorías de platos, ítem físico y visualización de recetas.
 sidebar:
-  order: 12
+  order: 14
 ---
 
 # Compendio Culinario (Recetario)

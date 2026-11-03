@@ -42,3 +42,51 @@ Croppy bundles three distinct classes of specialized fertilizers:
    Hold the fertilizer item in your main hand and **Right-Click** the farmland block.
 3. **Visual Confirmation**: Green and gold particle effects erupt from the soil, confirming that the fertilizer attributes and nutrient adjustments have bound to the block's Persistent Data Container (PDC).
 4. **Limits**: Each soil block can support one active primary fertilizer enhancement at a time to prevent exploit stacking.
+
+---
+
+## 4. Fertilizer YAML Schema Specification
+
+Fertilizers are defined in `plugins/Croppy/items/fertilizers/*.yml` and loaded via `YamlFertilizerLoader`.
+
+### Complete YAML Example (`speed_gro.yml`)
+
+```yaml
+id: "croppy:speed_gro"
+category: "fertilizers"
+name: "<green>Speed-Gro Fertilizer</green>"
+lore:
+  - "<gray>Accelerates crop growth rate by 25%.</gray>"
+
+# Functional fertilizer classification: SPEED, QUALITY, or RETAINING
+type: SPEED
+
+# Mathematical multipliers based on classification:
+speed_multiplier: 1.25
+# quality_boost: 0.20     # (For QUALITY type)
+# retention_chance: 0.33   # (For RETAINING type)
+
+# Physical item representation
+item:
+  material: BONE_MEAL
+  custom_model_data: 1001
+  item-model: "croppy:speed_gro"
+
+# Bound PDC tags
+pdc:
+  type: "SPEED"
+  speed_multiplier: "1.25"
+```
+
+### Field Reference Table
+
+| Field Path | Type | Required | Description |
+|---|---|---|---|
+| `id` | String (`Key`) | **Yes** | Unique namespaced key (e.g. `croppy:speed_gro`). |
+| `type` | Enum | **Yes** | Classification: `SPEED`, `QUALITY`, or `RETAINING`. |
+| `speed_multiplier` | Double | For `SPEED` | Growth multiplier (e.g., `1.25` for +25% speed). |
+| `quality_boost` | Double | For `QUALITY` | Yield quality roll modifier (e.g., `0.20` for +20% higher quality chance). |
+| `retention_chance` | Double | For `RETAINING` | Probability (0.0 to 1.0) that soil stays watered overnight. |
+| `item.material` | String | **Yes** | Base Bukkit material. |
+| `item.item-model` | String | No | 1.21.4+ native Data Component `item_model` identifier. |
+| `item.custom_model_data` | Integer | No | Legacy/resource pack CustomModelData integer. |

@@ -2,7 +2,7 @@
 title: Configurable Menu System
 description: Guide to 9xN pattern-based inventory menus, input/output slot mappings, dynamic status states, and button actions.
 sidebar:
-  order: 13
+  order: 16
 ---
 
 # Configurable Menu System

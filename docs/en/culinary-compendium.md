@@ -2,7 +2,7 @@
 title: Culinary Compendium
 description: Player guide to the in-game cookbook GUI, Recipe Book physical item, category filtering, and dish inspection.
 sidebar:
-  order: 12
+  order: 14
 ---
 
 # Culinary Compendium (Cookbook)

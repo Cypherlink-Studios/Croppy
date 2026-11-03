@@ -2,7 +2,7 @@
 title: Fuentes Térmicas y Combustible
 description: Guía de estaciones térmicas, estufas, combustión, curvas dinámicas de temperatura y disipación de calor.
 sidebar:
-  order: 10
+  order: 11
 ---
 
 # Fuentes Térmicas y Combustibles

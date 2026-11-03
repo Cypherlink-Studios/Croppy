@@ -1,0 +1,28 @@
+id: "croppy:fried_egg"
+name: "<gradient:#ffff55:#ffaa00>Fried Egg</gradient>"
+category: "croppy:fried"
+station: "croppy:skillet"
+process: "croppy:fried_egg_cook"
+
+inputs:
+  - item: "minecraft:egg"
+    amount: 1
+
+result:
+  item: "croppy:fried_egg"
+  amount: 1
+
+discovery:
+  allow_excess_inputs: true
+  methods:
+    - "croppy:experimental"
+    - "croppy:automatic"
+  hint:
+    description: "<gray>Cracking a simple poultry egg onto a smoking skillet yields a crispy breakfast.</gray>"
+    revealed_ingredients:
+      - "minecraft:egg"
+    hide_result: false
+
+properties:
+  difficulty: "easy"
+  simmer_temperature: "140.0"

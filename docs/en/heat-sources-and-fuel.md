@@ -2,7 +2,7 @@
 title: Heat Sources & Fuel
 description: In-depth guide to thermal heat sources, stoves, fuel combustion, heating/cooling curves, and temperature management.
 sidebar:
-  order: 10
+  order: 11
 ---
 
 # Heat Sources & Fuel Combustion

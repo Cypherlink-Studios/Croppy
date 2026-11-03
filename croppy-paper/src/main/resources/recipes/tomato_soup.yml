@@ -1,0 +1,30 @@
+id: "croppy:tomato_soup"
+name: "<gradient:#ff5555:#ffaa00>Tomato Soup</gradient>"
+category: "croppy:soups"
+station: "croppy:cooking_pot"
+process: "croppy:tomato_soup_cook"
+
+inputs:
+  - item: "croppy:tomato"
+    amount: 2
+  - item: "minecraft:bowl"
+    amount: 1
+
+result:
+  item: "croppy:tomato_soup"
+  amount: 1
+
+discovery:
+  allow_excess_inputs: false
+  methods:
+    - "croppy:experimental"
+    - "croppy:automatic"
+  hint:
+    description: "<gray>A warm simmered red soup cooked from ripe garden tomatoes and served in a bowl.</gray>"
+    revealed_ingredients:
+      - "croppy:tomato"
+    hide_result: true
+
+properties:
+  difficulty: "easy"
+  simmer_temperature: "95.0"

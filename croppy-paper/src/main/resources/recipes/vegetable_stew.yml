@@ -1,0 +1,34 @@
+id: "croppy:vegetable_stew"
+name: "<gradient:#55ff55:#ffaa00>Vegetable Stew</gradient>"
+category: "croppy:stews"
+station: "croppy:cooking_pot"
+process: "croppy:vegetable_stew_cook"
+
+inputs:
+  - item: "croppy:tomato"
+    amount: 1
+  - item: "minecraft:carrot"
+    amount: 1
+  - item: "minecraft:potato"
+    amount: 1
+  - item: "minecraft:bowl"
+    amount: 1
+
+result:
+  item: "croppy:vegetable_stew"
+  amount: 1
+
+discovery:
+  allow_excess_inputs: false
+  methods:
+    - "croppy:experimental"
+  hint:
+    description: "<gray>A rich blend of tilled root crops and red tomatoes slowly stewed in broth.</gray>"
+    revealed_ingredients:
+      - "minecraft:carrot"
+      - "minecraft:potato"
+    hide_result: false
+
+properties:
+  difficulty: "medium"
+  simmer_temperature: "105.0"

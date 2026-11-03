@@ -2,7 +2,7 @@
 title: Recipe Discovery Engine
 description: Exploration guide to recipe progression, knowledge states (Locked, Hinted, Unlocked), and unlocking culinary secrets.
 sidebar:
-  order: 11
+  order: 12
 ---
 
 # Recipe Discovery Engine
