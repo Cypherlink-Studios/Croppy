@@ -81,6 +81,10 @@ item_model: "croppy:speed_gro"
 # Entero CustomModelData para compatibilidad clásica
 custom_model_data: 1001
 
+# Textura custom para cabezas de jugador (Base64 o URL directa de Mojang)
+# texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUv..."
+# Alias: skull-texture
+
 # Atributos de durabilidad y visibilidad
 unbreakable: true
 glow: false
@@ -105,6 +109,7 @@ pdc:
 | `lore` | Lista de Strings | No | Descripción multilínea con formato MiniMessage. |
 | `item_model` | String (`Key`)| No | Ruta del Data Component nativo `item_model` para 1.21.4+. |
 | `custom_model_data` | Entero | No | Valor numérico entero de CustomModelData. |
+| `texture` | String | No | Textura de skin personalizada para ítems `PLAYER_HEAD`. Admite Base64 o URL directa de Mojang (`http://textures.minecraft.net/texture/...`). Alias: `skull-texture`. |
 | `unbreakable` | Booleano | No | Marca la herramienta como irrompible. |
 | `glow` | Booleano | No | Aplica brillo de encantamiento sin mostrar encantamientos. |
 | `flags` | Lista de Strings | No | ItemFlags para ocultar tooltips vanilla (ej. `HIDE_ATTRIBUTES`). |
@@ -112,7 +117,36 @@ pdc:
 
 ---
 
-## 4. Arquitectura del PersistentDataContainer (PDC)
+## 4. Texturas Personalizadas de Cabezas (Base64 y URLs de Mojang)
+
+Los ítems con `material: PLAYER_HEAD` (o `minecraft:player_head`) pueden definir texturas de skin personalizadas mediante la propiedad `texture` (o su alias `skull-texture`).
+
+Croppy resuelve automáticamente tanto URLs directas de texturas de Mojang como cargas útiles JSON codificadas en Base64:
+
+### Ejemplo con Valor Base64
+```yaml
+id: "croppy:cutting_board"
+category: "stations"
+name: "<yellow>Tabla de Cortar</yellow>"
+material: "PLAYER_HEAD"
+texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGJkYTVmMjc3YzhlMmM2NWVkN2JhOTJkMWIxY2M5YTc5YTRlOTQ1OWVkNWU0ZTk0YjE4ZmVhYTk3N2FjIn19fQ=="
+```
+
+### Ejemplo con URL Directa de Mojang
+```yaml
+id: "croppy:cutting_board"
+category: "stations"
+name: "<yellow>Tabla de Cortar</yellow>"
+material: "PLAYER_HEAD"
+texture: "http://textures.minecraft.net/texture/4bda5f277c8e2c65ed7ba92d1b1cc9a79a4e9459ed5e4e94b18feaa977ac"
+```
+
+### Generación Determinista de Perfiles (UUID v3)
+Para evitar latencia de red y colisiones de skins en Paper, Croppy genera un `PlayerProfile` con un UUID determinista derivado del hash de la textura (MD5). Cuando el ítem se coloca físicamente en el mundo como bloque base de una estación, el estado del tile entity `Skull` del bloque se actualiza de inmediato con dicho perfil.
+
+---
+
+## 5. Arquitectura del PersistentDataContainer (PDC)
 
 Cada ítem de Croppy almacena etiquetas seguras en su NBT/PDC:
 * **`croppy:item_id`**: Identificador semántico inmutable que vincula el ítem con su definición en el registro.

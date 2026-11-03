@@ -81,6 +81,10 @@ item_model: "croppy:speed_gro"
 # Legacy or fallback integer CustomModelData
 custom_model_data: 1001
 
+# Custom skin texture for player heads (Base64 payload or direct Mojang URL)
+# texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUv..."
+# Alias: skull-texture
+
 # Visual and durability attributes
 unbreakable: true
 glow: false
@@ -105,6 +109,7 @@ pdc:
 | `lore` | List of Strings | No | Multiline tooltip lore with MiniMessage formatting. |
 | `item_model` | String (`Key`)| No | Namespaced model path for 1.21.4+ native Data Component `item_model`. |
 | `custom_model_data` | Integer | No | Numeric integer for CustomModelData overrides. |
+| `texture` | String | No | Custom skin texture for `PLAYER_HEAD` items. Accepts Base64 encoded JSON or direct Mojang URL (`http://textures.minecraft.net/texture/...`). Alias: `skull-texture`. |
 | `unbreakable` | Boolean | No | Flags tool as unbreakable. |
 | `glow` | Boolean | No | Applies an enchantment glint without showing enchantments. |
 | `flags` | List of Strings | No | ItemFlags applied to hide vanilla tooltips (e.g., `HIDE_ATTRIBUTES`). |
@@ -112,7 +117,36 @@ pdc:
 
 ---
 
-## 4. Persistent Data Container (PDC) Architecture
+## 4. Custom Head Textures (Base64 & Mojang URLs)
+
+Items configured with `material: PLAYER_HEAD` (or `minecraft:player_head`) can specify custom head textures using the `texture` property (or its alias `skull-texture`).
+
+Croppy automatically resolves both direct Mojang skin URLs and Base64 encoded JSON texture payloads:
+
+### Base64 Value Example
+```yaml
+id: "croppy:cutting_board"
+category: "stations"
+name: "<yellow>Cutting Board</yellow>"
+material: "PLAYER_HEAD"
+texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGJkYTVmMjc3YzhlMmM2NWVkN2JhOTJkMWIxY2M5YTc5YTRlOTQ1OWVkNWU0ZTk0YjE4ZmVhYTk3N2FjIn19fQ=="
+```
+
+### Direct Mojang URL Example
+```yaml
+id: "croppy:cutting_board"
+category: "stations"
+name: "<yellow>Cutting Board</yellow>"
+material: "PLAYER_HEAD"
+texture: "http://textures.minecraft.net/texture/4bda5f277c8e2c65ed7ba92d1b1cc9a79a4e9459ed5e4e94b18feaa977ac"
+```
+
+### Deterministic UUID Profile Generation
+To prevent network latency and avoid skin collisions on Paper, Croppy constructs a `PlayerProfile` with a deterministic UUID derived from the texture hash via name-based UUID generation (MD5). When this item is placed in the world as a physical station base block, the target block's `Skull` tile state is automatically updated with the profile.
+
+---
+
+## 5. Persistent Data Container (PDC) Architecture
 
 Every Croppy item embeds persistent tags within its PDC:
 * **`croppy:item_id`**: The immutable semantic identifier linking the physical item to its registry definition.

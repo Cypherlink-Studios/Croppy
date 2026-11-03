@@ -27,6 +27,9 @@ name: "<gradient:#ffaa00:#ff5555>Cooking Pot</gradient>"
 # Physical Minecraft block backing this workstation in the world
 block: "minecraft:player_head"
 
+# Directional facing mode when placed by players: CARDINAL_4, CARDINAL_8, or FREE_YAW
+rotation_mode: "CARDINAL_4"
+
 # Interaction paradigm: PHYSICAL, GUI, or HYBRID
 interaction: "HYBRID"
 
@@ -71,7 +74,27 @@ properties:
 
 ---
 
-## 2. Heat Source Stations (`heat_source`)
+## 2. Dynamic Placement & Rotation Modes
+
+When a player places a workstation block in the world, the engine dynamically calculates the placement yaw so the front of the station faces towards the player (`playerYaw + 180°`).
+
+The snapping behavior is governed by the `rotation_mode` attribute (alias: `rotation`):
+
+| Rotation Mode | Snapping Angle | Description |
+|---|---|---|
+| `CARDINAL_4` | 90° intervals | Snaps to North, South, East, or West. Best for standard square workstation blocks. *(Default)* |
+| `CARDINAL_8` | 45° intervals | Snaps to 8 compass points (cardinals + diagonals). Ideal for angled counters. |
+| `FREE_YAW` | Continuous (0.0° - 360.0°) | Matches the exact continuous horizontal angle opposite the player's facing direction. |
+
+### Visual Synchronization and Persistence
+* **Base Model Display**: For PacketEvents virtual 3D models, the station's placement yaw is factored directly into the model's rotation quaternion transformation.
+* **Child Ingredient Translation**: Local `[x, y, z]` offsets of nested process item displays are dynamically rotated around the station yaw so cooking ingredients remain aligned within the vessel.
+* **Tile State Synchronization**: When using `minecraft:player_head`, the target skull block in the world is synchronized with the profile and rotation.
+* **Persistent Storage**: Station yaw is serialized into `StationBinaryCodec` (Schema V4), ensuring workstations face the correct direction across chunk unloads and server restarts.
+
+---
+
+## 3. Heat Source Stations (`heat_source`)
 
 Stoves and combustion fireboxes declare heat generation curves instead of recipe processing layers. Here is the configuration breakdown of `plugins/Croppy/stations/stove.yml`:
 
@@ -79,6 +102,7 @@ Stoves and combustion fireboxes declare heat generation curves instead of recipe
 id: "croppy:stove"
 name: "<gradient:#ff8800:#ff3300>Rustic Stove</gradient>"
 block: "minecraft:smoker"
+rotation_mode: "CARDINAL_4"
 interaction: "HYBRID"
 input_capacity: 1
 output_capacity: 0
@@ -107,13 +131,14 @@ properties:
 
 ---
 
-## 3. Field Reference Table
+## 4. Field Reference Table
 
 | Field Path | Type | Default | Description |
 |---|---|---|---|
 | `id` | String (`Key`) | **Required** | Unique identifier (e.g., `croppy:cooking_pot`). |
 | `name` | String | Key value | Formatted display title (supports MiniMessage). |
 | `block` | String | `minecraft:barrel` | Minecraft material placed in the world. |
+| `rotation_mode` | Enum | `CARDINAL_4` | Directional facing mode: `CARDINAL_4`, `CARDINAL_8`, or `FREE_YAW`. Alias: `rotation`. |
 | `interaction` | Enum | `HYBRID` | Interaction mode: `PHYSICAL` (hand clicks), `GUI` (container), or `HYBRID` (both). |
 | `input_capacity` | Integer | `1` | Max number of distinct input item stacks. |
 | `output_capacity`| Integer | `1` | Max number of distinct produced output item stacks. |
@@ -130,7 +155,7 @@ properties:
 
 ---
 
-## 4. Text Display Dynamic Placeholders
+## 5. Text Display Dynamic Placeholders
 
 The `visual.text_display.format` template supports the following live placeholders formatted automatically during the station tick loop:
 
@@ -145,7 +170,7 @@ The `visual.text_display.format` template supports the following live placeholde
 
 ---
 
-## 5. Interaction Modes
+## 6. Interaction Modes
 
 * **`PHYSICAL`**:
   * Right-clicking the station with an ingredient inserts it directly into the cooking vessel.
@@ -157,3 +182,6 @@ The `visual.text_display.format` template supports the following live placeholde
 * **`HYBRID`**:
   * Normal right-click inserts items physically for quick chef gameplay.
   * Sneak-right-click opens the container GUI for comprehensive inspection and ingredient management.
+
+### Clean Vanilla Item Stackability
+When ingredients are extracted from station storage (either via physical extraction or the GUI container window), Croppy distinguishes registered custom items from vanilla Minecraft ingredients. Vanilla ingredients are returned without artificial display names or plugin PDC metadata tags, guaranteeing that extracted vanilla items stack cleanly (`ItemStack#isSimilar() == true`) with existing item stacks in player inventories.

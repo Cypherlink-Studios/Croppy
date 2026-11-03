@@ -27,6 +27,9 @@ name: "<gradient:#ffaa00:#ff5555>Olla de Cocina</gradient>"
 # Bloque físico de Minecraft que representa esta estación en el mundo
 block: "minecraft:player_head"
 
+# Modo de orientación direccional al colocar la estación: CARDINAL_4, CARDINAL_8, o FREE_YAW
+rotation_mode: "CARDINAL_4"
+
 # Paradigma de interacción: PHYSICAL, GUI o HYBRID
 interaction: "HYBRID"
 
@@ -71,7 +74,27 @@ properties:
 
 ---
 
-## 2. Estaciones Generadoras de Calor (`heat_source`)
+## 2. Modos de Orientación y Rotación Dinámica
+
+Al colocar un bloque de estación de trabajo en el mundo, el motor calcula dinámicamente el yaw de colocación para que el frente de la estación mire siempre hacia el jugador (`playerYaw + 180°`).
+
+El comportamiento de ajuste se controla mediante el atributo `rotation_mode` (alias: `rotation`):
+
+| Modo de Rotación | Ángulo de Ajuste | Descripción |
+|---|---|---|
+| `CARDINAL_4` | Intervalos de 90° | Se ajusta a Norte, Sur, Este u Oeste. Óptimo para bloques cúbicos estándar. *(Por defecto)* |
+| `CARDINAL_8` | Intervalos de 45° | Se ajusta a los 8 puntos cardinales (cardinales + diagonales). Ideal para mostradores en ángulo. |
+| `FREE_YAW` | Continuo (0.0° - 360.0°) | Conserva el ángulo horizontal continuo exacto opuesto al jugador. |
+
+### Sincronización Visual y Persistencia
+* **Display del Modelo Base**: En modelos 3D virtuales gestionados por PacketEvents, el yaw de la estación se aplica directamente al cuaternión de rotación de la transformación.
+* **Traslación de Ingredientes Hijos**: Los desplazamientos locales `[x, y, z]` de los Item Displays de ingredientes en proceso se rotan en tiempo real según el yaw de la estación para que giren solidariamente con el recipiente.
+* **Sincronización de Bloques**: Al usar `minecraft:player_head`, el tile entity del bloque de cabeza colocado en el mundo actualiza su rotación y textura.
+* **Persistencia Binaria**: El yaw de la estación se almacena mediante el `StationBinaryCodec` (Esquema V4), manteniéndose intacto tras descargas de chunks y reinicios del servidor.
+
+---
+
+## 3. Estaciones Generadoras de Calor (`heat_source`)
 
 Las estufas y hogares de combustión declaran curvas termodinámicas en lugar de recetas. A continuación se detalla la configuración de `plugins/Croppy/stations/stove.yml`:
 
@@ -79,6 +102,7 @@ Las estufas y hogares de combustión declaran curvas termodinámicas en lugar de
 id: "croppy:stove"
 name: "<gradient:#ff8800:#ff3300>Estufa Rústica</gradient>"
 block: "minecraft:smoker"
+rotation_mode: "CARDINAL_4"
 interaction: "HYBRID"
 input_capacity: 1
 output_capacity: 0
@@ -107,13 +131,14 @@ properties:
 
 ---
 
-## 3. Tabla de Referencia de Campos
+## 4. Tabla de Referencia de Campos
 
 | Ruta del Campo | Tipo | Predeterminado | Descripción |
 |---|---|---|---|
 | `id` | String (`Key`) | **Requerido** | Identificador único (ej. `croppy:cooking_pot`). |
 | `name` | String | Valor de Key | Título formateado con soporte MiniMessage. |
 | `block` | String | `minecraft:barrel` | Material físico colocado en el mundo. |
+| `rotation_mode` | Enum | `CARDINAL_4` | Modo de orientación al colocar: `CARDINAL_4`, `CARDINAL_8` o `FREE_YAW`. Alias: `rotation`. |
 | `interaction` | Enum | `HYBRID` | Modo de interacción: `PHYSICAL` (clics en mano), `GUI` (menú), o `HYBRID` (ambos). |
 | `input_capacity` | Entero | `1` | Límite de pilas de ingredientes de entrada permitidos. |
 | `output_capacity`| Entero | `1` | Límite de pilas de platos o residuos de salida. |
@@ -130,7 +155,7 @@ properties:
 
 ---
 
-## 4. Placeholders Dinámicos del Text Display
+## 5. Placeholders Dinámicos del Text Display
 
 La plantilla `visual.text_display.format` evalúa los siguientes valores dinámicos en cada tick de la simulación:
 
@@ -145,7 +170,7 @@ La plantilla `visual.text_display.format` evalúa los siguientes valores dinámi
 
 ---
 
-## 5. Modos de Interacción
+## 6. Modos de Interacción
 
 * **`PHYSICAL`**:
   * Clic derecho con un ingrediente lo inserta directamente en el recipiente.
@@ -157,3 +182,6 @@ La plantilla `visual.text_display.format` evalúa los siguientes valores dinámi
 * **`HYBRID`**:
   * El clic derecho normal inserta ítems físicamente para agilidad en cocina.
   * El clic derecho agachado abre el menú de inventario para inspección completa y control detallado.
+
+### Apilamiento Limpio de Ítems Vanilla (Stackability)
+Al extraer ingredientes del almacenamiento de una estación (sea mediante extracción física o a través de la interfaz GUI), Croppy distingue entre ítems custom registrados e ingredientes nativos de Minecraft. Los ingredientes vanilla se devuelven limpios, sin nombres de visualización sintéticos ni etiquetas PDC de Croppy, garantizando que se apilen de forma nativa (`ItemStack#isSimilar() == true`) con las pilas existentes en el inventario del jugador.

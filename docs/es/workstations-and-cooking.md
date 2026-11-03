@@ -57,3 +57,10 @@ Cocinar en Croppy exige atención por parte del jugador:
 * **Zonas Térmicas Requeridas**: Cada receta exige una temperatura mínima (ej. Fuego Lento, Ebullición). Una olla fría no avanzará el progreso de la receta.
 * **Sobrecalentamiento y Quemado (`rules/overcooking_burn.yml`)**: Dejar una comida lista al fuego tras alcanzar el 100% de cocción activará la regla de sobrecocción, convirtiendo el plato en cenizas o carbón si no se retira a tiempo.
 * **Quemado Térmico (`rules/thermal_burn.yml`)**: Someter ingredientes delicados a temperaturas extremas que superen su tolerancia máxima arruinará de inmediato la elaboración.
+
+---
+
+## 4. Orientación Dinámica y Apilamiento de Ítems
+
+* **Frente Orientado al Jugador**: Las estaciones colocadas en el mundo se orientan dinámicamente hacia el jugador usando ajuste cardinal (`CARDINAL_4`, `CARDINAL_8`) o ángulo continuo (`FREE_YAW`). Los modelos virtuales 3D y los displays de ingredientes hijos rotan solidariamente con esta orientación.
+* **Apilamiento Nativo de Ítems**: Los ingredientes extraídos de las estaciones conservan los metadatos vanilla limpios. Los cultivos, carnes o condimentos extraídos de ollas o sartenes se apilan sin problemas con ítems idénticos del inventario del jugador.
