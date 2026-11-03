@@ -1,0 +1,7 @@
+id: "croppy:tomato_seeds"
+category: "seeds"
+material: "PUMPKIN_SEEDS"
+custom-model-data: 0
+name: "<red>Tomato Seeds</red>"
+lore:
+  - "<gray>Plant on farmland to grow juicy tomatoes.</gray>"

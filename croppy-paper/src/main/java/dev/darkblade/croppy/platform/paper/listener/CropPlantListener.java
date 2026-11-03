@@ -5,45 +5,71 @@ import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.core.crop.DefaultCropInstance;
+import dev.darkblade.croppy.core.species.RotationCalculator;
 import dev.darkblade.croppy.platform.paper.event.CropPlantEvent;
+import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
+import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Optional;
 
 /**
- * Listens for block placement to detect when registered crop seeds are planted.
+ * Listens for block placement to detect when registered crop seeds are planted and protects
+ * active 3D crop spaces from accidental block placement collisions.
  */
 public class CropPlantListener implements Listener {
 
     private final CroppyCore core;
-    private final dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService fertilizerService;
+    private final FertilizerService fertilizerService;
+    private final PaperDisplaySynchronizer displaySynchronizer;
 
-    public CropPlantListener(CroppyCore core, dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService fertilizerService) {
+    public CropPlantListener(CroppyCore core, FertilizerService fertilizerService, PaperDisplaySynchronizer displaySynchronizer) {
         this.core = core;
         this.fertilizerService = fertilizerService;
+        this.displaySynchronizer = displaySynchronizer;
+    }
+
+    public CropPlantListener(CroppyCore core, FertilizerService fertilizerService) {
+        this(core, fertilizerService, null);
     }
 
     public CropPlantListener(CroppyCore core) {
-        this(core, null);
+        this(core, null, null);
+    }
+
+    /**
+     * Safeguard: Prevents players from placing blocks inside coordinates already occupied by an active crop.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onBlockCollisionSafeguard(BlockPlaceEvent event) {
+        Block block = event.getBlockPlaced();
+        BlockPosition pos = BlockPosition.of(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+        if (core.getCropManager().getCrop(pos).isPresent()) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
-        org.bukkit.inventory.ItemStack itemInHand = event.getItemInHand();
+        ItemStack itemInHand = event.getItemInHand();
         Optional<Species> speciesOpt = Optional.empty();
 
         if (itemInHand.hasItemMeta()) {
-            org.bukkit.inventory.meta.ItemMeta meta = itemInHand.getItemMeta();
+            ItemMeta meta = itemInHand.getItemMeta();
             if (meta != null) {
                 // 1. Check standardized croppy:item_id
                 String pdcItemId = meta.getPersistentDataContainer().get(
-                        new org.bukkit.NamespacedKey("croppy", "item_id"),
-                        org.bukkit.persistence.PersistentDataType.STRING
+                        new NamespacedKey("croppy", "item_id"),
+                        PersistentDataType.STRING
                 );
                 if (pdcItemId != null) {
                     try {
@@ -55,8 +81,8 @@ public class CropPlantListener implements Listener {
                 // 2. Fallback to legacy croppy:species
                 if (speciesOpt.isEmpty()) {
                     String pdcSpecies = meta.getPersistentDataContainer().get(
-                            new org.bukkit.NamespacedKey("croppy", "species"),
-                            org.bukkit.persistence.PersistentDataType.STRING
+                            new NamespacedKey("croppy", "species"),
+                            PersistentDataType.STRING
                     );
                     if (pdcSpecies != null) {
                         try {
@@ -86,7 +112,21 @@ public class CropPlantListener implements Listener {
         Block block = event.getBlockPlaced();
         BlockPosition pos = BlockPosition.of(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
 
-        CropInstance instance = new DefaultCropInstance(species.getKey(), pos);
+        float playerYaw = event.getPlayer().getLocation().getYaw();
+        float effectiveYaw = RotationCalculator.calculate(playerYaw, species.getDisplay().rotationMode());
+
+        CropInstance instance = new DefaultCropInstance(
+                species.getKey(),
+                pos,
+                0,
+                0.0,
+                System.currentTimeMillis(),
+                System.currentTimeMillis(),
+                -1L,
+                null,
+                effectiveYaw
+        );
+
         if (fertilizerService != null) {
             fertilizerService.consumeBufferedSoilFertilizer(pos).ifPresent(instance::setFertilizerKey);
         }
@@ -101,5 +141,11 @@ public class CropPlantListener implements Listener {
 
         core.getCropManager().registerCrop(instance);
         core.getStorage().ifPresent(storage -> storage.saveCrop(instance));
+
+        if ("model_3d".equalsIgnoreCase(species.getDisplay().type())) {
+            if (displaySynchronizer != null && !species.getStages().isEmpty()) {
+                displaySynchronizer.synchronizeDisplay(instance, species, species.getStages().get(0));
+            }
+        }
     }
 }

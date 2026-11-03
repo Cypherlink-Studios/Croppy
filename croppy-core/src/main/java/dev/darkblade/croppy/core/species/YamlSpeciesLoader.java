@@ -4,6 +4,8 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.species.CropDisplay;
 import dev.darkblade.croppy.api.species.CropRequirements;
 import dev.darkblade.croppy.api.species.HarvestDefinition;
+import dev.darkblade.croppy.api.species.Model3DDefinition;
+import dev.darkblade.croppy.api.species.RotationMode;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.api.species.YieldEntry;
@@ -18,6 +20,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -71,10 +74,19 @@ public class YamlSpeciesLoader {
         }
         Object rawType = displayMap.get("type");
         String displayType = rawType != null ? rawType.toString() : "vanilla";
+
         Object rawBlock = displayMap.get("block");
         if (rawBlock == null || rawBlock.toString().isBlank()) {
-            throw new IllegalArgumentException("Missing required 'display.block' in: " + sourceName);
+            rawBlock = displayMap.get("base_block");
         }
+        if (rawBlock == null || rawBlock.toString().isBlank()) {
+            if ("model_3d".equalsIgnoreCase(displayType)) {
+                rawBlock = "minecraft:air";
+            } else {
+                throw new IllegalArgumentException("Missing required 'display.block' in: " + sourceName);
+            }
+        }
+
         Object rawSeedItem = displayMap.get("seed_item");
         if (rawSeedItem == null || rawSeedItem.toString().isBlank()) {
             rawSeedItem = displayMap.get("seed");
@@ -88,10 +100,22 @@ public class YamlSpeciesLoader {
         if (rawSeedItem == null || rawSeedItem.toString().isBlank()) {
             throw new IllegalArgumentException("Missing required 'display.seed_item' or 'seed' in: " + sourceName);
         }
+
+        Object rawRotationMode = displayMap.get("rotation_mode");
+        RotationMode rotationMode = RotationMode.CARDINAL_4;
+        if (rawRotationMode != null) {
+            try {
+                rotationMode = RotationMode.valueOf(rawRotationMode.toString().trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid rotation_mode '" + rawRotationMode + "' in: " + sourceName);
+            }
+        }
+
         CropDisplay display = new CropDisplay(
                 displayType,
-                rawBlock.toString().trim().toLowerCase(),
-                rawSeedItem.toString().trim().toLowerCase()
+                rawBlock.toString().trim().toLowerCase(Locale.ROOT),
+                rawSeedItem.toString().trim().toLowerCase(Locale.ROOT),
+                rotationMode
         );
 
         // 3. Stages
@@ -120,6 +144,9 @@ public class YamlSpeciesLoader {
 
             double progressRequired = 0.0;
             Object progressObj = stageMap.get("progress_required");
+            if (progressObj == null) {
+                progressObj = stageMap.get("progress");
+            }
             if (progressObj instanceof Number num) {
                 progressRequired = num.doubleValue();
             }
@@ -136,7 +163,16 @@ public class YamlSpeciesLoader {
                 }
             }
 
-            stages.add(new StageDefinition(stageId, progressRequired, blockAge));
+            Model3DDefinition model3D = null;
+            Object modelObj = stageMap.get("model");
+            if (modelObj == null) {
+                modelObj = stageMap.get("model_3d");
+            }
+            if (modelObj instanceof Map<?, ?> modelMap) {
+                model3D = parseModel3D(modelMap, stageId, sourceName);
+            }
+
+            stages.add(new StageDefinition(stageId, progressRequired, blockAge, model3D));
         }
 
         // 4. Requirements
@@ -145,13 +181,19 @@ public class YamlSpeciesLoader {
         Object rawRequirements = root.get("requirements");
         if (rawRequirements instanceof Map<?, ?> reqMap) {
             Object lightObj = reqMap.get("min_light");
-            if (lightObj instanceof Number lNum) {
-                minLight = lNum.intValue();
+            if (lightObj instanceof Number num) {
+                minLight = num.intValue();
             }
             Object waterObj = reqMap.get("water_fluid_level");
-            if (waterObj instanceof Number wNum) {
-                waterFluidLevel = wNum.intValue();
+            if (waterObj instanceof Number num) {
+                waterFluidLevel = num.intValue();
             }
+        }
+        if (minLight < 0 || minLight > 15) {
+            throw new IllegalArgumentException("min_light must be between 0 and 15 in: " + sourceName);
+        }
+        if (waterFluidLevel < 0 || waterFluidLevel > 8) {
+            throw new IllegalArgumentException("water_fluid_level must be between 0 and 8 in: " + sourceName);
         }
         CropRequirements requirements = new CropRequirements(minLight, waterFluidLevel);
 
@@ -160,6 +202,9 @@ public class YamlSpeciesLoader {
         Object rawHarvest = root.get("harvest");
         if (rawHarvest instanceof Map<?, ?> harvestMap) {
             Object rawYieldList = harvestMap.get("yield");
+            if (rawYieldList == null) {
+                rawYieldList = harvestMap.get("drops");
+            }
             if (rawYieldList instanceof List<?> yList) {
                 for (Object yObj : yList) {
                     if (yObj instanceof Map<?, ?> yMap) {
@@ -167,7 +212,7 @@ public class YamlSpeciesLoader {
                         if (itemObj == null || itemObj.toString().isBlank()) {
                             continue;
                         }
-                        String itemId = itemObj.toString().trim().toLowerCase();
+                        String itemId = itemObj.toString().trim().toLowerCase(Locale.ROOT);
 
                         int min = 1;
                         int max = 1;
@@ -206,15 +251,87 @@ public class YamlSpeciesLoader {
         return new SpeciesDefinition(key, name, display, stages, requirements, harvest);
     }
 
+    private Model3DDefinition parseModel3D(Map<?, ?> map, String stageId, String sourceName) {
+        Object rawItemModel = map.get("item_model");
+        if (rawItemModel == null || rawItemModel.toString().isBlank()) {
+            rawItemModel = map.get("model");
+        }
+        if (rawItemModel == null || rawItemModel.toString().isBlank()) {
+            rawItemModel = map.get("item_id");
+        }
+        if (rawItemModel == null || rawItemModel.toString().isBlank()) {
+            throw new IllegalArgumentException("Stage '" + stageId + "' model is missing 'item_model' in: " + sourceName);
+        }
+        Key itemModelKey = Key.parse(rawItemModel.toString().trim());
+
+        float scaleX = 1.0f;
+        float scaleY = 1.0f;
+        float scaleZ = 1.0f;
+        Object scaleObj = map.get("scale");
+        if (scaleObj instanceof List<?> scaleList && scaleList.size() >= 3) {
+            scaleX = parseNumber(scaleList.get(0), 1.0f);
+            scaleY = parseNumber(scaleList.get(1), 1.0f);
+            scaleZ = parseNumber(scaleList.get(2), 1.0f);
+        } else if (scaleObj instanceof Number num) {
+            scaleX = num.floatValue();
+            scaleY = num.floatValue();
+            scaleZ = num.floatValue();
+        }
+
+        float transX = 0.0f;
+        float transY = 0.0f;
+        float transZ = 0.0f;
+        Object transObj = map.get("translation");
+        if (transObj instanceof List<?> transList && transList.size() >= 3) {
+            transX = parseNumber(transList.get(0), 0.0f);
+            transY = parseNumber(transList.get(1), 0.0f);
+            transZ = parseNumber(transList.get(2), 0.0f);
+        }
+
+        float hitboxWidth = 0.8f;
+        float hitboxHeight = 0.8f;
+        Object hitboxObj = map.get("hitbox");
+        if (hitboxObj instanceof Map<?, ?> hitboxMap) {
+            Object widthObj = hitboxMap.get("width");
+            if (widthObj instanceof Number num) {
+                hitboxWidth = num.floatValue();
+            }
+            Object heightObj = hitboxMap.get("height");
+            if (heightObj instanceof Number num) {
+                hitboxHeight = num.floatValue();
+            }
+        } else {
+            Object widthObj = map.get("hitbox_width");
+            if (widthObj instanceof Number num) {
+                hitboxWidth = num.floatValue();
+            }
+            Object heightObj = map.get("hitbox_height");
+            if (heightObj instanceof Number num) {
+                hitboxHeight = num.floatValue();
+            }
+        }
+
+        return new Model3DDefinition(itemModelKey, scaleX, scaleY, scaleZ, transX, transY, transZ, hitboxWidth, hitboxHeight);
+    }
+
+    private float parseNumber(Object obj, float fallback) {
+        if (obj instanceof Number num) {
+            return num.floatValue();
+        }
+        return fallback;
+    }
+
     /**
-     * Loads all species definitions from .yml and .yaml files in the specified directory.
+     * Loads all YAML species files from a directory.
      *
-     * @param directory directory containing species configuration files
-     * @param logger logger to output validation warnings
-     * @return list of successfully loaded species
+     * @param directory the directory to scan
+     * @param logger logger for diagnostic output
+     * @return list of loaded species
      */
     public List<Species> loadDirectory(Path directory, Logger logger) {
+        Objects.requireNonNull(directory, "Directory cannot be null");
         List<Species> loaded = new ArrayList<>();
+
         if (!Files.exists(directory) || !Files.isDirectory(directory)) {
             return loaded;
         }
@@ -222,22 +339,22 @@ public class YamlSpeciesLoader {
         try (Stream<Path> stream = Files.walk(directory, 1)) {
             stream.filter(Files::isRegularFile)
                     .filter(p -> p.toString().endsWith(".yml") || p.toString().endsWith(".yaml"))
-                    .forEach(file -> {
-                        try (InputStream in = Files.newInputStream(file)) {
-                            Species species = load(in, file.getFileName().toString());
+                    .forEach(path -> {
+                        try (InputStream in = Files.newInputStream(path)) {
+                            Species species = load(in, path.getFileName().toString());
                             loaded.add(species);
                             if (logger != null) {
-                                logger.info("Loaded crop species: " + species.getKey() + " (" + species.getName() + ")");
+                                logger.info("Loaded crop species: " + species.getKey());
                             }
-                        } catch (Exception ex) {
+                        } catch (Exception e) {
                             if (logger != null) {
-                                logger.log(Level.SEVERE, "Failed to load species from " + file.getFileName() + ": " + ex.getMessage(), ex);
+                                logger.log(Level.SEVERE, "Failed to load species from: " + path, e);
                             }
                         }
                     });
         } catch (IOException e) {
             if (logger != null) {
-                logger.log(Level.SEVERE, "Error reading species directory: " + directory, e);
+                logger.log(Level.SEVERE, "Failed to read species directory: " + directory, e);
             }
         }
 

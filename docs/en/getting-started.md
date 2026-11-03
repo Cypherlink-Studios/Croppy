@@ -32,7 +32,7 @@ Before installing Croppy, verify that your server environment meets the followin
    Download the official `packetevents-spigot` plugin JAR from the [PacketEvents GitHub Releases](https://github.com/retrooper/packetevents/releases) and place it into your server's `plugins/` directory.
 
 2. **Install Croppy**:
-   Download the latest `Croppy-0.2.0.jar` from [Croppy Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it into `plugins/`.
+   Download the latest `Croppy-0.3.0.jar` from [Croppy Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it into `plugins/`.
 
 3. **Start the Server**:
    Launch your server. During startup, Croppy initializes its default directories, unpacks configuration files, sets up the SQLite storage backend, and registers default species and recipes.
@@ -40,11 +40,11 @@ Before installing Croppy, verify that your server environment meets the followin
 4. **Verify Startup**:
    In your server console, look for confirmation messages:
    ```text
-   [Croppy] Registered 3 crop species definitions.
+   [Croppy] Registered 4 crop species definitions.
    [Croppy] Registered 3 station definitions.
    [Croppy] Registered recipe definitions into RecipeRegistry.
    [Croppy] Initialized SQLite database connection pool via HikariCP.
-   [Croppy] Successfully enabled Croppy v0.2.0.
+   [Croppy] Successfully enabled Croppy v0.3.0.
    ```
 
 ---

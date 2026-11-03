@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.3.0"
+    releaseDate: "2026-11-02"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Client-side virtual 3D block displays via PacketEvents (ItemDisplay + Interaction), stage-specific hitboxes, placement yaw rotation modes, and schema v3 crop persistence."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.2.0"
     releaseDate: "2026-11-01"
-    reference: "main"
+    reference: "v0.2.0"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Culinary recipe discovery engine, interactive recipe book compendium GUI, PacketEvents virtual displays, and comprehensive i18n localization system."
     minecraft:

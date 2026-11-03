@@ -20,9 +20,10 @@ public class DefaultCropInstance implements CropInstance {
     private long lastUpdatedMillis;
     private long lastWateredDay;
     private Key fertilizerKey;
+    private float yaw;
 
     public DefaultCropInstance(Key speciesKey, BlockPosition position, int stageIndex, double progress,
-                               long plantedAtMillis, long lastUpdatedMillis, long lastWateredDay, Key fertilizerKey) {
+                               long plantedAtMillis, long lastUpdatedMillis, long lastWateredDay, Key fertilizerKey, float yaw) {
         this.speciesKey = Objects.requireNonNull(speciesKey, "SpeciesKey cannot be null");
         this.position = Objects.requireNonNull(position, "BlockPosition cannot be null");
         this.stageIndex = stageIndex;
@@ -31,15 +32,21 @@ public class DefaultCropInstance implements CropInstance {
         this.lastUpdatedMillis = lastUpdatedMillis;
         this.lastWateredDay = lastWateredDay;
         this.fertilizerKey = fertilizerKey;
+        this.yaw = yaw;
+    }
+
+    public DefaultCropInstance(Key speciesKey, BlockPosition position, int stageIndex, double progress,
+                               long plantedAtMillis, long lastUpdatedMillis, long lastWateredDay, Key fertilizerKey) {
+        this(speciesKey, position, stageIndex, progress, plantedAtMillis, lastUpdatedMillis, lastWateredDay, fertilizerKey, 0.0f);
     }
 
     public DefaultCropInstance(Key speciesKey, BlockPosition position, int stageIndex, double progress,
                                long plantedAtMillis, long lastUpdatedMillis) {
-        this(speciesKey, position, stageIndex, progress, plantedAtMillis, lastUpdatedMillis, -1L, null);
+        this(speciesKey, position, stageIndex, progress, plantedAtMillis, lastUpdatedMillis, -1L, null, 0.0f);
     }
 
     public DefaultCropInstance(Key speciesKey, BlockPosition position) {
-        this(speciesKey, position, 0, 0.0, System.currentTimeMillis(), System.currentTimeMillis(), -1L, null);
+        this(speciesKey, position, 0, 0.0, System.currentTimeMillis(), System.currentTimeMillis(), -1L, null, 0.0f);
     }
 
     @Override
@@ -108,6 +115,17 @@ public class DefaultCropInstance implements CropInstance {
     @Override
     public void setFertilizerKey(Key fertilizerKey) {
         this.fertilizerKey = fertilizerKey;
+        updateTimestamp();
+    }
+
+    @Override
+    public float getYaw() {
+        return yaw;
+    }
+
+    @Override
+    public void setYaw(float yaw) {
+        this.yaw = yaw;
         updateTimestamp();
     }
 }

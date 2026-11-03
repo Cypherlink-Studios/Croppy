@@ -1,5 +1,6 @@
 package dev.darkblade.croppy.platform.paper.station.listener;
 
+import dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker;
 import dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,14 +17,23 @@ import java.util.Objects;
 public class StationPlayerConnectionListener implements Listener {
 
     private final StationViewerTracker viewerTracker;
+    private final VirtualBlockDisplayTracker blockTracker;
+
+    public StationPlayerConnectionListener(StationViewerTracker viewerTracker, VirtualBlockDisplayTracker blockTracker) {
+        this.viewerTracker = Objects.requireNonNull(viewerTracker, "viewerTracker cannot be null");
+        this.blockTracker = blockTracker;
+    }
 
     public StationPlayerConnectionListener(StationViewerTracker viewerTracker) {
-        this.viewerTracker = Objects.requireNonNull(viewerTracker, "viewerTracker cannot be null");
+        this(viewerTracker, null);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         viewerTracker.onPlayerQuit(event.getPlayer());
+        if (blockTracker != null) {
+            blockTracker.onPlayerQuit(event.getPlayer());
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -31,11 +41,17 @@ public class StationPlayerConnectionListener implements Listener {
         if (event.getTo() != null && (event.getFrom().getWorld() != event.getTo().getWorld()
                 || event.getFrom().distanceSquared(event.getTo()) > 256.0)) {
             viewerTracker.onPlayerQuit(event.getPlayer());
+            if (blockTracker != null) {
+                blockTracker.onPlayerQuit(event.getPlayer());
+            }
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
         viewerTracker.onPlayerQuit(event.getPlayer());
+        if (blockTracker != null) {
+            blockTracker.onPlayerQuit(event.getPlayer());
+        }
     }
 }

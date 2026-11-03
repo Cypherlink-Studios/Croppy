@@ -203,4 +203,65 @@ class YamlSpeciesLoaderTest {
                 """;
         assertThrows(IllegalArgumentException.class, () -> loadFromYaml(yaml));
     }
+
+    @Test
+    @DisplayName("Parse crop species with model_3d, rotation_mode, and stage-specific models with hitboxes")
+    void testParseModel3DWithStagesAndHitbox() {
+        String yaml = """
+                id: "croppy:custom_tomato"
+                name: "Tomate 3D"
+                display:
+                  type: "model_3d"
+                  rotation_mode: "RANDOM_JITTER"
+                  seed_item: "croppy:tomato_seeds"
+                stages:
+                  - id: "sprout"
+                    progress_required: 50
+                    model:
+                      item_model: "croppy:tomato_stage_0"
+                      scale: [1.0, 1.0, 1.0]
+                      translation: [0.0, 0.0, 0.0]
+                      hitbox:
+                        width: 0.6
+                        height: 0.3
+                  - id: "mature"
+                    progress_required: 0
+                    model:
+                      item_model: "croppy:tomato_stage_1"
+                      scale: [1.2, 1.2, 1.2]
+                      hitbox:
+                        width: 0.8
+                        height: 0.9
+                requirements:
+                  min_light: 8
+                  water_fluid_level: 1
+                harvest:
+                  yield:
+                    - item: "croppy:tomato"
+                      min: 1
+                      max: 2
+                """;
+
+        Species species = loadFromYaml(yaml);
+        assertNotNull(species);
+        assertEquals("model_3d", species.getDisplay().type());
+        assertEquals("minecraft:air", species.getDisplay().blockId());
+        assertEquals(dev.darkblade.croppy.api.species.RotationMode.RANDOM_JITTER, species.getDisplay().rotationMode());
+        assertEquals(2, species.getStages().size());
+
+        var stage0 = species.getStages().get(0);
+        assertTrue(stage0.getModel3D().isPresent());
+        var m0 = stage0.getModel3D().get();
+        assertEquals("croppy:tomato_stage_0", m0.itemModel().asString());
+        assertEquals(0.6f, m0.hitboxWidth(), 0.001f);
+        assertEquals(0.3f, m0.hitboxHeight(), 0.001f);
+
+        var stage1 = species.getStages().get(1);
+        assertTrue(stage1.getModel3D().isPresent());
+        var m1 = stage1.getModel3D().get();
+        assertEquals("croppy:tomato_stage_1", m1.itemModel().asString());
+        assertEquals(1.2f, m1.scaleX(), 0.001f);
+        assertEquals(0.8f, m1.hitboxWidth(), 0.001f);
+        assertEquals(0.9f, m1.hitboxHeight(), 0.001f);
+    }
 }

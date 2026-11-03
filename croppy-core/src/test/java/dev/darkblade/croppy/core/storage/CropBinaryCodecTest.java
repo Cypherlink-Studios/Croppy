@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class CropBinaryCodecTest {
 
     @Test
-    @DisplayName("Roundtrip serialization and deserialization of multiple crops with V2 fields")
-    void testRoundtripMultipleCropsV2() {
+    @DisplayName("Roundtrip serialization and deserialization of multiple crops with V3 fields (including yaw)")
+    void testRoundtripMultipleCropsV3() {
         CropInstance c1 = new DefaultCropInstance(
                 Key.croppy("wheat"),
                 BlockPosition.of("world", 100, 64, -200),
@@ -28,7 +28,8 @@ class CropBinaryCodecTest {
                 1000000L,
                 2000000L,
                 42L,
-                Key.of("croppy", "speed_gro")
+                Key.of("croppy", "speed_gro"),
+                90.0f
         );
         CropInstance c2 = new DefaultCropInstance(
                 Key.of("custom", "carrot"),
@@ -38,7 +39,8 @@ class CropBinaryCodecTest {
                 3000000L,
                 3000000L,
                 -1L,
-                null
+                null,
+                185.5f
         );
 
         byte[] serialized = CropBinaryCodec.serialize(List.of(c1, c2));
@@ -58,6 +60,7 @@ class CropBinaryCodecTest {
         assertEquals(42L, d1.getLastWateredDay());
         assertEquals(Key.of("croppy", "speed_gro"), d1.getFertilizerKey());
         assertTrue(d1.hasFertilizer());
+        assertEquals(90.0f, d1.getYaw(), 0.001f);
 
         CropInstance d2 = deserialized.get(1);
         assertEquals(c2.getSpeciesKey(), d2.getSpeciesKey());
@@ -69,6 +72,45 @@ class CropBinaryCodecTest {
         assertEquals(-1L, d2.getLastWateredDay());
         assertNull(d2.getFertilizerKey());
         assertFalse(d2.hasFertilizer());
+        assertEquals(185.5f, d2.getYaw(), 0.001f);
+    }
+
+    @Test
+    @DisplayName("Backward compatibility: should deserialize legacy Version 2 payload (defaults yaw to 0.0)")
+    void testLegacyVersion2Compatibility() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(baos)) {
+            out.writeInt(0x43525059); // MAGIC
+            out.writeInt(2);          // VERSION 2
+            out.writeInt(1);          // Count: 1
+            out.writeUTF("croppy:tomato");
+            out.writeUTF("world");
+            out.writeInt(10);
+            out.writeInt(65);
+            out.writeInt(20);
+            out.writeInt(3);
+            out.writeDouble(50.0);
+            out.writeLong(1000L);
+            out.writeLong(2000L);
+            out.writeLong(15L);       // lastWateredDay
+            out.writeBoolean(true);   // hasFertilizer
+            out.writeUTF("croppy:quality_fertilizer");
+        }
+
+        byte[] v2Data = baos.toByteArray();
+        List<CropInstance> result = CropBinaryCodec.deserialize(v2Data);
+
+        assertEquals(1, result.size());
+        CropInstance crop = result.get(0);
+        assertEquals(Key.of("croppy", "tomato"), crop.getSpeciesKey());
+        assertEquals(BlockPosition.of("world", 10, 65, 20), crop.getPosition());
+        assertEquals(3, crop.getStageIndex());
+        assertEquals(50.0, crop.getProgress(), 0.001);
+        assertEquals(1000L, crop.getPlantedAtMillis());
+        assertEquals(2000L, crop.getLastUpdatedMillis());
+        assertEquals(15L, crop.getLastWateredDay());
+        assertEquals(Key.of("croppy", "quality_fertilizer"), crop.getFertilizerKey());
+        assertEquals(0.0f, crop.getYaw(), 0.001f);
     }
 
     @Test
@@ -105,6 +147,7 @@ class CropBinaryCodecTest {
         assertEquals(-1L, crop.getLastWateredDay());
         assertNull(crop.getFertilizerKey());
         assertFalse(crop.hasFertilizer());
+        assertEquals(0.0f, crop.getYaw(), 0.001f);
     }
 
     @Test

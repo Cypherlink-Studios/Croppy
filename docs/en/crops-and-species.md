@@ -80,8 +80,73 @@ Maps crop stages directly to vanilla Minecraft block state ages (`block_age: 0..
 * Supported blocks include `minecraft:wheat`, `minecraft:carrots`, `minecraft:potatoes`, `minecraft:beetroots`, and `minecraft:pitcher_crop`.
 * Block updates occur seamlessly when a crop crosses stage thresholds.
 
-### B. Custom Item Displays
-Allows modeling non-vanilla agricultural crops using invisible base blocks combined with Item Displays or custom model data. This mode is used when expanding beyond standard vanilla flora.
+### B. Virtual 3D Model Displays (`type: "model_3d"`)
+Renders high-fidelity 3D item models with dynamic interaction hitboxes and yaw orientation using client-side **PacketEvents** virtual entities (`ITEM_DISPLAY` + `INTERACTION`).
+* **Zero Ghost Entities**: Does not create persistent entities in Minecraft chunk NBT; entity packets are tracked and dispatched dynamically to viewers.
+* **Placement Orientation**: Aligns the 3D model according to the player's viewing direction when planting.
+* **Dynamic Hitbox Scaling**: Automatically resizes the interaction hitbox width and height as the crop progresses through its stages.
+
+#### Rotation Modes (`rotation_mode`)
+* `CARDINAL_4`: Snaps model yaw to the 4 cardinal directions (North, South, East, West).
+* `CARDINAL_8`: Snaps model yaw to 8 directions (cardinal + diagonals).
+* `FREE_YAW`: Preserves the exact viewing yaw of the player who planted the crop.
+* `RANDOM_JITTER`: Applies a subtle randomized angle offset (±15°) to base placement yaw for organic crop field variation.
+
+#### 3D Crop Example (`tomato.yml`)
+```yaml
+id: "croppy:tomato"
+name: "<red>Tomato</red>"
+
+display:
+  type: "model_3d"
+  base_block: "minecraft:air"
+  rotation_mode: "RANDOM_JITTER"
+  seed_item: "croppy:tomato_seeds"
+
+stages:
+  - id: "seed"
+    progress_required: 50
+    model:
+      item_model: "croppy:tomato_stage_0"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.6
+        height: 0.3
+
+  - id: "sprout"
+    progress_required: 100
+    model:
+      item_model: "croppy:tomato_stage_1"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.7
+        height: 0.6
+
+  - id: "mature"
+    progress_required: 0
+    model:
+      item_model: "croppy:tomato_mature"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.8
+        height: 0.9
+
+requirements:
+  min_light: 9
+  water_fluid_level: 1
+
+harvest:
+  yield:
+    - item: "croppy:tomato"
+      min: 1
+      max: 3
+    - item: "croppy:tomato_seeds"
+      min: 1
+      max: 2
+```
 
 ---
 

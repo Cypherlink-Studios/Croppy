@@ -107,6 +107,11 @@ public class CroppyPlugin extends JavaPlugin {
     private dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler;
     private dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackHelper feedbackHelper;
 
+    // 3D Virtual Block Display services
+    private dev.darkblade.croppy.platform.paper.display.PacketEventsBlockRenderer packetBlockRenderer;
+    private dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker virtualBlockDisplayTracker;
+    private dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener virtualInteractionListener;
+
     @Override
     public void onEnable() {
         getLogger().info("Enabling Croppy plugin...");
@@ -192,7 +197,7 @@ public class CroppyPlugin extends JavaPlugin {
     private void registerListeners() {
         var pm = getServer().getPluginManager();
         pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getStationManager(), this.stationStorage, this.stationViewerTracker, getLogger()), this);
-        pm.registerEvents(new CropPlantListener(core, this.fertilizerService), this);
+        pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer), this);
         pm.registerEvents(new CropGrowthListener(core), this);
         pm.registerEvents(new CropBreakListener(core), this);
         pm.registerEvents(new CropPhysicsListener(core), this);
@@ -212,7 +217,11 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(this.menuListener, this);
         pm.registerEvents(this.stationInteractListener, this);
         pm.registerEvents(this.stationBlockListener, this);
-        pm.registerEvents(new dev.darkblade.croppy.platform.paper.station.listener.StationPlayerConnectionListener(this.stationViewerTracker), this);
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.station.listener.StationPlayerConnectionListener(this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
+
+        this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
+                this, core, this.virtualBlockDisplayTracker, getLogger());
+        com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager().registerListener(this.virtualInteractionListener);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.BukkitRecipeDiscoveryListener(
                 core.getRecipeDiscoveryEngine(),
                 core.getRecipeRegistry(),
@@ -336,12 +345,15 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/seeds/wheat_seeds.yml");
         saveResourceIfNotExists("items/seeds/carrot_seeds.yml");
         saveResourceIfNotExists("items/seeds/potato_seeds.yml");
+        saveResourceIfNotExists("items/seeds/tomato_seeds.yml");
         // Tools
         saveResourceIfNotExists("items/tools/inspector.yml");
         saveResourceIfNotExists("items/tools/thermometer.yml");
         // Misc
         saveResourceIfNotExists("items/misc/burnt_food.yml");
         saveResourceIfNotExists("items/misc/recipe_book.yml");
+        // Ingredients
+        saveResourceIfNotExists("items/ingredients/tomato.yml");
         // Watering Cans
         saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
         saveResourceIfNotExists("items/watering_cans/copper_can.yml");
@@ -405,7 +417,10 @@ public class CroppyPlugin extends JavaPlugin {
         growthEngine.addModifier(new FertilizerGrowthModifier(this.fertilizerRegistry));
 
         this.environmentProvider = new PaperEnvironmentProvider(getServer(), waterSearchRadius);
-        this.displaySynchronizer = new PaperDisplaySynchronizer(getServer(), getLogger());
+        this.packetBlockRenderer = new dev.darkblade.croppy.platform.paper.display.PacketEventsBlockRenderer(getLogger());
+        this.virtualBlockDisplayTracker = new dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker(
+                getServer(), this.packetBlockRenderer, this.itemFactory, getLogger());
+        this.displaySynchronizer = new PaperDisplaySynchronizer(getServer(), getLogger(), this.virtualBlockDisplayTracker);
 
         growthEngine.setDisplaySynchronizer(this.displaySynchronizer);
         growthEngine.setStageAdvanceInterceptor((crop, species, fromStage, toStage) -> {
@@ -534,11 +549,10 @@ public class CroppyPlugin extends JavaPlugin {
 
     private void setupCropDefinitions() {
         Path cropsDir = getDataFolder().toPath().resolve("crops");
-        if (!Files.exists(cropsDir)) {
-            saveResourceIfNotExists("crops/wheat.yml");
-            saveResourceIfNotExists("crops/carrot.yml");
-            saveResourceIfNotExists("crops/potato.yml");
-        }
+        saveResourceIfNotExists("crops/wheat.yml");
+        saveResourceIfNotExists("crops/carrot.yml");
+        saveResourceIfNotExists("crops/potato.yml");
+        saveResourceIfNotExists("crops/tomato.yml");
 
         YamlSpeciesLoader loader = new YamlSpeciesLoader();
         List<Species> loaded = loader.loadDirectory(cropsDir, getLogger());
@@ -597,6 +611,21 @@ public class CroppyPlugin extends JavaPlugin {
 
         flushActiveCrops();
         flushActiveStations();
+
+        if (this.virtualBlockDisplayTracker != null) {
+            try {
+                this.virtualBlockDisplayTracker.clearAll();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error clearing virtual block displays", t);
+            }
+        }
+        if (this.virtualInteractionListener != null) {
+            try {
+                com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager().unregisterListener(this.virtualInteractionListener);
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error unregistering virtual interaction listener", t);
+            }
+        }
 
         if (this.storage != null) {
             try {
@@ -742,5 +771,9 @@ public class CroppyPlugin extends JavaPlugin {
 
     public dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker getStationViewerTracker() {
         return stationViewerTracker;
+    }
+
+    public dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker getVirtualBlockDisplayTracker() {
+        return virtualBlockDisplayTracker;
     }
 }

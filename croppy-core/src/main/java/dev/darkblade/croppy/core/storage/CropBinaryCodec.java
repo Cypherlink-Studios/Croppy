@@ -23,12 +23,13 @@ public final class CropBinaryCodec {
     private static final int MAGIC = 0x43525059; // 'CRPY'
     public static final int VERSION_1 = 1;
     public static final int VERSION_2 = 2;
-    public static final int CURRENT_VERSION = VERSION_2;
+    public static final int VERSION_3 = 3;
+    public static final int CURRENT_VERSION = VERSION_3;
 
     private CropBinaryCodec() {}
 
     /**
-     * Serializes a collection of crop instances into a compact byte array using current schema version (V2).
+     * Serializes a collection of crop instances into a compact byte array using current schema version (V3).
      */
     public static byte[] serialize(Collection<CropInstance> crops) {
         if (crops == null || crops.isEmpty()) {
@@ -57,6 +58,7 @@ public final class CropBinaryCodec {
                 } else {
                     out.writeBoolean(false);
                 }
+                out.writeFloat(crop.getYaw());
             }
         } catch (IOException e) {
             throw new IllegalStateException("Failed to serialize crop collection", e);
@@ -66,7 +68,7 @@ public final class CropBinaryCodec {
     }
 
     /**
-     * Deserializes a byte array into a list of crop instances, supporting V1 and V2 formats.
+     * Deserializes a byte array into a list of crop instances, supporting V1, V2, and V3 formats.
      */
     public static List<CropInstance> deserialize(byte[] data) {
         if (data == null || data.length == 0) {
@@ -79,7 +81,7 @@ public final class CropBinaryCodec {
                 throw new IllegalArgumentException("Invalid binary crop data header: " + Integer.toHexString(magic));
             }
             int version = in.readInt();
-            if (version != VERSION_1 && version != VERSION_2) {
+            if (version != VERSION_1 && version != VERSION_2 && version != VERSION_3) {
                 throw new IllegalArgumentException("Unsupported binary crop data version: " + version);
             }
             int count = in.readInt();
@@ -97,6 +99,7 @@ public final class CropBinaryCodec {
 
                 long lastWateredDay = -1L;
                 Key fertilizerKey = null;
+                float yaw = 0.0f;
 
                 if (version >= VERSION_2) {
                     lastWateredDay = in.readLong();
@@ -106,8 +109,12 @@ public final class CropBinaryCodec {
                     }
                 }
 
+                if (version >= VERSION_3) {
+                    yaw = in.readFloat();
+                }
+
                 BlockPosition pos = BlockPosition.of(world, x, y, z);
-                list.add(new DefaultCropInstance(speciesKey, pos, stageIndex, progress, plantedAt, lastUpdated, lastWateredDay, fertilizerKey));
+                list.add(new DefaultCropInstance(speciesKey, pos, stageIndex, progress, plantedAt, lastUpdated, lastWateredDay, fertilizerKey, yaw));
             }
             return list;
         } catch (IOException e) {

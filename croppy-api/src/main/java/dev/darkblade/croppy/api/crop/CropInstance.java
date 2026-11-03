@@ -130,4 +130,19 @@ public interface CropInstance {
     default boolean hasFertilizer() {
         return getFertilizerKey() != null;
     }
+
+    /**
+     * @return the horizontal yaw orientation in degrees (0-360) of this crop instance
+     */
+    default float getYaw() {
+        return 0.0f;
+    }
+
+    /**
+     * Sets the horizontal yaw orientation in degrees of this crop instance.
+     *
+     * @param yaw the yaw angle in degrees
+     */
+    default void setYaw(float yaw) {
+    }
 }

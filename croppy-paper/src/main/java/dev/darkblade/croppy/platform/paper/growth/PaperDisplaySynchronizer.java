@@ -17,6 +17,9 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Server;
 import org.bukkit.World;
+import dev.darkblade.croppy.api.species.Model3DDefinition;
+import dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplay;
+import dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.block.data.BlockData;
@@ -44,14 +47,28 @@ public class PaperDisplaySynchronizer implements DisplaySynchronizer {
 
     private final Server server;
     private final Logger logger;
+    private VirtualBlockDisplayTracker displayTracker;
 
-    public PaperDisplaySynchronizer(Server server, Logger logger) {
+    public PaperDisplaySynchronizer(Server server, Logger logger, VirtualBlockDisplayTracker displayTracker) {
         this.server = Objects.requireNonNull(server, "server must not be null");
         this.logger = Objects.requireNonNull(logger, "logger must not be null");
+        this.displayTracker = displayTracker;
+    }
+
+    public PaperDisplaySynchronizer(Server server, Logger logger) {
+        this(server, logger, null);
     }
 
     public PaperDisplaySynchronizer(Server server) {
-        this(server, server.getLogger());
+        this(server, server.getLogger(), null);
+    }
+
+    public VirtualBlockDisplayTracker getDisplayTracker() {
+        return displayTracker;
+    }
+
+    public void setDisplayTracker(VirtualBlockDisplayTracker displayTracker) {
+        this.displayTracker = displayTracker;
     }
 
     @Override
@@ -77,7 +94,22 @@ public class PaperDisplaySynchronizer implements DisplaySynchronizer {
 
         if ("vanilla".equalsIgnoreCase(display.type())) {
             synchronizeVanillaDisplay(block, display, stage);
+        } else if ("model_3d".equalsIgnoreCase(display.type())) {
+            synchronize3DDisplay(crop, species, stage, world);
         }
+    }
+
+    private void synchronize3DDisplay(CropInstance crop, Species species, StageDefinition stage, World world) {
+        if (displayTracker == null) {
+            return;
+        }
+        BlockPosition pos = crop.getPosition();
+        Model3DDefinition model = stage.getModel3D().orElse(null);
+
+        VirtualBlockDisplay display = displayTracker.getOrCreateDisplay(pos, crop.getYaw(), model);
+        display.setYaw(crop.getYaw());
+        display.setModel(model);
+        displayTracker.syncDisplay(display, world);
     }
 
     /**
