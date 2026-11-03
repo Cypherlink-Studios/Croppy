@@ -86,6 +86,32 @@ class YamlStationLoaderTest {
     }
 
     @Test
+    void testLoadRotationMode() {
+        String yamlDefault = """
+                id: "croppy:keg"
+                block: "barrel"
+                """;
+        StationDefinition def1 = loader.load(new ByteArrayInputStream(yamlDefault.getBytes(StandardCharsets.UTF_8)), "keg.yml");
+        assertEquals(dev.darkblade.croppy.api.species.RotationMode.CARDINAL_4, def1.rotationMode());
+
+        String yamlFreeYaw = """
+                id: "croppy:skillet"
+                block: "iron_block"
+                rotation_mode: "FREE_YAW"
+                """;
+        StationDefinition def2 = loader.load(new ByteArrayInputStream(yamlFreeYaw.getBytes(StandardCharsets.UTF_8)), "skillet.yml");
+        assertEquals(dev.darkblade.croppy.api.species.RotationMode.FREE_YAW, def2.rotationMode());
+
+        String yamlHyphen = """
+                id: "croppy:pot"
+                block: "cauldron"
+                rotation-mode: "CARDINAL_8"
+                """;
+        StationDefinition def3 = loader.load(new ByteArrayInputStream(yamlHyphen.getBytes(StandardCharsets.UTF_8)), "pot.yml");
+        assertEquals(dev.darkblade.croppy.api.species.RotationMode.CARDINAL_8, def3.rotationMode());
+    }
+
+    @Test
     void testDefaultMenuKeyWhenOmitted() {
         String yaml = """
                 id: "croppy:pot"

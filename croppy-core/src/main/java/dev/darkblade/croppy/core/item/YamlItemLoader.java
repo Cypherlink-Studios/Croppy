@@ -107,6 +107,17 @@ public class YamlItemLoader {
             }
         }
 
+        // 4b. Skull Texture (Base64 or Mojang URL)
+        String texture = getString(root, "texture", getString(root, "skull-texture", getString(root, "skull_texture", null)));
+        if (texture == null && itemMap != null) {
+            texture = getString(itemMap, "texture", getString(itemMap, "skull-texture", getString(itemMap, "skull_texture", null)));
+        }
+        if (texture != null && texture.isBlank()) {
+            texture = null;
+        } else if (texture != null) {
+            texture = texture.trim();
+        }
+
         // 5. Display Name
         String displayName = getString(root, "name", getString(root, "display_name", getString(root, "display-name", null)));
         if (displayName == null && itemMap != null) {
@@ -147,6 +158,7 @@ public class YamlItemLoader {
                 material,
                 customModelData,
                 itemModel,
+                texture,
                 displayName,
                 lore,
                 pdcProperties

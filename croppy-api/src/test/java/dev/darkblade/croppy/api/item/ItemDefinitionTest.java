@@ -39,6 +39,32 @@ class ItemDefinitionTest {
         assertEquals("<red>Copper Can</red>", def.displayName());
         assertEquals(1, def.lore().size());
         assertEquals("40", def.pdcProperties().get("capacity"));
+        assertNull(def.skullTexture());
+        assertTrue(def.getSkullTexture().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Canonical constructor retains skullTexture and accessors work")
+    void testCanonicalConstructorWithSkullTexture() {
+        Key itemKey = Key.of("croppy", "cooking_pot");
+        String base64 = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTIzIn19fQ==";
+
+        ItemDefinition def = new ItemDefinition(
+                itemKey,
+                "stations",
+                "minecraft:player_head",
+                0,
+                null,
+                base64,
+                "<gold>Cooking Pot</gold>",
+                List.of(),
+                Map.of()
+        );
+
+        assertEquals(itemKey, def.key());
+        assertEquals(base64, def.skullTexture());
+        assertTrue(def.getSkullTexture().isPresent());
+        assertEquals(base64, def.getSkullTexture().get());
     }
 
     @Test

@@ -1,25 +1,34 @@
 package dev.darkblade.croppy.platform.paper.item;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.station.StoredItem;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Server;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
@@ -32,6 +41,7 @@ public class ItemFactory {
     public static final String CATEGORY_KEY_NAME = "category";
 
     private final Plugin plugin;
+    private final Server server;
     private final ItemRegistry itemRegistry;
     private final NamespacedKey itemIdKey;
     private final NamespacedKey categoryKey;
@@ -39,7 +49,12 @@ public class ItemFactory {
     private final Logger logger;
 
     public ItemFactory(Plugin plugin, ItemRegistry itemRegistry) {
+        this(plugin, (plugin != null ? plugin.getServer() : null), itemRegistry);
+    }
+
+    public ItemFactory(Plugin plugin, Server server, ItemRegistry itemRegistry) {
         this.plugin = plugin;
+        this.server = server;
         this.itemRegistry = Objects.requireNonNull(itemRegistry, "itemRegistry cannot be null");
         this.itemIdKey = new NamespacedKey("croppy", ITEM_ID_KEY_NAME);
         this.categoryKey = new NamespacedKey("croppy", CATEGORY_KEY_NAME);
@@ -104,6 +119,14 @@ public class ItemFactory {
             meta.setItemModel(new NamespacedKey(definition.itemModel().namespace(), definition.itemModel().value()));
         }
 
+        // 3b. Custom Skull Texture (PlayerProfile)
+        if (meta instanceof SkullMeta skullMeta && definition.getSkullTexture().isPresent()) {
+            PlayerProfile profile = createProfileFromTexture(definition.getSkullTexture().get());
+            if (profile != null) {
+                skullMeta.setPlayerProfile(profile);
+            }
+        }
+
         // 4. Standardized PersistentDataContainer
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         if (pdc != null) {
@@ -120,6 +143,72 @@ public class ItemFactory {
 
     public ItemStack createItemStack(ItemDefinition definition) {
         return createItemStack(definition, 1);
+    }
+
+    /**
+     * Constructs a Bukkit ItemStack from a domain StoredItem.
+     * If the item is registered in ItemRegistry, it builds the custom item.
+     * If it is a vanilla item (unregistered), it returns an unmodified vanilla ItemStack
+     * without custom display names or PDC tags to preserve item stacking compatibility.
+     *
+     * @param stored the domain stored item
+     * @return the constructed Bukkit ItemStack
+     */
+    public ItemStack createBukkitItem(StoredItem stored) {
+        Objects.requireNonNull(stored, "stored cannot be null");
+        Optional<ItemDefinition> defOpt = itemRegistry.get(stored.itemKey());
+        if (defOpt.isPresent()) {
+            return createItemStack(defOpt.get(), stored.amount());
+        }
+
+        // Vanilla item fallback: untouched ItemStack
+        Material mat = resolveMaterial(stored.itemKey().value());
+        if (mat == Material.BARRIER && !stored.itemKey().value().equalsIgnoreCase("BARRIER")) {
+            mat = resolveMaterial(stored.itemKey().asString());
+        }
+        return createRawVanillaItemStack(mat, Math.max(1, stored.amount()));
+    }
+
+    public ItemStack createRawVanillaItemStack(Material material, int amount) {
+        return new ItemStack(material, amount);
+    }
+
+    /**
+     * Resolves a raw texture string into a base64 encoded texture payload.
+     * If a Mojang URL or 64-char hash is passed, it encapsulates it in a skin JSON payload.
+     */
+    public String resolveBase64Texture(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            String json = "{\"textures\":{\"SKIN\":{\"url\":\"" + trimmed + "\"}}}";
+            return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+        }
+        if (trimmed.length() == 64 && trimmed.matches("[0-9a-fA-F]+")) {
+            String json = "{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/" + trimmed + "\"}}}";
+            return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+        }
+        return trimmed;
+    }
+
+    /**
+     * Creates a PlayerProfile with a deterministic UUID for skin caching.
+     */
+    public PlayerProfile createProfileFromTexture(String rawTexture) {
+        String base64 = resolveBase64Texture(rawTexture);
+        if (base64 == null) {
+            return null;
+        }
+        UUID uuid = UUID.nameUUIDFromBytes(base64.getBytes(StandardCharsets.UTF_8));
+        Server s = (server != null) ? server : Bukkit.getServer();
+        if (s == null) {
+            return null;
+        }
+        PlayerProfile profile = s.createProfile(uuid, "");
+        profile.setProperty(new ProfileProperty("textures", base64));
+        return profile;
     }
 
     /**

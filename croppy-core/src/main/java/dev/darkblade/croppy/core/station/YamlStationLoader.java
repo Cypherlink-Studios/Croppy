@@ -1,6 +1,7 @@
 package dev.darkblade.croppy.core.station;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.species.RotationMode;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInteractionType;
 import dev.darkblade.croppy.api.station.StationRegistry;
@@ -127,6 +128,17 @@ public final class YamlStationLoader {
         // 10. Visual Definition
         StationVisualDefinition visualDefinition = parseVisual(root);
 
+        // 11. Rotation Mode
+        String rotStr = getString(root, "rotation_mode", getString(root, "rotation-mode", getString(root, "rotation", null)));
+        RotationMode rotationMode = RotationMode.CARDINAL_4;
+        if (rotStr != null && !rotStr.isBlank()) {
+            try {
+                rotationMode = RotationMode.valueOf(rotStr.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                rotationMode = RotationMode.CARDINAL_4;
+            }
+        }
+
         return new StationDefinition(
                 key,
                 displayName,
@@ -138,7 +150,8 @@ public final class YamlStationLoader {
                 hasDisplay,
                 allowedRecipes,
                 properties,
-                visualDefinition
+                visualDefinition,
+                rotationMode
         );
     }
 

@@ -6,7 +6,7 @@ Provides registration, spatial tracking, physical in-world and GUI interactions,
 ## Requirements
 
 ### Requirement: Station Registration and Identification
-The system SHALL register immutable `StationDefinition` instances identified by unique `Key` identifiers, including an optional `menuKey` binding to a configured `MenuDefinition`, and manage runtime `StationInstance` models bound to discrete `BlockPosition` spatial coordinates.
+The system SHALL register immutable `StationDefinition` instances identified by unique `Key` identifiers, including an optional `menuKey` binding to a configured `MenuDefinition` and an optional `rotationMode`, and manage runtime `StationInstance` models bound to discrete `BlockPosition` spatial coordinates and horizontal yaw orientation.
 
 #### Scenario: Register station definition
 - **WHEN** a station definition for `croppy:cooking_pot` is registered
@@ -18,10 +18,10 @@ The system SHALL register immutable `StationDefinition` instances identified by 
 
 #### Scenario: Instantiate station in world
 - **WHEN** a valid station item is placed at a block coordinate
-- **THEN** a `StationInstance` is spawned at that `BlockPosition` with default component states
+- **THEN** a `StationInstance` is spawned at that `BlockPosition` with default component states and calculated placement yaw
 
 ### Requirement: Dual Interaction Modes
-The system SHALL support both physical in-world item interactions (right-clicking the station with an ingredient or tool in hand) and virtual container GUI menus dynamically rendered from the station's bound `MenuDefinition`.
+The system SHALL support both physical in-world item interactions (right-clicking the station with an ingredient or tool in hand) and virtual container GUI menus dynamically rendered from the station's bound `MenuDefinition`, ensuring extracted items retain their original metadata and stackability.
 
 #### Scenario: Physical right-click interaction
 - **WHEN** player right-clicks a physical-interaction station holding a valid ingredient
@@ -33,7 +33,7 @@ The system SHALL support both physical in-world item interactions (right-clickin
 
 #### Scenario: Physical input extraction
 - **WHEN** player triggers an input extraction interaction on a station containing stored inputs
-- **THEN** stored input items are removed from input storage and transferred into the player's inventory
+- **THEN** stored input items are removed from input storage and returned to the player's inventory as clean items without synthetic display names or PDC tags, stacking with identical vanilla items
 
 #### Scenario: Virtual inventory GUI interaction
 - **WHEN** player right-clicks a GUI-configured station without sneaking
@@ -43,12 +43,27 @@ The system SHALL support both physical in-world item interactions (right-clickin
 - **WHEN** player sneak-right-clicks a GUI station
 - **THEN** direct physical extraction or inspection executes without opening the inventory window
 
+### Requirement: Dynamic Station Placement and Facing
+The system SHALL capture player yaw upon station block placement and orient the station towards the player according to the station definition's configured rotation mode (`CARDINAL_4`, `CARDINAL_8`, or `FREE_YAW`).
+
+#### Scenario: Place station with 4-way cardinal snapping
+- **WHEN** a player places a station configured with `CARDINAL_4` rotation mode
+- **THEN** the station instance yaw is snapped to the nearest 90-degree angle facing towards the player
+
+#### Scenario: Place station with 8-way compass snapping
+- **WHEN** a player places a station configured with `CARDINAL_8` rotation mode
+- **THEN** the station instance yaw is snapped to the nearest 45-degree angle facing towards the player
+
+#### Scenario: Place station with free continuous yaw
+- **WHEN** a player places a station configured with `FREE_YAW` rotation mode
+- **THEN** the station instance preserves the exact continuous horizontal yaw angle opposite the player facing
+
 ### Requirement: Spatial Lifecycle and Persistence
-The system SHALL persist station state and attached component data across chunk lifecycles and server restarts, restoring active station data on chunk load.
+The system SHALL persist station state, horizontal yaw orientation, and attached component data across chunk lifecycles and server restarts, restoring active station data on chunk load.
 
 #### Scenario: Chunk load restore
 - **WHEN** a chunk containing registered crafting stations is loaded into memory
-- **THEN** all station instances within that chunk are loaded into memory and registered with the station manager
+- **THEN** all station instances within that chunk are loaded into memory and registered with the station manager, restoring their placement yaw
 
 #### Scenario: Chunk unload persistence
 - **WHEN** a chunk containing registered crafting stations unloads from memory

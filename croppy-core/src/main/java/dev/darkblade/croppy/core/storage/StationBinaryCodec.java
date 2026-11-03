@@ -38,7 +38,7 @@ import java.util.function.Function;
 public final class StationBinaryCodec {
 
     private static final int MAGIC = 0x53544154; // 'STAT'
-    public static final int CURRENT_VERSION = 3;
+    public static final int CURRENT_VERSION = 4;
 
     private StationBinaryCodec() {}
 
@@ -67,6 +67,7 @@ public final class StationBinaryCodec {
                 out.writeInt(pos.x());
                 out.writeInt(pos.y());
                 out.writeInt(pos.z());
+                out.writeFloat(station.getYaw()); // Version 4+
 
                 // 1. Storage Component
                 Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
@@ -181,6 +182,7 @@ public final class StationBinaryCodec {
                 int x = in.readInt();
                 int y = in.readInt();
                 int z = in.readInt();
+                float yaw = (version >= 4) ? in.readFloat() : 0.0f;
                 BlockPosition pos = new BlockPosition(world, x, y, z);
 
                 Optional<StationDefinition> defOpt = definitionLookup.apply(stationKey);
@@ -190,7 +192,7 @@ public final class StationBinaryCodec {
                     continue;
                 }
                 StationDefinition def = defOpt.get();
-                DefaultStationInstance station = new DefaultStationInstance(stationKey, pos, def);
+                DefaultStationInstance station = new DefaultStationInstance(stationKey, pos, def, yaw);
 
                 // 1. Storage
                 boolean hasStorage = in.readBoolean();

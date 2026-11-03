@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.4.0"
+    releaseDate: "2026-11-03"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Dynamic station placement facing (CARDINAL_4, CARDINAL_8, FREE_YAW), Base64 and Mojang skull textures, and station inventory vanilla item stacking bugfix."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.3.0"
     releaseDate: "2026-11-02"
-    reference: "main"
+    reference: "49d8663"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Client-side virtual 3D block displays via PacketEvents (ItemDisplay + Interaction), stage-specific hitboxes, placement yaw rotation modes, and schema v3 crop persistence."
     minecraft:

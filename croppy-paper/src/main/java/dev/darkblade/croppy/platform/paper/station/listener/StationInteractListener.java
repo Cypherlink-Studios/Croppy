@@ -651,18 +651,6 @@ public final class StationInteractListener implements Listener {
     }
 
     private ItemStack createBukkitItem(StoredItem stored) {
-        Optional<dev.darkblade.croppy.api.item.ItemDefinition> defOpt = itemFactory.getItemRegistry().get(stored.itemKey());
-        if (defOpt.isPresent()) {
-            return itemFactory.createItemStack(defOpt.get(), stored.amount());
-        }
-        return itemFactory.createItemStack(new dev.darkblade.croppy.api.item.ItemDefinition(
-                stored.itemKey(),
-                "misc",
-                stored.itemKey().asString(),
-                0,
-                "<gray>" + stored.itemKey().value() + "</gray>",
-                List.of(),
-                java.util.Map.of()
-        ), stored.amount());
+        return itemFactory.createBukkitItem(stored);
     }
 }

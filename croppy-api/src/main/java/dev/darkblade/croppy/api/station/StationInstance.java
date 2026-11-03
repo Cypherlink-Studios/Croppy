@@ -49,4 +49,19 @@ public interface StationInstance {
      * @return unmodifiable view of all attached components
      */
     Map<Class<? extends StationComponent>, StationComponent> getComponents();
+
+    /**
+     * @return the horizontal yaw orientation in degrees (0-360) of this station instance
+     */
+    default float getYaw() {
+        return 0.0f;
+    }
+
+    /**
+     * Sets the horizontal yaw orientation in degrees of this station instance.
+     *
+     * @param yaw the yaw angle in degrees
+     */
+    default void setYaw(float yaw) {
+    }
 }

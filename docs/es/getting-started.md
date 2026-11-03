@@ -32,7 +32,7 @@ Antes de instalar Croppy, comprueba que tu entorno cumpla con los siguientes req
    Descarga el archivo `packetevents-spigot` desde los [Releases de PacketEvents en GitHub](https://github.com/retrooper/packetevents/releases) y colócalo en la carpeta `plugins/` de tu servidor.
 
 2. **Instalar Croppy**:
-   Descarga la versión más reciente de `Croppy-0.3.0.jar` desde [Croppy Releases](https://github.com/Cypherlink-Studios/Croppy/releases) y colócala en `plugins/`.
+   Descarga la versión más reciente de `Croppy-0.4.0.jar` desde [Croppy Releases](https://github.com/Cypherlink-Studios/Croppy/releases) y colócala en `plugins/`.
 
 3. **Iniciar el Servidor**:
    Inicia tu servidor. Durante el arranque, Croppy creará sus directorios predeterminados, descomprimirá los archivos de configuración, inicializará el backend de persistencia y registrará las especies y recetas base.
@@ -44,7 +44,7 @@ Antes de instalar Croppy, comprueba que tu entorno cumpla con los siguientes req
    [Croppy] Registered 3 station definitions.
    [Croppy] Registered recipe definitions into RecipeRegistry.
    [Croppy] Initialized SQLite database connection pool via HikariCP.
-   [Croppy] Successfully enabled Croppy v0.3.0.
+   [Croppy] Successfully enabled Croppy v0.4.0.
    ```
 
 ---

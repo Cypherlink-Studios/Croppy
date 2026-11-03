@@ -143,6 +143,34 @@ class YamlItemLoaderTest {
     }
 
     @Test
+    @DisplayName("Load item definition with flat texture and nested skull-texture")
+    void testLoadTextureFields() {
+        String base64 = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWJjIn19fQ==";
+        String flatYaml = """
+                id: "croppy:cooking_pot"
+                material: "minecraft:player_head"
+                texture: "%s"
+                name: "Cooking Pot"
+                """.formatted(base64);
+
+        ItemDefinition def1 = loader.load(new ByteArrayInputStream(flatYaml.getBytes(StandardCharsets.UTF_8)), "stations", "cooking_pot.yml");
+        assertEquals(base64, def1.skullTexture());
+        assertTrue(def1.getSkullTexture().isPresent());
+
+        String url = "http://textures.minecraft.net/texture/1234567890abcdef";
+        String nestedYaml = """
+                id: "skillet"
+                item:
+                  material: "player_head"
+                  skull-texture: "%s"
+                """.formatted(url);
+
+        ItemDefinition def2 = loader.load(new ByteArrayInputStream(nestedYaml.getBytes(StandardCharsets.UTF_8)), "stations", "skillet.yml");
+        assertEquals(url, def2.skullTexture());
+        assertTrue(def2.getSkullTexture().isPresent());
+    }
+
+    @Test
     @DisplayName("Reject YAML missing material or id")
     void testMissingRequiredFields() {
         String noId = """

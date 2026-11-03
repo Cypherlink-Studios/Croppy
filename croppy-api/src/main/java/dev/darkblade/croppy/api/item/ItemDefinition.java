@@ -16,6 +16,7 @@ import java.util.Optional;
  * @param materialKey Minecraft material identifier (e.g., "minecraft:wheat_seeds")
  * @param customModelData custom model data integer, or 0 if unassigned
  * @param itemModel optional native Minecraft 1.21.4+ item model identifier (e.g., "croppy:copper_can")
+ * @param skullTexture optional base64 string or Mojang URL texture for player_head items
  * @param displayName MiniMessage formatted display name
  * @param lore MiniMessage formatted lore lines
  * @param pdcProperties arbitrary persistent data key-value properties configured in YAML
@@ -26,6 +27,7 @@ public record ItemDefinition(
         String materialKey,
         int customModelData,
         Key itemModel,
+        String skullTexture,
         String displayName,
         List<String> lore,
         Map<String, String> pdcProperties
@@ -40,7 +42,23 @@ public record ItemDefinition(
     }
 
     /**
-     * Backward-compatible constructor without native {@code itemModel}.
+     * Backward-compatible constructor without {@code skullTexture}.
+     */
+    public ItemDefinition(
+            Key key,
+            String category,
+            String materialKey,
+            int customModelData,
+            Key itemModel,
+            String displayName,
+            List<String> lore,
+            Map<String, String> pdcProperties
+    ) {
+        this(key, category, materialKey, customModelData, itemModel, null, displayName, lore, pdcProperties);
+    }
+
+    /**
+     * Backward-compatible constructor without native {@code itemModel} and {@code skullTexture}.
      */
     public ItemDefinition(
             Key key,
@@ -51,7 +69,7 @@ public record ItemDefinition(
             List<String> lore,
             Map<String, String> pdcProperties
     ) {
-        this(key, category, materialKey, customModelData, null, displayName, lore, pdcProperties);
+        this(key, category, materialKey, customModelData, null, null, displayName, lore, pdcProperties);
     }
 
     /**
@@ -61,6 +79,15 @@ public record ItemDefinition(
      */
     public Optional<Key> getItemModel() {
         return Optional.ofNullable(itemModel);
+    }
+
+    /**
+     * Gets the optional skull texture base64 string or Mojang URL.
+     *
+     * @return Optional containing the skull texture, or empty if not configured
+     */
+    public Optional<String> getSkullTexture() {
+        return Optional.ofNullable(skullTexture);
     }
 
     @Override

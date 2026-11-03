@@ -94,7 +94,7 @@ public class PacketEventsStationRenderer {
         sendPacket(player, spawnPacket);
 
         List<EntityData<?>> metadata = new ArrayList<>();
-        applyTransformMetadata(metadata, config.transform(), config.billboard(), config.interpolationDuration());
+        applyTransformMetadata(metadata, config.transform(), config.billboard(), config.interpolationDuration(), display.getStation().getYaw());
 
         if (isBlock && blockData != null) {
             int blockStateId = SpigotConversionUtil.fromBukkitBlockData(blockData).getGlobalId();
@@ -142,10 +142,18 @@ public class PacketEventsStationRenderer {
         int entityId = display.getEntityId(VisualTier.PROCESS_ITEM);
         List<EntityData<?>> metadata = new ArrayList<>();
 
+        float stationYaw = display.getStation().getYaw();
+        float yawRad = (float) Math.toRadians(-stationYaw);
+        float cos = (float) Math.cos(yawRad);
+        float sin = (float) Math.sin(yawRad);
+
         DisplayTransform baseTransform = config.transform();
         double tx = baseTransform.translationX();
         double ty = baseTransform.translationY();
         double tz = baseTransform.translationZ();
+
+        float rotatedTx = (float) (tx * cos - tz * sin);
+        float rotatedTz = (float) (tx * sin + tz * cos);
 
         boolean isHot = temp >= 100.0 || (thermalZone != null && (thermalZone.contains("BOIL") || thermalZone.contains("SEAR") || thermalZone.contains("BURNING")));
         int interpolation = isHot ? 2 : config.interpolationDuration();
@@ -164,13 +172,13 @@ public class PacketEventsStationRenderer {
         float speed = isHot ? 0.005f : 0.002f;
         float angle = (float) ((now * speed) % (2 * Math.PI));
 
-        Quaternionf q = new Quaternionf().rotationXYZ(baseTransform.pitch(), baseTransform.yaw() + angle, baseTransform.roll());
+        Quaternionf q = new Quaternionf().rotateY(yawRad).rotateXYZ(baseTransform.pitch(), baseTransform.yaw() + angle, baseTransform.roll());
         Quaternion4f rot = new Quaternion4f(q.x, q.y, q.z, q.w);
         Quaternion4f identity = new Quaternion4f(0.0f, 0.0f, 0.0f, 1.0f);
 
         metadata.add(new EntityData(INDEX_INTERPOLATION_START, EntityDataTypes.INT, 0));
         metadata.add(new EntityData(INDEX_INTERPOLATION_DURATION, EntityDataTypes.INT, interpolation));
-        metadata.add(new EntityData(INDEX_TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) (tx + jitterX), (float) (ty + jitterY), (float) (tz + jitterZ))));
+        metadata.add(new EntityData(INDEX_TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) (rotatedTx + jitterX), (float) (ty + jitterY), (float) (rotatedTz + jitterZ))));
         metadata.add(new EntityData(INDEX_SCALE, EntityDataTypes.VECTOR3F, new Vector3f(baseTransform.scaleX(), baseTransform.scaleY(), baseTransform.scaleZ())));
         metadata.add(new EntityData(INDEX_ROTATION_LEFT, EntityDataTypes.QUATERNION, rot));
         metadata.add(new EntityData(INDEX_ROTATION_RIGHT, EntityDataTypes.QUATERNION, identity));
@@ -219,7 +227,7 @@ public class PacketEventsStationRenderer {
         int entityId = display.getEntityId(VisualTier.TEXT_DISPLAY);
         List<EntityData<?>> metadata = new ArrayList<>();
 
-        applyTransformMetadata(metadata, template.transform(), template.billboard(), 0);
+        applyTransformMetadata(metadata, template.transform(), template.billboard(), 0, display.getStation().getYaw());
 
         Component cleanText = (text == null) ? Component.empty() : text;
         metadata.add(new EntityData(INDEX_TEXT, EntityDataTypes.ADV_COMPONENT, cleanText));
@@ -253,13 +261,23 @@ public class PacketEventsStationRenderer {
         }
     }
 
-    private void applyTransformMetadata(List<EntityData<?>> metadata, DisplayTransform transform, BillboardMode billboard, int interpolation) {
+    private void applyTransformMetadata(List<EntityData<?>> metadata, DisplayTransform transform, BillboardMode billboard, int interpolation, float stationYaw) {
         metadata.add(new EntityData(INDEX_INTERPOLATION_START, EntityDataTypes.INT, 0));
         metadata.add(new EntityData(INDEX_INTERPOLATION_DURATION, EntityDataTypes.INT, interpolation));
-        metadata.add(new EntityData(INDEX_TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) transform.translationX(), (float) transform.translationY(), (float) transform.translationZ())));
+
+        float yawRad = (float) Math.toRadians(-stationYaw);
+        float cos = (float) Math.cos(yawRad);
+        float sin = (float) Math.sin(yawRad);
+        double tx = transform.translationX();
+        double ty = transform.translationY();
+        double tz = transform.translationZ();
+        float rotatedTx = (float) (tx * cos - tz * sin);
+        float rotatedTz = (float) (tx * sin + tz * cos);
+
+        metadata.add(new EntityData(INDEX_TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f(rotatedTx, (float) ty, rotatedTz)));
         metadata.add(new EntityData(INDEX_SCALE, EntityDataTypes.VECTOR3F, new Vector3f(transform.scaleX(), transform.scaleY(), transform.scaleZ())));
 
-        Quaternionf q = new Quaternionf().rotationXYZ(transform.pitch(), transform.yaw(), transform.roll());
+        Quaternionf q = new Quaternionf().rotateY(yawRad).rotateXYZ(transform.pitch(), transform.yaw(), transform.roll());
         Quaternion4f rot = new Quaternion4f(q.x, q.y, q.z, q.w);
         metadata.add(new EntityData(INDEX_ROTATION_LEFT, EntityDataTypes.QUATERNION, rot));
         metadata.add(new EntityData(INDEX_ROTATION_RIGHT, EntityDataTypes.QUATERNION, new Quaternion4f(0.0f, 0.0f, 0.0f, 1.0f)));

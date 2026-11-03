@@ -163,4 +163,25 @@ class StationBlockBreakDropTest {
         assertTrue(stationManager.getStation(pos).isEmpty());
         assertEquals(1, removed.get().getComponent(StorageComponent.class).get().getInputs().size());
     }
+
+    @Test
+    @DisplayName("Verify placement facing calculation faces player with CARDINAL_4 snapping")
+    void testStationPlacementFacing() {
+        // Player facing South (yaw = 0.0)
+        float playerYaw = 0.0f;
+        // Station front faces player (playerYaw + 180.0) -> 180.0
+        float effectiveYaw = dev.darkblade.croppy.core.species.RotationCalculator.calculate(
+                playerYaw + 180.0f,
+                dev.darkblade.croppy.api.species.RotationMode.CARDINAL_4
+        );
+        assertEquals(180.0f, effectiveYaw, 0.001f);
+
+        // Player facing West (yaw = 90.0)
+        playerYaw = 90.0f;
+        effectiveYaw = dev.darkblade.croppy.core.species.RotationCalculator.calculate(
+                playerYaw + 180.0f,
+                dev.darkblade.croppy.api.species.RotationMode.CARDINAL_4
+        );
+        assertEquals(270.0f, effectiveYaw, 0.001f);
+    }
 }

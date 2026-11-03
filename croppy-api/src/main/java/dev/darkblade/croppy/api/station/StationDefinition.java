@@ -2,6 +2,7 @@ package dev.darkblade.croppy.api.station;
 
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.identifier.Keyed;
+import dev.darkblade.croppy.api.species.RotationMode;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.Optional;
  * @param allowedRecipes    list of allowed process recipe keys, or empty for all
  * @param properties        arbitrary configuration properties
  * @param visualDefinition  optional visual layers and packet display configuration
+ * @param rotationMode      spatial placement rotation mode (defaults to CARDINAL_4)
  */
 public record StationDefinition(
         Key key,
@@ -35,7 +37,8 @@ public record StationDefinition(
         boolean hasDisplay,
         List<Key> allowedRecipes,
         Map<String, String> properties,
-        StationVisualDefinition visualDefinition
+        StationVisualDefinition visualDefinition,
+        RotationMode rotationMode
 ) implements Keyed {
 
     public static final Key DEFAULT_MENU_KEY = Key.of("croppy", "default_station");
@@ -48,6 +51,26 @@ public record StationDefinition(
         menuKey = (menuKey == null) ? DEFAULT_MENU_KEY : menuKey;
         allowedRecipes = (allowedRecipes == null) ? List.of() : List.copyOf(allowedRecipes);
         properties = (properties == null) ? Map.of() : Map.copyOf(properties);
+        rotationMode = (rotationMode == null) ? RotationMode.CARDINAL_4 : rotationMode;
+    }
+
+    /**
+     * Backward-compatible constructor defaulting {@code rotationMode} to {@link RotationMode#CARDINAL_4}.
+     */
+    public StationDefinition(
+            Key key,
+            String displayName,
+            String baseBlockMaterial,
+            StationInteractionType interactionType,
+            int inputCapacity,
+            int outputCapacity,
+            Key menuKey,
+            boolean hasDisplay,
+            List<Key> allowedRecipes,
+            Map<String, String> properties,
+            StationVisualDefinition visualDefinition
+    ) {
+        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, menuKey, hasDisplay, allowedRecipes, properties, visualDefinition, RotationMode.CARDINAL_4);
     }
 
     /**

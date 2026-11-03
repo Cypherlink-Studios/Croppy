@@ -12,6 +12,7 @@ import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.storage.StationStorage;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.core.species.RotationCalculator;
 import dev.darkblade.croppy.core.station.DefaultStationInstance;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.component.DefaultDisplayComponent;
@@ -23,12 +24,14 @@ import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.Skull;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.List;
 import java.util.Objects;
@@ -80,11 +83,27 @@ public final class StationBlockListener implements Listener {
         Block block = event.getBlockPlaced();
         BlockPosition pos = new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
 
-        DefaultStationInstance station = new DefaultStationInstance(def.key(), pos, def);
+        float playerYaw = event.getPlayer().getLocation().getYaw();
+        float effectiveYaw = RotationCalculator.calculate(playerYaw + 180.0f, def.rotationMode());
+
+        DefaultStationInstance station = new DefaultStationInstance(def.key(), pos, def, effectiveYaw);
         station.setComponent(StorageComponent.class, new DefaultStorageComponent(def.inputCapacity(), def.outputCapacity()));
         station.setComponent(ProcessComponent.class, new DefaultProcessComponent());
         if (def.hasDisplay()) {
             station.setComponent(DisplayComponent.class, new DefaultDisplayComponent());
+        }
+
+        // Apply custom head texture to in-world skull block if applicable
+        if (block.getState() instanceof Skull skull) {
+            itemFactory.getItemRegistry().get(def.key()).ifPresent(itemDef -> {
+                itemDef.getSkullTexture().ifPresent(rawTex -> {
+                    com.destroystokyo.paper.profile.PlayerProfile profile = itemFactory.createProfileFromTexture(rawTex);
+                    if (profile != null) {
+                        skull.setPlayerProfile(profile);
+                        skull.update(true, false);
+                    }
+                });
+            });
         }
 
         boolean hasThermal = Boolean.parseBoolean(def.properties().getOrDefault("thermal", "false"))
@@ -167,19 +186,7 @@ public final class StationBlockListener implements Listener {
     }
 
     public ItemStack createBukkitItem(StoredItem stored) {
-        Optional<dev.darkblade.croppy.api.item.ItemDefinition> defOpt = itemFactory.getItemRegistry().get(stored.itemKey());
-        if (defOpt.isPresent()) {
-            return itemFactory.createItemStack(defOpt.get(), stored.amount());
-        }
-        return itemFactory.createItemStack(new dev.darkblade.croppy.api.item.ItemDefinition(
-                stored.itemKey(),
-                "misc",
-                stored.itemKey().asString(),
-                0,
-                "<gray>" + stored.itemKey().value() + "</gray>",
-                List.of(),
-                java.util.Map.of()
-        ), stored.amount());
+        return itemFactory.createBukkitItem(stored);
     }
 
     private double parseDoubleOrDefault(String val, double def) {

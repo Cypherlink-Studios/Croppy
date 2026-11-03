@@ -82,4 +82,11 @@ class PacketStationDisplayTest {
         display.clearAllViewers();
         assertTrue(display.getAllViewers().isEmpty());
     }
+
+    @Test
+    void testStationYawRetained() {
+        station.setYaw(90.0f);
+        PacketStationDisplay display = new PacketStationDisplay(station);
+        assertEquals(90.0f, display.getStation().getYaw(), 0.001f);
+    }
 }

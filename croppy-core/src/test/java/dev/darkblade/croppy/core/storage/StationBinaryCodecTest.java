@@ -177,6 +177,75 @@ class StationBinaryCodecTest {
     }
 
     @Test
+    void testSerializationRoundtripWithYaw() {
+        Key stationKey = Key.of("croppy", "keg");
+        StationDefinition def = new StationDefinition(
+                stationKey,
+                "Keg",
+                "minecraft:barrel",
+                StationInteractionType.HYBRID,
+                2,
+                1,
+                true,
+                List.of(),
+                Map.of()
+        );
+
+        BlockPosition pos = new BlockPosition("world", 100, 65, 200);
+        DefaultStationInstance station = new DefaultStationInstance(stationKey, pos, def, 270.0f);
+
+        byte[] bytes = StationBinaryCodec.serialize(List.of(station));
+        assertNotNull(bytes);
+
+        List<StationInstance> deserialized = StationBinaryCodec.deserialize(bytes, k -> Optional.of(def));
+        assertEquals(1, deserialized.size());
+
+        StationInstance restored = deserialized.get(0);
+        assertEquals(270.0f, restored.getYaw(), 0.001f);
+    }
+
+    @Test
+    void testLegacyV3BackwardCompatibility() throws Exception {
+        Key stationKey = Key.of("croppy", "keg");
+        StationDefinition def = new StationDefinition(
+                stationKey,
+                "Keg",
+                "minecraft:barrel",
+                StationInteractionType.HYBRID,
+                2,
+                1,
+                true,
+                List.of(),
+                Map.of()
+        );
+
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        try (java.io.DataOutputStream out = new java.io.DataOutputStream(baos)) {
+            out.writeInt(0x53544154); // MAGIC
+            out.writeInt(3); // V3
+            out.writeInt(1); // count
+
+            out.writeUTF("croppy:keg");
+            out.writeUTF("world");
+            out.writeInt(10);
+            out.writeInt(64);
+            out.writeInt(20);
+            // Notice: No yaw written in V3
+
+            out.writeBoolean(false); // Storage
+            out.writeBoolean(false); // Process
+            out.writeBoolean(false); // Display
+            out.writeBoolean(false); // Thermal (V2+)
+            out.writeBoolean(false); // HeatSource (V3+)
+        }
+
+        byte[] v3Bytes = baos.toByteArray();
+        List<StationInstance> deserialized = StationBinaryCodec.deserialize(v3Bytes, k -> Optional.of(def));
+        assertEquals(1, deserialized.size());
+        assertEquals(0.0f, deserialized.get(0).getYaw(), 0.001f);
+    }
+
+    @Test
     void testEmptyCollectionHandling() {
         byte[] empty = StationBinaryCodec.serialize(List.of());
         assertEquals(0, empty.length);

@@ -21,11 +21,17 @@ public final class DefaultStationInstance implements StationInstance {
     private final BlockPosition position;
     private final StationDefinition definition;
     private final Map<Class<? extends StationComponent>, StationComponent> components = new ConcurrentHashMap<>();
+    private volatile float yaw;
 
-    public DefaultStationInstance(Key stationKey, BlockPosition position, StationDefinition definition) {
+    public DefaultStationInstance(Key stationKey, BlockPosition position, StationDefinition definition, float yaw) {
         this.stationKey = Objects.requireNonNull(stationKey, "stationKey cannot be null");
         this.position = Objects.requireNonNull(position, "position cannot be null");
         this.definition = Objects.requireNonNull(definition, "definition cannot be null");
+        this.yaw = yaw;
+    }
+
+    public DefaultStationInstance(Key stationKey, BlockPosition position, StationDefinition definition) {
+        this(stationKey, position, definition, 0.0f);
     }
 
     @Override
@@ -63,5 +69,15 @@ public final class DefaultStationInstance implements StationInstance {
     @Override
     public Map<Class<? extends StationComponent>, StationComponent> getComponents() {
         return Collections.unmodifiableMap(components);
+    }
+
+    @Override
+    public float getYaw() {
+        return yaw;
+    }
+
+    @Override
+    public void setYaw(float yaw) {
+        this.yaw = yaw;
     }
 }

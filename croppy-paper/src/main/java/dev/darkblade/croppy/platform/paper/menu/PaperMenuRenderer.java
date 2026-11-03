@@ -225,18 +225,7 @@ public class PaperMenuRenderer {
      * @return constructed Bukkit ItemStack
      */
     public ItemStack createBukkitItem(StoredItem stored) {
-        Objects.requireNonNull(stored, "stored cannot be null");
-        return itemFactory.getItemRegistry().get(stored.itemKey())
-                .map(def -> itemFactory.createItemStack(def, stored.amount()))
-                .orElseGet(() -> itemFactory.createItemStack(new ItemDefinition(
-                        stored.itemKey(),
-                        "misc",
-                        stored.itemKey().asString(),
-                        0,
-                        "<gray>" + stored.itemKey().value() + "</gray>",
-                        List.of(),
-                        Map.of()
-                ), stored.amount()));
+        return itemFactory.createBukkitItem(stored);
     }
 
     /**

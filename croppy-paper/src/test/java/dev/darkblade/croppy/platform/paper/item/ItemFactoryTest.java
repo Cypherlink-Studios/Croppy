@@ -1,10 +1,15 @@
 package dev.darkblade.croppy.platform.paper.item;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.core.item.DefaultItemRegistry;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Server;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.junit.jupiter.api.BeforeEach;
@@ -139,6 +144,141 @@ class ItemFactoryTest {
         assertEquals(-1, cmdSet.get(), "Custom model data should NOT be set when 0");
         assertNotNull(itemModelSet.get(), "Item model should be set");
         assertEquals(new NamespacedKey("croppy", "modern_crop"), itemModelSet.get());
+    }
+
+    @Test
+    @DisplayName("createBukkitItem cleanly routes vanilla items without altering metadata")
+    void testCreateBukkitItemVanillaUntouched() {
+        AtomicReference<Material> vanillaMaterialCreated = new AtomicReference<>();
+        AtomicInteger vanillaAmountCreated = new AtomicInteger();
+        AtomicReference<ItemDefinition> customDefCreated = new AtomicReference<>();
+
+        ItemFactory testFactory = new ItemFactory(null, null, registry) {
+            @Override
+            public ItemStack createItemStack(ItemDefinition definition, int amount) {
+                customDefCreated.set(definition);
+                return null;
+            }
+
+            @Override
+            public ItemStack createRawVanillaItemStack(Material material, int amount) {
+                vanillaMaterialCreated.set(material);
+                vanillaAmountCreated.set(amount);
+                return null;
+            }
+        };
+
+        dev.darkblade.croppy.api.station.StoredItem stored = dev.darkblade.croppy.api.station.StoredItem.of(Key.of("minecraft", "apple"), 5);
+        testFactory.createBukkitItem(stored);
+
+        // Vanilla item must route straight to createRawVanillaItemStack with Material.APPLE and amount 5
+        assertEquals(Material.APPLE, vanillaMaterialCreated.get());
+        assertEquals(5, vanillaAmountCreated.get());
+        assertNull(customDefCreated.get(), "Vanilla item must never be wrapped in a synthetic ItemDefinition");
+    }
+
+    @Test
+    @DisplayName("createBukkitItem resolves custom registered item with definition")
+    void testCreateBukkitItemCustomRegistered() {
+        ItemDefinition customDef = new ItemDefinition(
+                Key.of("croppy", "grape_wine"),
+                "artisan",
+                "minecraft:potion",
+                501,
+                "<purple>Grape Wine</purple>",
+                List.of("<gray>Fine vintage</gray>"),
+                Map.of("quality", "gold")
+        );
+        registry.register(customDef);
+
+        AtomicReference<ItemDefinition> customDefCreated = new AtomicReference<>();
+        AtomicInteger customAmountCreated = new AtomicInteger();
+        AtomicReference<Material> vanillaMaterialCreated = new AtomicReference<>();
+
+        ItemFactory testFactory = new ItemFactory(null, null, registry) {
+            @Override
+            public ItemStack createItemStack(ItemDefinition definition, int amount) {
+                customDefCreated.set(definition);
+                customAmountCreated.set(amount);
+                return null;
+            }
+
+            @Override
+            public ItemStack createRawVanillaItemStack(Material material, int amount) {
+                vanillaMaterialCreated.set(material);
+                return null;
+            }
+        };
+
+        dev.darkblade.croppy.api.station.StoredItem stored = dev.darkblade.croppy.api.station.StoredItem.of(Key.of("croppy", "grape_wine"), 2);
+        testFactory.createBukkitItem(stored);
+
+        assertEquals(customDef, customDefCreated.get());
+        assertEquals(2, customAmountCreated.get());
+        assertNull(vanillaMaterialCreated.get());
+    }
+
+    @Test
+    @DisplayName("resolveBase64Texture handles raw base64, Mojang URLs, and hash formats")
+    void testResolveBase64TextureFormats() {
+        String base64 = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTIzIn19fQ==";
+        assertEquals(base64, itemFactory.resolveBase64Texture(base64));
+
+        String url = "http://textures.minecraft.net/texture/abcdef123456";
+        String encodedUrl = itemFactory.resolveBase64Texture(url);
+        assertNotNull(encodedUrl);
+        String decodedUrl = new String(Base64.getDecoder().decode(encodedUrl), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(decodedUrl.contains("http://textures.minecraft.net/texture/abcdef123456"));
+
+        String hash = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        String encodedHash = itemFactory.resolveBase64Texture(hash);
+        assertNotNull(encodedHash);
+        String decodedHash = new String(Base64.getDecoder().decode(encodedHash), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(decodedHash.contains("http://textures.minecraft.net/texture/" + hash));
+    }
+
+    @Test
+    @DisplayName("createProfileFromTexture generates deterministic UUID and textures property via server")
+    void testCreateProfileFromTexture() {
+        AtomicReference<UUID> profileUuid = new AtomicReference<>();
+        List<ProfileProperty> capturedProps = new ArrayList<>();
+
+        Server mockServer = (Server) Proxy.newProxyInstance(
+                Server.class.getClassLoader(),
+                new Class<?>[]{Server.class},
+                (proxy, method, args) -> {
+                    if ("createProfile".equals(method.getName())) {
+                        UUID uuid = (UUID) args[0];
+                        profileUuid.set(uuid);
+                        return Proxy.newProxyInstance(
+                                PlayerProfile.class.getClassLoader(),
+                                new Class<?>[]{PlayerProfile.class},
+                                (pProxy, pMethod, pArgs) -> {
+                                    if ("getId".equals(pMethod.getName())) return uuid;
+                                    if ("setProperty".equals(pMethod.getName())) {
+                                        capturedProps.add((ProfileProperty) pArgs[0]);
+                                        return null;
+                                    }
+                                    if ("getProperties".equals(pMethod.getName())) return Set.copyOf(capturedProps);
+                                    return null;
+                                }
+                        );
+                    }
+                    return null;
+                }
+        );
+
+        ItemFactory testFactory = new ItemFactory(null, mockServer, registry);
+        String base64 = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOTk5In19fQ==";
+        PlayerProfile profile = testFactory.createProfileFromTexture(base64);
+
+        assertNotNull(profile);
+        UUID expectedUuid = UUID.nameUUIDFromBytes(base64.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals(expectedUuid, profileUuid.get());
+
+        boolean hasTextureProp = capturedProps.stream()
+                .anyMatch(p -> "textures".equals(p.getName()) && base64.equals(p.getValue()));
+        assertTrue(hasTextureProp, "PlayerProfile must contain 'textures' property with base64 payload");
     }
 
     private ItemMeta createMockItemMeta(
