@@ -84,4 +84,36 @@ class YamlInteractionLoaderTest {
         ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
         assertThrows(IllegalArgumentException.class, () -> loader.load(in, "invalid.yml"));
     }
+
+    @Test
+    @DisplayName("Parses multiple interaction definitions from a YAML list")
+    void testMultipleInteractionDefinitions() {
+        String yaml = """
+                - id: "croppy:skillet_extract"
+                  station: "croppy:skillet"
+                  trigger: "SNEAK_RIGHT_CLICK"
+                  priority: 80
+                  conditions:
+                    - "storage.has_inputs == true"
+                  actions:
+                    - type: "EXTRACT_INPUTS"
+                - id: "croppy:skillet_gui"
+                  station: "croppy:skillet"
+                  trigger: "SNEAK_RIGHT_CLICK"
+                  priority: 70
+                  conditions:
+                    - "storage.is_empty == true"
+                  actions:
+                    - type: "OPEN_GUI"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        var defs = loader.loadMultiple(in, "skillet_interactions.yml");
+
+        assertEquals(2, defs.size());
+        assertEquals("croppy:skillet_extract", defs.get(0).key().asString());
+        assertEquals("EXTRACT_INPUTS", defs.get(0).actions().get(0).type());
+        assertEquals("croppy:skillet_gui", defs.get(1).key().asString());
+        assertEquals("OPEN_GUI", defs.get(1).actions().get(0).type());
+    }
 }

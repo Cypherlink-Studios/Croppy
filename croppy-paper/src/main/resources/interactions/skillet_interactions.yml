@@ -1,10 +1,35 @@
-id: "croppy:skillet_serve"
-station: "croppy:skillet"
-trigger: "RIGHT_CLICK"
-match_material: "minecraft:bowl"
-conditions:
-  - "process.finished == true"
-priority: 50
-actions:
-  - type: "SERVE_OUTPUT"
-    consume_hand_item: true
+# Serve completed food from skillet into a bowl
+- id: "croppy:skillet_serve"
+  station: "croppy:skillet"
+  trigger: "RIGHT_CLICK"
+  match_material: "minecraft:bowl"
+  conditions:
+    - "process.finished == true"
+  priority: 50
+  actions:
+    - type: "SERVE_OUTPUT"
+      consume_hand_item: true
+
+# Sneak right-click with empty hand extracts raw inputs if present
+- id: "croppy:skillet_extract"
+  station: "croppy:skillet"
+  trigger: "SNEAK_RIGHT_CLICK"
+  empty_hand: true
+  conditions:
+    - "storage.has_inputs == true"
+  priority: 80
+  actions:
+    - type: "EXTRACT_INPUTS"
+    - type: "PLAY_SOUND"
+      sound: "minecraft:entity.item.pickup"
+
+# Sneak right-click with empty hand opens GUI when skillet is empty or awaiting setup
+- id: "croppy:skillet_gui"
+  station: "croppy:skillet"
+  trigger: "SNEAK_RIGHT_CLICK"
+  empty_hand: true
+  conditions:
+    - "storage.is_empty == true"
+  priority: 70
+  actions:
+    - type: "OPEN_GUI"

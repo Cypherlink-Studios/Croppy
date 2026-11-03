@@ -46,6 +46,13 @@ public interface StorageComponent extends StationComponent {
     boolean addOutput(StoredItem item);
 
     /**
+     * Extracts and clears all input items.
+     *
+     * @return extracted input items
+     */
+    List<StoredItem> extractInputs();
+
+    /**
      * Extracts and clears all output items.
      *
      * @return extracted items

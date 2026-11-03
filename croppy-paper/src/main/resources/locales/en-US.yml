@@ -75,6 +75,7 @@ fertilizer:
 station:
   temperature: "<gradient:#ffaa00:{color}>Temperature:</gradient> <white><temperature>°C</white> <gray>[<zone>]</gray>"
   empty: "<gray>Empty</gray>"
+  output-ready: "<green>Output Ready</green>"
   empty-feedback: "<name> <dark_gray>•</dark_gray> <status> <dark_gray>•</dark_gray> <gradient:#ffaa00:{color}><temperature>°C</gradient>"
   empty-feedback-no-thermal: "<name> <dark_gray>•</dark_gray> <status>"
 

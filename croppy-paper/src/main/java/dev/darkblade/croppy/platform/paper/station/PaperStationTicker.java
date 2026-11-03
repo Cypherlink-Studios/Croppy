@@ -173,6 +173,12 @@ public final class PaperStationTicker implements Runnable {
         boolean processFinished = process != null && process.getState() == ProcessState.COMPLETED;
         long idleTicks = processFinished ? process.getPhaseElapsedTicks() : 0L;
 
+        Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+        boolean hasInputs = storageOpt.isPresent() && !storageOpt.get().getInputs().isEmpty();
+        boolean hasOutputs = storageOpt.isPresent() && !storageOpt.get().getOutputs().isEmpty();
+        int inputCount = storageOpt.map(s -> s.getInputs().stream().mapToInt(StoredItem::amount).sum()).orElse(0);
+        boolean isEmpty = !hasInputs && !hasOutputs;
+
         EvaluationContext context = EvaluationContext.empty()
                 .with("world.name", world.getName())
                 .with("world.time", world.getTime())
@@ -182,7 +188,11 @@ public final class PaperStationTicker implements Runnable {
                 .with("station.thermal_zone", thermalZone)
                 .with("process.state", process != null ? process.getState().name() : "NONE")
                 .with("process.finished", processFinished)
-                .with("process.idle_ticks", idleTicks);
+                .with("process.idle_ticks", idleTicks)
+                .with("storage.has_inputs", hasInputs)
+                .with("storage.has_outputs", hasOutputs)
+                .with("storage.is_empty", isEmpty)
+                .with("storage.input_count", inputCount);
 
         // 2. Process Engine Tick
         if (process != null && (process.getState() == ProcessState.RUNNING || process.getState() == ProcessState.AWAITING_INPUT)) {

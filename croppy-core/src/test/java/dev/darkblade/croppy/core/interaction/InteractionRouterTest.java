@@ -156,4 +156,69 @@ class InteractionRouterTest {
         assertTrue(match.isPresent());
         assertEquals("croppy:pot_serve", match.get().key().asString());
     }
+
+    @Test
+    @DisplayName("Routes sneak right click based on storage state conditions")
+    void testStorageConditionRouting() {
+        InteractionDefinition extractDef = new InteractionDefinition(
+                Key.of("croppy", "skillet_extract"),
+                Optional.of(potStation.getStationKey()),
+                InteractionTrigger.SNEAK_RIGHT_CLICK,
+                Optional.empty(),
+                Optional.empty(),
+                true,
+                List.of("storage.has_inputs == true"),
+                List.of(InteractionAction.of("EXTRACT_INPUTS")),
+                80
+        );
+
+        InteractionDefinition guiDef = new InteractionDefinition(
+                Key.of("croppy", "skillet_gui"),
+                Optional.of(potStation.getStationKey()),
+                InteractionTrigger.SNEAK_RIGHT_CLICK,
+                Optional.empty(),
+                Optional.empty(),
+                true,
+                List.of("storage.is_empty == true"),
+                List.of(InteractionAction.of("OPEN_GUI")),
+                70
+        );
+
+        registry.register(extractDef);
+        registry.register(guiDef);
+
+        // When storage has inputs -> matches extractDef
+        EvaluationContext hasInputsCtx = EvaluationContext.empty()
+                .with("storage.has_inputs", true)
+                .with("storage.is_empty", false);
+
+        Optional<InteractionDefinition> matchExtract = router.match(
+                potStation,
+                InteractionTrigger.SNEAK_RIGHT_CLICK,
+                null,
+                null,
+                true,
+                hasInputsCtx
+        );
+        assertTrue(matchExtract.isPresent());
+        assertEquals("croppy:skillet_extract", matchExtract.get().key().asString());
+        assertEquals("EXTRACT_INPUTS", matchExtract.get().actions().get(0).type());
+
+        // When storage is empty -> matches guiDef
+        EvaluationContext emptyCtx = EvaluationContext.empty()
+                .with("storage.has_inputs", false)
+                .with("storage.is_empty", true);
+
+        Optional<InteractionDefinition> matchGui = router.match(
+                potStation,
+                InteractionTrigger.SNEAK_RIGHT_CLICK,
+                null,
+                null,
+                true,
+                emptyCtx
+        );
+        assertTrue(matchGui.isPresent());
+        assertEquals("croppy:skillet_gui", matchGui.get().key().asString());
+        assertEquals("OPEN_GUI", matchGui.get().actions().get(0).type());
+    }
 }

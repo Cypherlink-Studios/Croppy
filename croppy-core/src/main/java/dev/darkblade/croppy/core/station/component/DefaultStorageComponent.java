@@ -14,6 +14,8 @@ import java.util.Objects;
  */
 public final class DefaultStorageComponent implements StorageComponent {
 
+    private static final int MAX_STACK_SIZE = 64;
+
     private final int inputCapacity;
     private final int outputCapacity;
     private final List<StoredItem> inputs = new ArrayList<>();
@@ -37,6 +39,27 @@ public final class DefaultStorageComponent implements StorageComponent {
     @Override
     public synchronized boolean addInput(StoredItem item) {
         Objects.requireNonNull(item, "item cannot be null");
+        if (item.amount() <= 0) {
+            return false;
+        }
+
+        // 1. Try merging into existing matching stack
+        for (int i = 0; i < inputs.size(); i++) {
+            StoredItem existing = inputs.get(i);
+            if (existing.itemKey().equals(item.itemKey()) && existing.quality() == item.quality()) {
+                int space = MAX_STACK_SIZE - existing.amount();
+                if (space >= item.amount()) {
+                    inputs.set(i, existing.withAmount(existing.amount() + item.amount()));
+                    return true;
+                } else if (space > 0 && inputs.size() < inputCapacity) {
+                    inputs.set(i, existing.withAmount(MAX_STACK_SIZE));
+                    inputs.add(item.withAmount(item.amount() - space));
+                    return true;
+                }
+            }
+        }
+
+        // 2. Add as a new slot if capacity allows
         if (inputs.size() >= inputCapacity) {
             return false;
         }
@@ -47,29 +70,71 @@ public final class DefaultStorageComponent implements StorageComponent {
     @Override
     public synchronized boolean removeInput(Key itemKey, int amount) {
         Objects.requireNonNull(itemKey, "itemKey cannot be null");
-        for (int i = 0; i < inputs.size(); i++) {
+        if (amount <= 0) {
+            return true;
+        }
+
+        int totalAvailable = 0;
+        for (StoredItem stored : inputs) {
+            if (stored.itemKey().equals(itemKey)) {
+                totalAvailable += stored.amount();
+            }
+        }
+        if (totalAvailable < amount) {
+            return false;
+        }
+
+        int remaining = amount;
+        for (int i = 0; i < inputs.size() && remaining > 0; i++) {
             StoredItem stored = inputs.get(i);
             if (stored.itemKey().equals(itemKey)) {
-                if (stored.amount() > amount) {
-                    inputs.set(i, stored.withAmount(stored.amount() - amount));
-                    return true;
-                } else if (stored.amount() == amount) {
+                if (stored.amount() <= remaining) {
+                    remaining -= stored.amount();
                     inputs.remove(i);
-                    return true;
+                    i--;
+                } else {
+                    inputs.set(i, stored.withAmount(stored.amount() - remaining));
+                    remaining = 0;
                 }
             }
         }
-        return false;
+        return true;
     }
 
     @Override
     public synchronized boolean addOutput(StoredItem item) {
         Objects.requireNonNull(item, "item cannot be null");
+        if (item.amount() <= 0) {
+            return false;
+        }
+
+        for (int i = 0; i < outputs.size(); i++) {
+            StoredItem existing = outputs.get(i);
+            if (existing.itemKey().equals(item.itemKey()) && existing.quality() == item.quality()) {
+                int space = MAX_STACK_SIZE - existing.amount();
+                if (space >= item.amount()) {
+                    outputs.set(i, existing.withAmount(existing.amount() + item.amount()));
+                    return true;
+                } else if (space > 0 && outputs.size() < outputCapacity) {
+                    outputs.set(i, existing.withAmount(MAX_STACK_SIZE));
+                    outputs.add(item.withAmount(item.amount() - space));
+                    return true;
+                }
+            }
+        }
+
         if (outputs.size() >= outputCapacity) {
             return false;
         }
         outputs.add(item);
         return true;
+    }
+
+    @Override
+    public synchronized List<StoredItem> extractInputs() {
+        List<StoredItem> extracted = new ArrayList<>(inputs);
+        inputs.clear();
+        return Collections.unmodifiableList(extracted);
     }
 
     @Override

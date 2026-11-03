@@ -51,8 +51,38 @@ public final class YamlInteractionLoader {
         if (!(loaded instanceof Map<?, ?> rawMap)) {
             throw new IllegalArgumentException("YAML content in " + sourceName + " must be a key-value mapping");
         }
+        return parseDefinition((Map<String, Object>) rawMap, sourceName);
+    }
 
-        Map<String, Object> root = (Map<String, Object>) rawMap;
+    /**
+     * Parses one or more interaction definitions from an input stream.
+     * Supports both a single mapping and a list of mappings.
+     *
+     * @param in         the input stream
+     * @param sourceName name of source file or resource for diagnostic logging
+     * @return list of parsed interaction definitions
+     */
+    @SuppressWarnings("unchecked")
+    public List<InteractionDefinition> loadMultiple(InputStream in, String sourceName) {
+        Objects.requireNonNull(in, "in cannot be null");
+        Object loaded = yaml.load(in);
+        if (loaded instanceof List<?> rawList) {
+            List<InteractionDefinition> result = new ArrayList<>();
+            for (Object obj : rawList) {
+                if (obj instanceof Map<?, ?> itemMap) {
+                    result.add(parseDefinition((Map<String, Object>) itemMap, sourceName));
+                }
+            }
+            return result;
+        } else if (loaded instanceof Map<?, ?> rawMap) {
+            return List.of(parseDefinition((Map<String, Object>) rawMap, sourceName));
+        } else {
+            throw new IllegalArgumentException("YAML content in " + sourceName + " must be a mapping or list of mappings");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private InteractionDefinition parseDefinition(Map<String, Object> root, String sourceName) {
 
         // 1. ID / Key
         Object rawId = root.get("id");
@@ -196,10 +226,12 @@ public final class YamlInteractionLoader {
                     .toList();
 
             for (Path file : files) {
-                try {
-                    InteractionDefinition def = load(file);
-                    registry.register(def);
-                    loadedCount++;
+                try (InputStream in = Files.newInputStream(file)) {
+                    List<InteractionDefinition> defs = loadMultiple(in, file.getFileName().toString());
+                    for (InteractionDefinition def : defs) {
+                        registry.register(def);
+                        loadedCount++;
+                    }
                 } catch (Exception ex) {
                     if (logger != null) {
                         logger.log(Level.SEVERE, "Failed to load interaction definition from " + file, ex);

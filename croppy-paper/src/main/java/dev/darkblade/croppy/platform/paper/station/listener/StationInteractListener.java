@@ -13,6 +13,7 @@ import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StationInteractionType;
 import dev.darkblade.croppy.api.station.StoredItem;
+import dev.darkblade.croppy.api.station.component.DisplayComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
@@ -28,6 +29,7 @@ import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.menu.PaperMenuService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -135,6 +137,12 @@ public final class StationInteractListener implements Listener {
                 && processOpt.get().hasActiveProcess()
                 && processOpt.get().getActiveProcess().get().getState() == ProcessState.COMPLETED;
 
+        Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+        boolean hasInputs = storageOpt.isPresent() && !storageOpt.get().getInputs().isEmpty();
+        boolean hasOutputs = storageOpt.isPresent() && !storageOpt.get().getOutputs().isEmpty();
+        int inputCount = storageOpt.map(s -> s.getInputs().stream().mapToInt(StoredItem::amount).sum()).orElse(0);
+        boolean isEmpty = !hasInputs && !hasOutputs;
+
         EvaluationContext evalCtx = EvaluationContext.empty()
                 .with("player", player)
                 .with("player.is_sneaking", player.isSneaking())
@@ -143,7 +151,11 @@ public final class StationInteractListener implements Listener {
                 .with("station.thermal_zone", thermalZone)
                 .with("process.finished", processFinished)
                 .with("hand.is_empty", emptyHand)
-                .with("hand.item", handItemKey != null ? handItemKey.asString() : "");
+                .with("hand.item", handItemKey != null ? handItemKey.asString() : "")
+                .with("storage.has_inputs", hasInputs)
+                .with("storage.has_outputs", hasOutputs)
+                .with("storage.is_empty", isEmpty)
+                .with("storage.input_count", inputCount);
 
         // 1. Evaluate RuleEngine triggers for STATION_INTERACT
         List<RuleExecution> ruleExecutions = ruleEngine.evaluateAndApply(RuleTrigger.STATION_INTERACT, station, evalCtx);
@@ -188,6 +200,7 @@ public final class StationInteractListener implements Listener {
                 case "SHOW_TEMPERATURE" -> handleShowTemperature(player, station, handItem);
                 case "INSERT_INPUT" -> handleInsertInput(player, station, handItem, context);
                 case "SERVE_OUTPUT", "EXTRACT_OUTPUTS" -> handleServeOutput(player, station, handItem, action);
+                case "EXTRACT_INPUTS" -> handleExtractInputs(player, station, action);
                 case "ADVANCE_PROGRESS" -> handleAdvanceProgress(station, action);
                 case "PLAY_SOUND" -> playConfiguredSound(player, action);
                 case "EMIT_PARTICLES" -> emitConfiguredParticles(player, station, action);
@@ -286,6 +299,12 @@ public final class StationInteractListener implements Listener {
         if (added) {
             handItem.subtract(1);
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_FRAME_ADD_ITEM, 1.0f, 1.0f);
+
+            station.getComponent(DisplayComponent.class).ifPresent(display -> {
+                display.setDisplayedItem(itemKey);
+                display.setDirty(true);
+            });
+
             processEngine.tryStartProcess(station, context);
         }
     }
@@ -309,6 +328,36 @@ public final class StationInteractListener implements Listener {
         for (StoredItem out : outputs) {
             player.getInventory().addItem(createBukkitItem(out));
         }
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+    }
+
+    private void handleExtractInputs(Player player, StationInstance station, InteractionAction action) {
+        Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+        if (storageOpt.isEmpty()) {
+            return;
+        }
+
+        List<StoredItem> inputs = storageOpt.get().extractInputs();
+        if (inputs.isEmpty()) {
+            return;
+        }
+
+        BlockPosition pos = station.getPosition();
+        Location dropLoc = new Location(player.getWorld(), pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+
+        for (StoredItem in : inputs) {
+            ItemStack item = createBukkitItem(in);
+            var leftovers = player.getInventory().addItem(item);
+            for (ItemStack leftover : leftovers.values()) {
+                player.getWorld().dropItemNaturally(dropLoc, leftover);
+            }
+        }
+
+        station.getComponent(DisplayComponent.class).ifPresent(display -> {
+            display.setDisplayedItem(null);
+            display.setDirty(true);
+        });
+
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
     }
 
@@ -418,6 +467,7 @@ public final class StationInteractListener implements Listener {
             return;
         }
         StorageComponent storage = storageOpt.get();
+        ItemStack handItem = player.getInventory().getItemInMainHand();
 
         // 1. Extract outputs
         List<StoredItem> outputs = storage.extractOutputs();
@@ -429,12 +479,33 @@ public final class StationInteractListener implements Listener {
             return;
         }
 
+        // 1b. Sneak extraction of inputs if hand is empty
+        if (player.isSneaking() && (handItem == null || handItem.getType().isAir())) {
+            List<StoredItem> inputs = storage.extractInputs();
+            if (!inputs.isEmpty()) {
+                BlockPosition pos = station.getPosition();
+                Location dropLoc = new Location(player.getWorld(), pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+                for (StoredItem in : inputs) {
+                    ItemStack item = createBukkitItem(in);
+                    var leftovers = player.getInventory().addItem(item);
+                    for (ItemStack leftover : leftovers.values()) {
+                        player.getWorld().dropItemNaturally(dropLoc, leftover);
+                    }
+                }
+                station.getComponent(DisplayComponent.class).ifPresent(display -> {
+                    display.setDisplayedItem(null);
+                    display.setDirty(true);
+                });
+                player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+                return;
+            }
+        }
+
         // 2. Manual interaction if awaiting
         Optional<ProcessComponent> processOpt = station.getComponent(ProcessComponent.class);
         if (processOpt.isPresent() && processOpt.get().hasActiveProcess()) {
             ProcessInstance pi = processOpt.get().getActiveProcess().get();
             if (pi.getState() == ProcessState.AWAITING_INPUT) {
-                ItemStack handItem = player.getInventory().getItemInMainHand();
                 Key itemKey = resolveItemKey(handItem);
                 int amount = (handItem != null) ? handItem.getAmount() : 0;
                 boolean advanced = processEngine.handleManualInteraction(station, itemKey, amount);
@@ -447,13 +518,18 @@ public final class StationInteractListener implements Listener {
         }
 
         // 3. Insert input
-        ItemStack handItem = player.getInventory().getItemInMainHand();
         if (handItem != null && !handItem.getType().isAir()) {
             Key itemKey = resolveItemKey(handItem);
             boolean added = storage.addInput(StoredItem.of(itemKey, 1));
             if (added) {
                 handItem.subtract(1);
                 player.playSound(player.getLocation(), Sound.ENTITY_ITEM_FRAME_ADD_ITEM, 1.0f, 1.0f);
+
+                station.getComponent(DisplayComponent.class).ifPresent(display -> {
+                    display.setDisplayedItem(itemKey);
+                    display.setDirty(true);
+                });
+
                 EvaluationContext context = EvaluationContext.empty().with("player", player);
                 processEngine.tryStartProcess(station, context);
             }
@@ -480,10 +556,26 @@ public final class StationInteractListener implements Listener {
         };
 
         Optional<ProcessComponent> processOpt = station.getComponent(ProcessComponent.class);
+        Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+
         String statusText;
         if (processOpt.isPresent() && processOpt.get().hasActiveProcess()) {
             ProcessInstance pi = processOpt.get().getActiveProcess().get();
             statusText = "<yellow>" + pi.getState().name() + "</yellow>";
+        } else if (storageOpt.isPresent() && !storageOpt.get().getOutputs().isEmpty()) {
+            statusText = (messageService != null)
+                    ? miniMessage.serialize(messageService.render(player, MessageKey.of("station.output-ready")))
+                    : "<green>Output Ready</green>";
+        } else if (storageOpt.isPresent() && !storageOpt.get().getInputs().isEmpty()) {
+            List<StoredItem> inputs = storageOpt.get().getInputs();
+            if (inputs.size() == 1) {
+                StoredItem single = inputs.get(0);
+                String itemName = formatItemDisplayName(single.itemKey());
+                statusText = "<white>" + single.amount() + "x " + itemName + "</white>";
+            } else {
+                int totalCount = inputs.stream().mapToInt(StoredItem::amount).sum();
+                statusText = "<white>" + totalCount + " Items</white>";
+            }
         } else {
             statusText = (messageService != null)
                     ? miniMessage.serialize(messageService.render(player, MessageKey.of("station.empty")))
@@ -522,7 +614,32 @@ public final class StationInteractListener implements Listener {
             }
             player.sendActionBar(miniMessage.deserialize(msg));
         }
-        player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 0.5f, 1.3f);
+
+        boolean trulyEmpty = storageOpt.isEmpty() || (storageOpt.get().getInputs().isEmpty() && storageOpt.get().getOutputs().isEmpty());
+        if (trulyEmpty && (processOpt.isEmpty() || !processOpt.get().hasActiveProcess())) {
+            player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 0.5f, 1.3f);
+        } else {
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.5f);
+        }
+    }
+
+    private String formatItemDisplayName(Key key) {
+        if (key == null) return "Unknown";
+        Optional<dev.darkblade.croppy.api.item.ItemDefinition> defOpt = itemFactory.getItemRegistry().get(key);
+        if (defOpt.isPresent()) {
+            return miniMessage.serialize(miniMessage.deserialize(defOpt.get().displayName()));
+        }
+        String val = key.value().replace('_', ' ');
+        String[] words = val.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            if (!words[i].isEmpty()) {
+                sb.append(Character.toUpperCase(words[i].charAt(0)))
+                        .append(words[i].substring(1).toLowerCase(Locale.ROOT));
+                if (i < words.length - 1) sb.append(' ');
+            }
+        }
+        return sb.toString();
     }
 
     private Key resolveItemKey(ItemStack item) {
