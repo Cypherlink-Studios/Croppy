@@ -3,12 +3,7 @@ package dev.darkblade.croppy.core.process;
 import dev.darkblade.croppy.api.expression.EvaluationContext;
 import dev.darkblade.croppy.api.expression.Expression;
 import dev.darkblade.croppy.api.identifier.Key;
-import dev.darkblade.croppy.api.process.FailurePolicy;
-import dev.darkblade.croppy.api.process.PhaseDefinition;
-import dev.darkblade.croppy.api.process.PhaseType;
-import dev.darkblade.croppy.api.process.ProcessDefinition;
-import dev.darkblade.croppy.api.process.ProcessInstance;
-import dev.darkblade.croppy.api.process.ProcessState;
+import dev.darkblade.croppy.api.process.*;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInteractionType;
 import dev.darkblade.croppy.api.station.StoredItem;
@@ -205,5 +200,117 @@ class ProcessEngineTest {
         assertEquals(ProcessState.FAILED, pi.getState());
         assertEquals(1, storage.getOutputs().size());
         assertEquals(spoiledKey, storage.getOutputs().get(0).itemKey());
+    }
+
+    @Test
+    void testThermalPauseOnConditionFailure() {
+        Key procKey = Key.of("croppy", "simmer_process");
+        PhaseDefinition phase = new PhaseDefinition(
+                "simmer",
+                PhaseType.TIMED,
+                100,
+                0,
+                dev.darkblade.croppy.core.expression.ExpressionCompiler.compile("station.temperature >= 75"),
+                null,
+                0,
+                FailurePolicy.CANCEL,
+                null,
+                null,
+                new PhaseDisplay("<gray>Cooking: {progress_percent}%</gray>", 10, "■", "□"),
+                dev.darkblade.croppy.api.process.PhaseEffects.EMPTY,
+                true, // pauseOnConditionFailure
+                Map.of()
+        );
+
+        ProcessDefinition proc = new ProcessDefinition(
+                procKey,
+                "Simmer",
+                stationDef.key(),
+                List.of(),
+                Expression.ALWAYS_TRUE,
+                List.of(phase),
+                null,
+                null,
+                1,
+                Map.of()
+        );
+        registry.register(proc);
+
+        assertTrue(engine.tryStartProcess(station, EvaluationContext.empty()));
+        ProcessInstance pi = station.getComponent(ProcessComponent.class).get().getActiveProcess().get();
+
+        // 1. Tick with cold temperature (50 < 75) -> paused, elapsed ticks should remain 0
+        EvaluationContext coldCtx = EvaluationContext.empty().with("station.temperature", 50.0);
+        engine.tick(station, 20, coldCtx);
+        assertEquals(0, pi.getPhaseElapsedTicks());
+        assertEquals(ProcessState.RUNNING, pi.getState());
+        DisplayComponent display = station.getComponent(DisplayComponent.class).get();
+        assertTrue(display.getStatusText().contains("Paused"));
+
+        // 2. Tick with hot temperature (80 >= 75) -> resumes, elapsed ticks should advance
+        EvaluationContext hotCtx = EvaluationContext.empty().with("station.temperature", 80.0);
+        engine.tick(station, 20, hotCtx);
+        assertEquals(20, pi.getPhaseElapsedTicks());
+        assertTrue(display.getStatusText().contains("Cooking: 20%"));
+    }
+
+    @Test
+    void testRecipeIntegrationWithProcess() {
+        dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry recipeRegistry = new dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry();
+        engine = new ProcessEngine(registry, recipeRegistry);
+
+        Key tomatoKey = Key.of("croppy", "tomato");
+        Key soupItemKey = Key.of("croppy", "tomato_soup_item");
+        Key procKey = Key.of("croppy", "tomato_soup_proc");
+
+        dev.darkblade.croppy.api.recipe.RecipeDefinition recipe = new dev.darkblade.croppy.api.recipe.RecipeDefinition(
+                Key.of("croppy", "tomato_soup_recipe"),
+                "Tomato Soup",
+                Key.of("croppy", "soups"),
+                stationDef.key(),
+                procKey,
+                List.of(StoredItem.of(tomatoKey, 2)),
+                soupItemKey,
+                1,
+                null,
+                false,
+                List.of(),
+                Map.of()
+        );
+        recipeRegistry.register(recipe);
+
+        ProcessDefinition proc = new ProcessDefinition(
+                procKey,
+                "Soup Cooking Process",
+                stationDef.key(),
+                List.of(), // Empty inputs on process: inputs governed by recipe!
+                Expression.ALWAYS_TRUE,
+                List.of(PhaseDefinition.timed("cook", 40, Expression.ALWAYS_TRUE)),
+                null,
+                null,
+                1,
+                Map.of()
+        );
+        registry.register(proc);
+
+        // Put ingredients into station
+        storage.addInput(StoredItem.of(tomatoKey, 2));
+
+        // Start process via recipe match
+        assertTrue(engine.tryStartProcess(station, EvaluationContext.empty()));
+        assertTrue(storage.getInputs().isEmpty(), "Recipe inputs should be consumed");
+
+        ProcessInstance pi = station.getComponent(ProcessComponent.class).get().getActiveProcess().get();
+        assertEquals(procKey, pi.getProcessKey());
+
+        // Tick to completion
+        engine.tick(station, 40, EvaluationContext.empty());
+        assertEquals(ProcessState.COMPLETED, pi.getState());
+
+        // Verify recipe output was produced
+        List<StoredItem> outputs = storage.getOutputs();
+        assertEquals(1, outputs.size());
+        assertEquals(soupItemKey, outputs.get(0).itemKey());
+        assertEquals(1, outputs.get(0).amount());
     }
 }

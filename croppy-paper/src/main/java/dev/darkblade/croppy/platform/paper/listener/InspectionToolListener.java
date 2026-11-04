@@ -68,11 +68,15 @@ public class InspectionToolListener implements Listener {
                 clickedBlock.getZ()
         );
 
-        Optional<Component> card = inspectorService.inspect(pos);
+        Optional<Component> card = inspectorService.inspect(pos, player);
         if (card.isPresent()) {
             player.sendMessage(card.get());
         } else {
-            player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            if (plugin.getMessageService() != null) {
+                plugin.getMessageService().sendPrefixedMessage(player, dev.darkblade.croppy.api.i18n.MessageKey.of("command.inspect.no-crop-found"));
+            } else {
+                player.sendMessage(pluginConfig.getMessage(plugin.getConfig(), "no-crop-found"));
+            }
         }
     }
 }

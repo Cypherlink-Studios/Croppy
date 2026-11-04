@@ -1,7 +1,6 @@
 id: "croppy:recipe_book"
 category: "misc"
 material: "minecraft:knowledge_book"
-custom-model-data: 0
 name: "<gradient:#2ecc71:#27ae60><bold>Culinary Compendium</bold></gradient>"
 lore:
   - "<gray>A collection of known recipes, culinary hints,</gray>"

@@ -54,7 +54,7 @@ public class CroppyCore {
     private final CropManager cropManager = new CropManager();
     private final DefaultStationManager stationManager = new DefaultStationManager();
     private final GrowthEngine growthEngine = new GrowthEngine();
-    private final ProcessEngine processEngine = new ProcessEngine(processRegistry);
+    private final ProcessEngine processEngine = new ProcessEngine(processRegistry, recipeRegistry);
     private final InteractionRouter interactionRouter = new InteractionRouter(interactionRegistry);
     private final RuleEngine ruleEngine = new RuleEngine(ruleRegistry);
     private CropStorage storage;

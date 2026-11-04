@@ -199,5 +199,64 @@ class CropInspectorServiceTest {
         assertTrue(text.contains("Inspección de Cultivo"));
         assertTrue(text.contains("Regado hoy 💧"));
         assertTrue(text.contains("Ninguno"));
+        assertFalse(text.contains("<green>"), "Should not leak <green> tag");
+        assertFalse(text.contains("<blue>"), "Should not leak <blue> tag");
+        assertFalse(text.contains("<dark_gray>"), "Should not leak <dark_gray> tag");
+        assertFalse(text.contains("<color>"), "Should not leak <color> tag");
+    }
+
+    @Test
+    void testFormatCropCardWithMiniMessageMarkupInSpecies() {
+        Species tomatoSpecies = new Species() {
+            private final Key key = Key.croppy("tomato");
+            private final List<StageDefinition> stages = List.of(
+                    new StageDefinition("seed", 50.0, 0),
+                    new StageDefinition("mature", 0.0, 1)
+            );
+            private final CropRequirements requirements = new CropRequirements(9, 1);
+
+            @Override public Key getKey() { return key; }
+            @Override public String getName() { return "<red>Tomato</red>"; }
+            @Override public CropDisplay getDisplay() { return new CropDisplay("3d", "croppy:tomato", "croppy:tomato_seeds"); }
+            @Override public List<StageDefinition> getStages() { return stages; }
+            @Override public CropRequirements getRequirements() { return requirements; }
+            @Override public HarvestDefinition getHarvest() { return null; }
+        };
+
+        dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(
+                dev.darkblade.croppy.api.i18n.LocaleRef.EN_US, dev.darkblade.croppy.api.i18n.LocaleRef.EN_US
+        );
+        dev.darkblade.croppy.core.i18n.YamlLocaleLoader loader = new dev.darkblade.croppy.core.i18n.YamlLocaleLoader();
+        try (var enIn = getClass().getResourceAsStream("/locales/en-US.yml")) {
+            assertNotNull(enIn);
+            catalog.registerLocale(dev.darkblade.croppy.api.i18n.LocaleRef.EN_US, loader.load(enIn, "en-US.yml"));
+        } catch (Exception e) {
+            fail(e);
+        }
+
+        dev.darkblade.croppy.platform.paper.i18n.PaperMessageService messageService =
+                new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, null);
+
+        CropInspectorService localizedInspector = new CropInspectorService(
+                cropManager, speciesRegistry, pos -> CropEnvironment.of(15, 8), null, null, messageService
+        );
+
+        BlockPosition pos = new BlockPosition("world", 100, 64, 100);
+        DefaultCropInstance crop = new DefaultCropInstance(tomatoSpecies.getKey(), pos, 1, 0.0, 500L, 500L);
+
+        Component card = localizedInspector.formatCropCard(crop, tomatoSpecies, CropEnvironment.of(15, 8), 500L, null);
+        String text = PlainTextComponentSerializer.plainText().serialize(card);
+
+        // Verification of bugfix: tags should never leak into plain text output
+        assertTrue(text.contains("Tomato"));
+        assertFalse(text.contains("<red>"), "Should not leak <red> tag in species name");
+        assertFalse(text.contains("</red>"), "Should not leak </red> tag in species name");
+        assertFalse(text.contains("<green>"), "Should not leak <green> tag in progress bar or light");
+        assertFalse(text.contains("<blue>"), "Should not leak <blue> tag in water");
+        assertFalse(text.contains("<dark_gray>"), "Should not leak <dark_gray> tag in progress bar");
+        assertFalse(text.contains("<color>"), "Should not leak <color> placeholder tag");
+        assertTrue(text.contains("15 (Min: 9)"));
+        assertTrue(text.contains("8/8 (Min: 1)"));
+        assertTrue(text.contains("■■■■■■■■■■"));
     }
 }

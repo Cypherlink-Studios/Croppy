@@ -3,10 +3,13 @@ package dev.darkblade.croppy.platform.paper.i18n;
 import dev.darkblade.croppy.api.i18n.LocaleRef;
 import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.core.i18n.DefaultMessageCatalog;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.entity.Player;
@@ -180,14 +183,40 @@ public class PaperMessageService {
         return result;
     }
 
+    /**
+     * Resolves the localized display name for a crop species, falling back to species definition name.
+     */
+    public Component resolveSpeciesDisplayName(Audience audience, Species species) {
+        if (species == null) {
+            return Component.empty();
+        }
+        LocaleRef locale = resolveLocale(audience);
+        MessageKey overrideKey = MessageKey.of("content.species." + species.getKey().asString().replace(':', '.') + ".name");
+        Optional<String> template = catalog.getTemplate(locale, overrideKey);
+        if (template.isPresent()) {
+            return miniMessage.deserialize(template.get());
+        }
+        String name = (species.getName() != null) ? species.getName() : species.getKey().asString();
+        return miniMessage.deserialize(name);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Argument Sanitization & Helpers
     // ---------------------------------------------------------------------------------------------
 
     /**
-     * Creates a TagResolver that safely injects an unparsed, sanitized value.
+     * Creates a TagResolver that safely injects an unparsed, sanitized value, or preserves rich components, colors, and tags.
      */
     public static TagResolver arg(String key, Object value) {
+        if (value instanceof TagResolver resolver) {
+            return resolver;
+        }
+        if (value instanceof Tag tag) {
+            return TagResolver.resolver(key, tag);
+        }
+        if (value instanceof TextColor color) {
+            return TagResolver.resolver(key, Tag.styling(color));
+        }
         if (value instanceof Component component) {
             return Placeholder.component(key, component);
         }

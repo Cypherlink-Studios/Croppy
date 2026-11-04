@@ -1,0 +1,31 @@
+id: "croppy:vegetable_stew_cook"
+name: "Vegetable Stew Cooking"
+station: "croppy:cooking_pot"
+
+start_conditions:
+  - "station.temperature >= 85"
+
+phases:
+  - id: "slow_stew"
+    name: "Slow Stewing"
+    type: TIMED
+    duration: 25s
+    condition: "station.temperature >= 85"
+    pause_on_condition_failure: true
+    display:
+      template: "<gray>Stewing: <yellow>{progress_percent}%</yellow> <dark_gray>[{progress_bar}]</dark_gray> <aqua>{progress_seconds_left}s</aqua></gray>"
+      bar:
+        length: 10
+        filled: "<gradient:#55ff55:#ffaa00>■</gradient>"
+        empty: "<dark_gray>■</dark_gray>"
+    effects:
+      particles:
+        particle: "SPLASH"
+        count: 3
+        offset: [0.15, 0.05, 0.15]
+        speed: 0.02
+      sound:
+        sound: "BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE"
+        interval: 2s
+        volume: 0.5
+        pitch: 1.0

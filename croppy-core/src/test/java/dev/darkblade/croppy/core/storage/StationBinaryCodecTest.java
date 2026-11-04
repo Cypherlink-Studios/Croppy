@@ -20,6 +20,7 @@ import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
 import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -243,6 +244,25 @@ class StationBinaryCodecTest {
         List<StationInstance> deserialized = StationBinaryCodec.deserialize(v3Bytes, k -> Optional.of(def));
         assertEquals(1, deserialized.size());
         assertEquals(0.0f, deserialized.get(0).getYaw(), 0.001f);
+    }
+
+    @Test
+    @DisplayName("Idle station without active process restores ProcessComponent on deserialization")
+    void testIdleStationRestoresProcessComponent() {
+        Key stationKey = Key.of("croppy", "skillet");
+        StationDefinition def = new StationDefinition(stationKey, "Skillet", "minecraft:iron_block", StationInteractionType.PHYSICAL, 2, 1, false, List.of(), Map.of());
+        BlockPosition pos = new BlockPosition("world", 10, 64, 20);
+        DefaultStationInstance station = new DefaultStationInstance(stationKey, pos, def);
+        station.setComponent(ProcessComponent.class, new DefaultProcessComponent()); // idle, no active process
+
+        byte[] bytes = StationBinaryCodec.serialize(List.of(station));
+        List<StationInstance> deserialized = StationBinaryCodec.deserialize(bytes, k -> Optional.of(def));
+
+        assertEquals(1, deserialized.size());
+        StationInstance restored = deserialized.get(0);
+        Optional<ProcessComponent> processOpt = restored.getComponent(ProcessComponent.class);
+        assertTrue(processOpt.isPresent(), "ProcessComponent must always be restored even when idle");
+        assertFalse(processOpt.get().hasActiveProcess(), "Idle station should not have active process");
     }
 
     @Test

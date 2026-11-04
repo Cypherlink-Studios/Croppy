@@ -2,24 +2,19 @@ package dev.darkblade.croppy.core.process;
 
 import dev.darkblade.croppy.api.expression.EvaluationContext;
 import dev.darkblade.croppy.api.identifier.Key;
-import dev.darkblade.croppy.api.process.FailurePolicy;
-import dev.darkblade.croppy.api.process.PhaseDefinition;
-import dev.darkblade.croppy.api.process.PhaseType;
-import dev.darkblade.croppy.api.process.ProcessDefinition;
-import dev.darkblade.croppy.api.process.ProcessInstance;
-import dev.darkblade.croppy.api.process.ProcessRegistry;
-import dev.darkblade.croppy.api.process.ProcessState;
+import dev.darkblade.croppy.api.process.*;
+import dev.darkblade.croppy.api.recipe.RecipeDefinition;
+import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
+import dev.darkblade.croppy.core.recipe.RecipeMatcher;
+import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Finite state machine execution engine governing process lifecycles and transitions.
@@ -27,13 +22,32 @@ import java.util.Optional;
 public final class ProcessEngine implements Service {
 
     private final ProcessRegistry processRegistry;
+    private final RecipeRegistry recipeRegistry;
+    private final RecipeMatcher recipeMatcher;
+    private final ProcessDisplayFormatter displayFormatter;
 
     public ProcessEngine(ProcessRegistry processRegistry) {
+        this(processRegistry, null, new RecipeMatcher(), new ProcessDisplayFormatter());
+    }
+
+    public ProcessEngine(ProcessRegistry processRegistry, RecipeRegistry recipeRegistry) {
+        this(processRegistry, recipeRegistry, new RecipeMatcher(), new ProcessDisplayFormatter());
+    }
+
+    public ProcessEngine(
+            ProcessRegistry processRegistry,
+            RecipeRegistry recipeRegistry,
+            RecipeMatcher recipeMatcher,
+            ProcessDisplayFormatter displayFormatter
+    ) {
         this.processRegistry = Objects.requireNonNull(processRegistry, "processRegistry cannot be null");
+        this.recipeRegistry = recipeRegistry;
+        this.recipeMatcher = recipeMatcher != null ? recipeMatcher : new RecipeMatcher();
+        this.displayFormatter = displayFormatter != null ? displayFormatter : new ProcessDisplayFormatter();
     }
 
     /**
-     * Attempts to initiate a recipe on an idle station if storage contains required inputs
+     * Attempts to initiate a recipe or standalone process on an idle station if storage contains required inputs
      * and start conditions evaluate to true.
      *
      * @param station station instance
@@ -41,14 +55,17 @@ public final class ProcessEngine implements Service {
      * @return true if a process was started
      */
     public boolean tryStartProcess(StationInstance station, EvaluationContext context) {
-        Optional<ProcessComponent> processCompOpt = station.getComponent(ProcessComponent.class);
         Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
-
-        if (processCompOpt.isEmpty() || storageOpt.isEmpty()) {
+        if (storageOpt.isEmpty()) {
             return false;
         }
 
-        ProcessComponent processComp = processCompOpt.get();
+        ProcessComponent processComp = station.getComponent(ProcessComponent.class).orElseGet(() -> {
+            DefaultProcessComponent comp = new DefaultProcessComponent();
+            station.setComponent(ProcessComponent.class, comp);
+            return comp;
+        });
+
         if (processComp.hasActiveProcess() && processComp.getActiveProcess().get().getState() != ProcessState.IDLE) {
             return false;
         }
@@ -57,6 +74,51 @@ public final class ProcessEngine implements Service {
         List<StoredItem> currentInputs = storage.getInputs();
         Key stationKey = station.getStationKey();
 
+        // 1. Try matching registered culinary recipes first
+        if (recipeRegistry != null) {
+            List<RecipeDefinition> stationRecipes = new ArrayList<>();
+            for (RecipeDefinition r : recipeRegistry.values()) {
+                if (r.stationKey().equals(stationKey)) {
+                    stationRecipes.add(r);
+                }
+            }
+
+            Optional<RecipeDefinition> matchOpt = recipeMatcher.findMatch(stationRecipes, currentInputs);
+            if (matchOpt.isPresent()) {
+                RecipeDefinition recipe = matchOpt.get();
+                Key procKey = recipe.processKey();
+                Optional<ProcessDefinition> procDefOpt = processRegistry.get(procKey);
+                if (procDefOpt.isPresent()) {
+                    ProcessDefinition procDef = procDefOpt.get();
+                    if (procDef.startConditions().evaluate(context)) {
+                        // Consume recipe inputs
+                        for (StoredItem req : recipe.inputRequirements()) {
+                            storage.removeInput(req.itemKey(), req.amount());
+                        }
+
+                        DefaultProcessInstance instance = new DefaultProcessInstance(procDef.key());
+                        instance.setState(ProcessState.RUNNING);
+                        instance.setCurrentPhaseIndex(0);
+                        instance.setContextVariable("original_inputs", currentInputs);
+                        instance.setContextVariable("recipe_key", recipe.key().asString());
+                        instance.setContextVariable("recipe_name", recipe.displayName());
+                        instance.setContextVariable("result_item", recipe.resultItemKey().asString());
+                        instance.setContextVariable("result_amount", recipe.resultAmount());
+
+                        PhaseDefinition initialPhase = procDef.phases().get(0);
+                        if (initialPhase.type() == PhaseType.MANUAL_INTERACTION) {
+                            instance.setState(ProcessState.AWAITING_INPUT);
+                        }
+
+                        processComp.setActiveProcess(instance);
+                        updateStationDisplay(station, procDef, instance, initialPhase, context);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback: match standalone process definitions directly
         for (ProcessDefinition def : processRegistry.values()) {
             if (!def.stationKey().equals(stationKey)) {
                 continue;
@@ -87,7 +149,7 @@ public final class ProcessEngine implements Service {
             }
 
             processComp.setActiveProcess(instance);
-            updateStationDisplay(station, def, instance, initialPhase);
+            updateStationDisplay(station, def, instance, initialPhase, context);
             return true;
         }
 
@@ -126,44 +188,49 @@ public final class ProcessEngine implements Service {
         }
 
         PhaseDefinition phase = def.phases().get(instance.getCurrentPhaseIndex());
-        instance.addPhaseElapsedTicks(deltaTicks);
 
         // Evaluation context enriched with process variables
         EvaluationContext phaseContext = context
                 .with("phase.elapsed_ticks", instance.getPhaseElapsedTicks())
                 .with("process.total_ticks", instance.getTotalElapsedTicks());
 
-        // Check phase timeouts
-        if (phase.timeoutTicks() > 0 && instance.getPhaseElapsedTicks() >= phase.timeoutTicks()) {
-            handlePhaseFailure(station, def, instance, phase);
-            return;
-        }
-
         switch (phase.type()) {
             case TIMED -> {
                 if (phase.condition().evaluate(phaseContext)) {
+                    instance.addPhaseElapsedTicks(deltaTicks);
                     if (instance.getPhaseElapsedTicks() >= phase.durationTicks()) {
-                        advancePhase(station, def, instance);
+                        advancePhase(station, def, instance, context);
                     } else {
-                        updateStationDisplay(station, def, instance, phase);
+                        updateStationDisplay(station, def, instance, phase, context);
                     }
                 } else {
-                    // Condition violation during timed phase
-                    handlePhaseFailure(station, def, instance, phase);
+                    if (phase.pauseOnConditionFailure()) {
+                        // Condition paused (e.g. insufficient heat): freeze elapsed duration
+                        updateStationDisplayPaused(station, def, instance, phase, context);
+                    } else {
+                        handlePhaseFailure(station, def, instance, phase);
+                    }
                 }
             }
             case ENVIRONMENTAL -> {
+                instance.addPhaseElapsedTicks(deltaTicks);
                 if (phase.condition().evaluate(phaseContext)) {
-                    advancePhase(station, def, instance);
+                    advancePhase(station, def, instance, context);
                 } else {
-                    updateStationDisplay(station, def, instance, phase);
+                    updateStationDisplay(station, def, instance, phase, context);
                 }
             }
             case MANUAL_INTERACTION -> {
+                instance.addPhaseElapsedTicks(deltaTicks);
                 if (instance.getState() != ProcessState.AWAITING_INPUT) {
                     instance.setState(ProcessState.AWAITING_INPUT);
                 }
-                updateStationDisplay(station, def, instance, phase);
+                // Check phase timeout for interactive phase
+                if (phase.timeoutTicks() > 0 && instance.getPhaseElapsedTicks() >= phase.timeoutTicks()) {
+                    handlePhaseFailure(station, def, instance, phase);
+                    return;
+                }
+                updateStationDisplay(station, def, instance, phase, context);
             }
         }
     }
@@ -206,14 +273,14 @@ public final class ProcessEngine implements Service {
             }
         }
 
-        advancePhase(station, def, instance);
+        advancePhase(station, def, instance, EvaluationContext.empty());
         return true;
     }
 
     /**
      * Advances to the next phase or finishes the process.
      */
-    public void advancePhase(StationInstance station, ProcessDefinition def, ProcessInstance instance) {
+    public void advancePhase(StationInstance station, ProcessDefinition def, ProcessInstance instance, EvaluationContext context) {
         int nextIndex = instance.getCurrentPhaseIndex() + 1;
         instance.resetPhaseElapsedTicks();
 
@@ -227,14 +294,20 @@ public final class ProcessEngine implements Service {
             } else {
                 instance.setState(ProcessState.RUNNING);
             }
-            updateStationDisplay(station, def, instance, nextPhase);
+            updateStationDisplay(station, def, instance, nextPhase, context);
         }
+    }
+
+    public void advancePhase(StationInstance station, ProcessDefinition def, ProcessInstance instance) {
+        advancePhase(station, def, instance, EvaluationContext.empty());
     }
 
     public void completeProcess(StationInstance station, ProcessDefinition def, ProcessInstance instance) {
         instance.setState(ProcessState.COMPLETED);
 
         Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+        Key resultDisplayKey = null;
+
         if (storageOpt.isPresent()) {
             StorageComponent storage = storageOpt.get();
             @SuppressWarnings("unchecked")
@@ -242,7 +315,11 @@ public final class ProcessEngine implements Service {
                     .getOrDefault("original_inputs", List.of());
 
             List<StoredItem> outputs;
-            if (def.outputResolver() != null) {
+            if (instance.getContextVariables().containsKey("result_item")) {
+                Key resKey = Key.parse(String.valueOf(instance.getContextVariables().get("result_item")));
+                int amount = instance.getContextVariables().get("result_amount") instanceof Number num ? num.intValue() : 1;
+                outputs = List.of(StoredItem.of(resKey, amount));
+            } else if (def.outputResolver() != null) {
                 outputs = def.outputResolver().resolveOutputs(def, instance, originalInputs);
             } else if (def.defaultResultItem() != null) {
                 outputs = List.of(StoredItem.of(def.defaultResultItem(), def.defaultResultAmount()));
@@ -253,12 +330,18 @@ public final class ProcessEngine implements Service {
             for (StoredItem out : outputs) {
                 storage.addOutput(out);
             }
+
+            if (!outputs.isEmpty()) {
+                resultDisplayKey = outputs.get(0).itemKey();
+            }
         }
 
         Optional<DisplayComponent> displayOpt = station.getComponent(DisplayComponent.class);
         if (displayOpt.isPresent()) {
             DisplayComponent display = displayOpt.get();
-            if (def.defaultResultItem() != null) {
+            if (resultDisplayKey != null) {
+                display.setDisplayedItem(resultDisplayKey);
+            } else if (def.defaultResultItem() != null) {
                 display.setDisplayedItem(def.defaultResultItem());
             }
             display.setStatusText("<green>Output Ready</green>");
@@ -287,19 +370,27 @@ public final class ProcessEngine implements Service {
         });
     }
 
-    private void updateStationDisplay(StationInstance station, ProcessDefinition def, ProcessInstance instance, PhaseDefinition phase) {
+    private void updateStationDisplay(StationInstance station, ProcessDefinition def, ProcessInstance instance, PhaseDefinition phase, EvaluationContext context) {
         Optional<DisplayComponent> displayOpt = station.getComponent(DisplayComponent.class);
         if (displayOpt.isEmpty()) {
             return;
         }
 
         DisplayComponent display = displayOpt.get();
-        if (phase.type() == PhaseType.TIMED && phase.durationTicks() > 0) {
-            int percent = (int) Math.min(100, (instance.getPhaseElapsedTicks() * 100) / phase.durationTicks());
-            display.setStatusText("<gray>" + def.displayName() + " (" + percent + "%)</gray>");
-        } else if (phase.type() == PhaseType.MANUAL_INTERACTION) {
-            display.setStatusText(phase.promptMessage() != null ? phase.promptMessage() : "<yellow>Awaiting interaction...</yellow>");
+        String formatted = displayFormatter.format(phase, def, instance, context);
+        display.setStatusText(formatted);
+        display.setDirty(true);
+    }
+
+    private void updateStationDisplayPaused(StationInstance station, ProcessDefinition def, ProcessInstance instance, PhaseDefinition phase, EvaluationContext context) {
+        Optional<DisplayComponent> displayOpt = station.getComponent(DisplayComponent.class);
+        if (displayOpt.isEmpty()) {
+            return;
         }
+
+        DisplayComponent display = displayOpt.get();
+        String formatted = displayFormatter.format(phase, def, instance, context);
+        display.setStatusText("<yellow>Paused: </yellow>" + formatted);
         display.setDirty(true);
     }
 

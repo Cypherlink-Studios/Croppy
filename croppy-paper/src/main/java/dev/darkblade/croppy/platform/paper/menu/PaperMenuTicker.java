@@ -43,6 +43,7 @@ public final class PaperMenuTicker implements Runnable {
                 StationInstance station = holder.getStation().get();
                 EvaluationContext enriched = enrichContext(holder.getContext(), station, player);
                 holder.setContext(enriched);
+                renderer.populateOutputContents(holder);
             }
 
             renderer.refreshDynamicSlots(holder);

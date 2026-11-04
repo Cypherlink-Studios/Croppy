@@ -19,9 +19,10 @@ The system SHALL provide tiered watering cans configured in `items/watering_cans
 - **THEN** no blocks SHALL be hydrated and an empty feedback sound or warning SHALL occur
 
 #### Scenario: Refilling watering can
-- **WHEN** a player right-clicks on a water source block or filled water cauldron with a non-full watering can
-- **THEN** the watering can water uses in PDC SHALL be restored to maximum capacity
-- **AND** refill audio feedback SHALL play
+- **WHEN** a player right-clicks while targeting a water source block (still water), a waterlogged block, or a filled water cauldron with a non-full watering can
+- **THEN** server-side fluid interaction detection SHALL recognize the water block across both right-click block and right-click air actions
+- **AND** the watering can water uses in PDC SHALL be restored to maximum capacity
+- **AND** refill audio feedback and splash particles SHALL play
 
 ### Requirement: Discrete Daily Soil Hydration
 The system SHALL track soil hydration discrete to the world day, marking crops as watered for the current day and displaying moist farmland visuals.

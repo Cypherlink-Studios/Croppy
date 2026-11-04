@@ -135,6 +135,7 @@ public class CroppyPlugin extends JavaPlugin {
             setupItemDefinitions();
             setupFertilizers();
             setupCropDefinitions();
+            setupProcessDefinitions();
             setupRecipeDefinitions();
             setupMenuDefinitions();
             setupStationDefinitions();
@@ -263,6 +264,23 @@ public class CroppyPlugin extends JavaPlugin {
         dev.darkblade.croppy.core.menu.YamlMenuLoader menuLoader = new dev.darkblade.croppy.core.menu.YamlMenuLoader();
         int loaded = menuLoader.loadAll(menusDir, core.getMenuRegistry(), getLogger());
         getLogger().info("Registered " + loaded + " menu definitions into MenuRegistry.");
+    }
+
+    private void setupProcessDefinitions() {
+        Path processesDir = getDataFolder().toPath().resolve("processes");
+        if (!Files.exists(processesDir)) {
+            try {
+                Files.createDirectories(processesDir);
+            } catch (Exception ignored) {
+            }
+        }
+        saveResourceIfNotExists("processes/tomato_soup_cook.yml");
+        saveResourceIfNotExists("processes/vegetable_stew_cook.yml");
+        saveResourceIfNotExists("processes/fried_egg_cook.yml");
+
+        dev.darkblade.croppy.core.process.YamlProcessLoader processLoader = new dev.darkblade.croppy.core.process.YamlProcessLoader();
+        int loaded = processLoader.loadAll(processesDir, core.getProcessRegistry(), getLogger());
+        getLogger().info("Registered " + loaded + " process definitions into ProcessRegistry.");
     }
 
     private void setupRecipeDefinitions() {
@@ -481,6 +499,7 @@ public class CroppyPlugin extends JavaPlugin {
                 this.itemFactory,
                 this.stationViewerTracker,
                 this.fuelService,
+                core.getProcessRegistry(),
                 20L);
         this.stationTicker.start();
 
@@ -553,10 +572,12 @@ public class CroppyPlugin extends JavaPlugin {
         this.core.getInteractionRegistry().clear();
         this.core.getRuleRegistry().clear();
         this.core.getRecipeRegistry().clear();
+        this.core.getProcessRegistry().clear();
         this.fertilizerRegistry.clear();
         setupItemDefinitions();
         setupFertilizers();
         setupCropDefinitions();
+        setupProcessDefinitions();
         setupRecipeDefinitions();
         setupMenuDefinitions();
         setupStationDefinitions();

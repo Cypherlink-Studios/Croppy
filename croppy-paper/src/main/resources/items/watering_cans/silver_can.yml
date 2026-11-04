@@ -1,7 +1,6 @@
 id: "croppy:silver_can"
 category: "watering_cans"
 material: "IRON_INGOT"
-custom-model-data: 2003
 item-model: "croppy:silver_can"
 name: "<white>Regadera de Plata</white>"
 lore:

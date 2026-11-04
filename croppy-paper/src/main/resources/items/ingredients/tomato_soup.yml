@@ -1,7 +1,6 @@
 id: "croppy:tomato_soup"
 category: "ingredients"
 material: "BEETROOT_SOUP"
-custom-model-data: 0
 name: "<gradient:#ff5555:#ffaa00>Tomato Soup</gradient>"
 lore:
   - "<gray>A warm and hearty bowl of freshly simmered tomato soup.</gray>"

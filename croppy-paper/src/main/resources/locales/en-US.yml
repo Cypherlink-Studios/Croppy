@@ -40,14 +40,14 @@ command:
 
 inspector:
   title: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Crop Inspection"
-  species: "<dark_gray>├─ <gold>Species: <yellow><name> <gray>(<key>)</gray>"
-  stage: "<dark_gray>├─ <gold>Stage: <yellow><current>/<total> <gray>(ID: <id>)</gray>"
+  species: "<dark_gray>├─ <gold>Species: <yellow><name></yellow> <gray>(<key>)</gray>"
+  stage: "<dark_gray>├─ <gold>Stage: <yellow><current>/<total></yellow> <gray>(ID: <id>)</gray>"
   progress: "<dark_gray>├─ <gold>Progress: <bar> <gray>(<percent>)</gray>"
   hydration: "<dark_gray>├─ <gold>Hydration: <status>"
   fertilizer: "<dark_gray>├─ <gold>Fertilizer: <status>"
   policy: "<dark_gray>├─ <gold>Unwatered Policy: <yellow><policy></yellow>"
-  light: "<dark_gray>├─ <gold>Light Level: <color><level> <gray>(Min: <min>)</gray>"
-  water: "<dark_gray>├─ <gold>Water Level: <color><level>/8 <gray>(Min: <min>)</gray>"
+  light: "<dark_gray>├─ <gold>Light Level: <color><level></color> <gray>(Min: <min>)</gray>"
+  water: "<dark_gray>├─ <gold>Water Level: <color><level>/8</color> <gray>(Min: <min>)</gray>"
   status: "<dark_gray>└─ <gold>Status: <status>"
   none: "<gray>None</gray>"
   states:

@@ -225,6 +225,8 @@ public final class StationBinaryCodec {
                     long totalTicks = in.readLong();
                     DefaultProcessInstance process = new DefaultProcessInstance(processKey, state, phaseIndex, phaseTicks, totalTicks);
                     station.setComponent(ProcessComponent.class, new DefaultProcessComponent(process));
+                } else {
+                    station.setComponent(ProcessComponent.class, new DefaultProcessComponent());
                 }
 
                 // 3. Display

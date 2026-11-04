@@ -1,7 +1,6 @@
 id: "croppy:tomato"
 category: "ingredients"
 material: "APPLE"
-custom-model-data: 0
 name: "<red>Tomato</red>"
 lore:
   - "<gray>A fresh, ripe red tomato.</gray>"

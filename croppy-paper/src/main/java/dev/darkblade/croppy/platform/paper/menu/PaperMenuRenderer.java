@@ -139,6 +139,43 @@ public class PaperMenuRenderer {
     }
 
     /**
+     * Populates only the output slots in the menu inventory from the station's {@link StorageComponent}.
+     *
+     * @param holder the menu holder
+     */
+    public void populateOutputContents(PaperMenuHolder holder) {
+        Optional<StationInstance> stationOpt = holder.getStation();
+        if (stationOpt.isEmpty()) {
+            return;
+        }
+
+        StationInstance station = stationOpt.get();
+        Inventory inv = holder.getInventory();
+        if (inv == null) {
+            return;
+        }
+
+        Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+        if (storageOpt.isEmpty()) {
+            return;
+        }
+
+        StorageComponent storage = storageOpt.get();
+        MenuDefinition menu = holder.getMenu();
+
+        List<Integer> outputSlots = menu.getSlotsForType(SlotType.OUTPUT);
+        List<StoredItem> outputs = storage.getOutputs();
+        for (int i = 0; i < outputSlots.size(); i++) {
+            int slot = outputSlots.get(i);
+            if (i < outputs.size()) {
+                inv.setItem(slot, createBukkitItem(outputs.get(i)));
+            } else {
+                inv.setItem(slot, null);
+            }
+        }
+    }
+
+    /**
      * Refreshes dynamic status and action indicators in the menu without rebuilding the container.
      *
      * @param holder the menu holder

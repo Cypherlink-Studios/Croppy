@@ -4,7 +4,13 @@ import dev.darkblade.croppy.api.expression.EvaluationContext;
 import dev.darkblade.croppy.api.fuel.FuelProperties;
 import dev.darkblade.croppy.api.fuel.FuelProvider;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.process.PhaseDefinition;
+import dev.darkblade.croppy.api.process.PhaseEffects;
+import dev.darkblade.croppy.api.process.PhaseParticle;
+import dev.darkblade.croppy.api.process.PhaseSound;
+import dev.darkblade.croppy.api.process.ProcessDefinition;
 import dev.darkblade.croppy.api.process.ProcessInstance;
+import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.process.ProcessState;
 import dev.darkblade.croppy.api.rule.RuleAction;
 import dev.darkblade.croppy.api.rule.RuleTrigger;
@@ -53,6 +59,7 @@ public final class PaperStationTicker implements Runnable {
     private final ItemFactory itemFactory;
     private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
     private final FuelProvider fuelProvider;
+    private final ProcessRegistry processRegistry;
     private final long tickIntervalTicks;
     private BukkitTask task;
 
@@ -66,6 +73,7 @@ public final class PaperStationTicker implements Runnable {
             ItemFactory itemFactory,
             dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
             FuelProvider fuelProvider,
+            ProcessRegistry processRegistry,
             long tickIntervalTicks
     ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
@@ -77,7 +85,23 @@ public final class PaperStationTicker implements Runnable {
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.viewerTracker = viewerTracker;
         this.fuelProvider = fuelProvider;
+        this.processRegistry = processRegistry;
         this.tickIntervalTicks = Math.max(1, tickIntervalTicks);
+    }
+
+    public PaperStationTicker(
+            Plugin plugin,
+            DefaultStationManager stationManager,
+            ProcessEngine processEngine,
+            PaperThermalEvaluator thermalEvaluator,
+            RuleEngine ruleEngine,
+            PaperDisplaySynchronizer displaySynchronizer,
+            ItemFactory itemFactory,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            FuelProvider fuelProvider,
+            long tickIntervalTicks
+    ) {
+        this(plugin, stationManager, processEngine, thermalEvaluator, ruleEngine, displaySynchronizer, itemFactory, viewerTracker, fuelProvider, null, tickIntervalTicks);
     }
 
     public PaperStationTicker(
@@ -144,6 +168,11 @@ public final class PaperStationTicker implements Runnable {
         if (world == null || !world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) {
             return;
         }
+        tickStation(station, world);
+    }
+
+    void tickStation(StationInstance station, World world) {
+        BlockPosition pos = station.getPosition();
 
         // 0. Heat Source Component Ticking & Fuel Auto-Replenishment
         Optional<HeatSourceComponent> heatSourceOpt = station.getComponent(HeatSourceComponent.class);
@@ -194,9 +223,14 @@ public final class PaperStationTicker implements Runnable {
                 .with("storage.is_empty", isEmpty)
                 .with("storage.input_count", inputCount);
 
-        // 2. Process Engine Tick
+        // 2. Process Engine Tick & Auto-Initiation
         if (process != null && (process.getState() == ProcessState.RUNNING || process.getState() == ProcessState.AWAITING_INPUT)) {
             processEngine.tick(station, tickIntervalTicks, context);
+        } else if (hasInputs && (process == null || process.getState() == ProcessState.IDLE)) {
+            boolean started = processEngine.tryStartProcess(station, context);
+            if (started) {
+                process = processOpt.flatMap(ProcessComponent::getActiveProcess).orElse(null);
+            }
         }
 
         // 3. Rule Engine Tick Evaluation
@@ -226,6 +260,16 @@ public final class PaperStationTicker implements Runnable {
         // Subtle working smoke
         if (process != null && process.getState() == ProcessState.RUNNING) {
             world.spawnParticle(Particle.SMOKE, center, 2, 0.1, 0.1, 0.1, 0.01);
+        }
+
+        // Phase-configured multi-sensory feedback
+        if (process != null && process.getState() == ProcessState.RUNNING && processRegistry != null) {
+            processRegistry.get(process.getProcessKey()).ifPresent(def -> {
+                if (process.getCurrentPhaseIndex() < def.phases().size()) {
+                    PhaseDefinition phase = def.phases().get(process.getCurrentPhaseIndex());
+                    renderPhaseEffects(world, pos, phase.effects(), process.getPhaseElapsedTicks());
+                }
+            });
         }
 
         // Pot boiling/simmering effects
@@ -288,6 +332,41 @@ public final class PaperStationTicker implements Runnable {
             Particle.DustOptions dust = new Particle.DustOptions(color, 1.2f);
             world.spawnParticle(Particle.DUST, center, 4, 0.15, 0.05, 0.15, 0.0, dust);
         } catch (Exception ignored) {}
+    }
+
+    private void renderPhaseEffects(World world, BlockPosition pos, PhaseEffects effects, long phaseElapsedTicks) {
+        if (effects == null) {
+            return;
+        }
+
+        Location center = new Location(world, pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+
+        if (effects.hasParticle()) {
+            PhaseParticle p = effects.particle();
+            try {
+                Particle particle = Particle.valueOf(p.type().toUpperCase(Locale.ROOT));
+                Location pLoc = center.clone().add(0, 0.45, 0);
+                world.spawnParticle(particle, pLoc, p.count(), p.offsetX(), p.offsetY(), p.offsetZ(), p.speed());
+            } catch (Exception ignored) {}
+        }
+
+        if (effects.hasSound()) {
+            PhaseSound s = effects.sound();
+            if (s.intervalTicks() > 0 && phaseElapsedTicks % s.intervalTicks() == 0) {
+                try {
+                    String soundName = s.sound().toLowerCase(Locale.ROOT);
+                    NamespacedKey soundKey = soundName.contains(":")
+                            ? NamespacedKey.fromString(soundName)
+                            : NamespacedKey.minecraft(soundName);
+                    if (soundKey != null) {
+                        Sound sound = org.bukkit.Registry.SOUNDS.get(soundKey);
+                        if (sound != null) {
+                            world.playSound(center, sound, s.volume(), s.pitch());
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
     }
 
     private void tryReplenishFuel(HeatSourceComponent heatSource, StorageComponent storage) {

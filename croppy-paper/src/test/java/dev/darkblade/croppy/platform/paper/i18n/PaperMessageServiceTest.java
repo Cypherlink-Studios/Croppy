@@ -153,4 +153,65 @@ class PaperMessageServiceTest {
             assertEquals("Cooking Pot • Empty • 25.0°C", PlainTextComponentSerializer.plainText().serialize(fb));
         });
     }
+
+    @Test
+    void testTagStylingForColorTag() {
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, Map.of(
+                        "inspector.light", "<dark_gray>├─ <gold>Light Level: <color><level></color> <gray>(Min: <min>)</gray>"
+                )
+        ));
+        Component c = messageService.render(
+                LocaleRef.EN_US,
+                MessageKey.of("inspector.light"),
+                PaperMessageService.args(
+                        "color", net.kyori.adventure.text.format.NamedTextColor.GREEN,
+                        "level", 15,
+                        "min", 9
+                )
+        );
+        String plain = PlainTextComponentSerializer.plainText().serialize(c);
+        assertEquals("├─ Light Level: 15 (Min: 9)", plain);
+        String mini = MiniMessage.miniMessage().serialize(c);
+        assertTrue(mini.contains("<green>15"), "Should contain green 15, but was: " + mini);
+    }
+
+    @Test
+    void testResolveSpeciesDisplayName() {
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, Map.of(
+                        "content.species.croppy.wheat.name", "<yellow>Golden Wheat</yellow>"
+                ),
+                LocaleRef.ES_ES, Map.of(
+                        "content.species.croppy.wheat.name", "<yellow>Trigo Dorado</yellow>"
+                )
+        ));
+
+        dev.darkblade.croppy.api.species.Species wheat = new dev.darkblade.croppy.api.species.Species() {
+            @Override public Key getKey() { return Key.croppy("wheat"); }
+            @Override public String getName() { return "<gold>Default Wheat</gold>"; }
+            @Override public dev.darkblade.croppy.api.species.CropDisplay getDisplay() { return null; }
+            @Override public List<dev.darkblade.croppy.api.species.StageDefinition> getStages() { return List.of(); }
+            @Override public dev.darkblade.croppy.api.species.CropRequirements getRequirements() { return null; }
+            @Override public dev.darkblade.croppy.api.species.HarvestDefinition getHarvest() { return null; }
+        };
+
+        Component enName = messageService.resolveSpeciesDisplayName(null, wheat);
+        assertEquals("Golden Wheat", PlainTextComponentSerializer.plainText().serialize(enName));
+
+        // Unknown species falls back to species definition getName()
+        dev.darkblade.croppy.api.species.Species tomato = new dev.darkblade.croppy.api.species.Species() {
+            @Override public Key getKey() { return Key.croppy("tomato"); }
+            @Override public String getName() { return "<red>Tomato</red>"; }
+            @Override public dev.darkblade.croppy.api.species.CropDisplay getDisplay() { return null; }
+            @Override public List<dev.darkblade.croppy.api.species.StageDefinition> getStages() { return List.of(); }
+            @Override public dev.darkblade.croppy.api.species.CropRequirements getRequirements() { return null; }
+            @Override public dev.darkblade.croppy.api.species.HarvestDefinition getHarvest() { return null; }
+        };
+
+        Component tomatoName = messageService.resolveSpeciesDisplayName(null, tomato);
+        assertEquals("Tomato", PlainTextComponentSerializer.plainText().serialize(tomatoName));
+        String mini = MiniMessage.miniMessage().serialize(tomatoName);
+        assertEquals("<red>Tomato", mini);
+    }
 }

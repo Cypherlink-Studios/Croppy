@@ -88,7 +88,8 @@ public final class PaperThermalEvaluator {
             isLit = lightable.isLit();
         }
 
-        return evaluateMaterial(block.getType().name(), isLit);
+        String matName = (block.getType() != null) ? block.getType().name() : "";
+        return evaluateMaterial(matName, isLit);
     }
 
     /**

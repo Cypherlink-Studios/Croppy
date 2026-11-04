@@ -1,0 +1,31 @@
+id: "croppy:fried_egg_cook"
+name: "Fried Egg Cooking"
+station: "croppy:skillet"
+
+start_conditions:
+  - "station.temperature >= 120"
+
+phases:
+  - id: "sizzle"
+    name: "Sizzling"
+    type: TIMED
+    duration: 10s
+    condition: "station.temperature >= 120"
+    pause_on_condition_failure: true
+    display:
+      template: "<gray>Frying: <yellow>{progress_percent}%</yellow> <dark_gray>[{progress_bar}]</dark_gray> <aqua>{progress_seconds_left}s</aqua></gray>"
+      bar:
+        length: 10
+        filled: "<gradient:#ffff55:#ffaa00>■</gradient>"
+        empty: "<dark_gray>■</dark_gray>"
+    effects:
+      particles:
+        particle: "SMOKE"
+        count: 2
+        offset: [0.1, 0.05, 0.1]
+        speed: 0.01
+      sound:
+        sound: "BLOCK_FIRE_EXTINGUISH"
+        interval: 30t
+        volume: 0.3
+        pitch: 1.5

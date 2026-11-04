@@ -8,9 +8,9 @@ import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanTier;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.FluidCollisionMode;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
@@ -18,6 +18,7 @@ import org.bukkit.block.data.Levelled;
 import org.bukkit.block.data.Waterlogged;
 import org.bukkit.block.data.type.Farmland;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -25,6 +26,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.RayTraceResult;
 
 import java.util.List;
 import java.util.Objects;
@@ -50,9 +52,14 @@ public class WateringListener implements Listener {
         this(wateringCanService, cropManager, null);
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_BLOCK && action != Action.RIGHT_CLICK_AIR) {
+            return;
+        }
+
+        if (action == Action.RIGHT_CLICK_BLOCK && event.useInteractedBlock() == Event.Result.DENY) {
             return;
         }
 
@@ -65,27 +72,33 @@ public class WateringListener implements Listener {
             return;
         }
 
-        Block clickedBlock = event.getClickedBlock();
-        if (clickedBlock == null) {
-            return;
-        }
-
         Player player = event.getPlayer();
-        World world = clickedBlock.getWorld();
+        World world = player.getWorld();
 
         // 1. Refill detection
-        if (isWaterSource(clickedBlock)) {
+        Block waterSourceBlock = findTargetWaterSource(player, event);
+        if (waterSourceBlock != null) {
             event.setCancelled(true);
             boolean refilled = wateringCanService.refill(item);
             if (refilled) {
-                world.playSound(clickedBlock.getLocation(), Sound.ITEM_BUCKET_FILL, 0.8f, 1.0f);
-                world.spawnParticle(Particle.SPLASH, clickedBlock.getLocation().add(0.5, 0.8, 0.5), 15, 0.2, 0.2, 0.2, 0.1);
+                world.playSound(waterSourceBlock.getLocation(), "item.bucket.fill", 0.8f, 1.0f);
+                world.spawnParticle(Particle.SPLASH, waterSourceBlock.getLocation().add(0.5, 0.8, 0.5), 15, 0.2, 0.2, 0.2, 0.1);
                 if (messageService != null) {
                     messageService.sendActionBar(player, MessageKey.of("watering.refilled"));
                 } else {
                     player.sendActionBar(miniMessage.deserialize("<aqua>Watering can refilled!</aqua>"));
                 }
             }
+            return;
+        }
+
+        // If not refilling, RIGHT_CLICK_AIR has no block to hydrate
+        if (action == Action.RIGHT_CLICK_AIR) {
+            return;
+        }
+
+        Block clickedBlock = event.getClickedBlock();
+        if (clickedBlock == null) {
             return;
         }
 
@@ -99,7 +112,7 @@ public class WateringListener implements Listener {
         int waterLevel = wateringCanService.getWaterLevel(item);
         if (waterLevel <= 0) {
             event.setCancelled(true);
-            player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 0.8f, 1.5f);
+            player.playSound(player.getLocation(), "block.dispenser.fail", 0.8f, 1.5f);
             if (messageService != null) {
                 messageService.sendActionBar(player, MessageKey.of("watering.empty"));
             } else {
@@ -147,10 +160,40 @@ public class WateringListener implements Listener {
         }
 
         wateringCanService.consumeWater(item, 1);
-        world.playSound(clickedBlock.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.7f, 1.2f);
+        world.playSound(clickedBlock.getLocation(), "item.bucket.empty", 0.7f, 1.2f);
     }
 
-    private boolean isWaterSource(Block block) {
+    Block findTargetWaterSource(Player player, PlayerInteractEvent event) {
+        // Step A: Server-side fluid raytrace from player eye location
+        RayTraceResult rayTrace = player.rayTraceBlocks(5.0, FluidCollisionMode.ALWAYS);
+        if (rayTrace != null && rayTrace.getHitBlock() != null) {
+            Block hitBlock = rayTrace.getHitBlock();
+            if (isWaterSource(hitBlock)) {
+                return hitBlock;
+            }
+        }
+
+        // Step B: Direct clicked block check
+        Block clicked = event.getClickedBlock();
+        if (clicked != null && isWaterSource(clicked)) {
+            return clicked;
+        }
+
+        // Step C: Fallback to adjacent block facing clicked block (e.g. shallow 1-block hole where client hit dirt beneath)
+        if (clicked != null && event.getBlockFace() != null) {
+            Block adjacent = clicked.getRelative(event.getBlockFace());
+            if (isWaterSource(adjacent)) {
+                return adjacent;
+            }
+        }
+
+        return null;
+    }
+
+    boolean isWaterSource(Block block) {
+        if (block == null) {
+            return false;
+        }
         if (block.getType() == Material.WATER) {
             BlockData data = block.getBlockData();
             if (data instanceof Levelled levelled) {

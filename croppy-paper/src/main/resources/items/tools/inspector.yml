@@ -1,7 +1,6 @@
 id: "croppy:inspection_tool"
 category: "tools"
 material: "COMPASS"
-custom-model-data: 1000
 item-model: "croppy:inspection_tool"
 name: "<gold><bold>Herramienta de Inspección</bold></gold>"
 lore:

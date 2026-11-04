@@ -183,7 +183,7 @@ public final class StationInteractListener implements Listener {
         }
 
         // 3. Fallback to default station interaction style
-        handleDefaultInteraction(player, station);
+        handleDefaultInteraction(player, station, evalCtx);
     }
 
     private void executeInteractionPipeline(
@@ -452,7 +452,7 @@ public final class StationInteractListener implements Listener {
         }
     }
 
-    private void handleDefaultInteraction(Player player, StationInstance station) {
+    private void handleDefaultInteraction(Player player, StationInstance station, EvaluationContext evalCtx) {
         StationDefinition def = station.getDefinition();
         boolean openGui = (def.interactionType() == StationInteractionType.GUI)
                 || (def.interactionType() == StationInteractionType.HYBRID && !player.isSneaking());
@@ -530,7 +530,7 @@ public final class StationInteractListener implements Listener {
                     display.setDirty(true);
                 });
 
-                EvaluationContext context = EvaluationContext.empty().with("player", player);
+                EvaluationContext context = (evalCtx != null) ? evalCtx.with("player", player) : EvaluationContext.empty().with("player", player);
                 processEngine.tryStartProcess(station, context);
             }
             return;

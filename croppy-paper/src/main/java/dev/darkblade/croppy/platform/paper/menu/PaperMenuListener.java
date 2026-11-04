@@ -13,6 +13,7 @@ import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
+import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.core.menu.MenuExpressionEvaluator;
 import dev.darkblade.croppy.core.process.ProcessEngine;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
@@ -196,7 +197,12 @@ public final class PaperMenuListener implements Listener {
 
         syncStorageFromGui(holder);
         if (event.getPlayer() instanceof Player player && holder.getStation().isPresent()) {
-            processEngine.tryStartProcess(holder.getStation().get(), holder.getContext().with("player", player));
+            StationInstance station = holder.getStation().get();
+            PaperMenuTicker ticker = (menuService != null) ? menuService.getTicker() : null;
+            EvaluationContext ctx = (ticker != null)
+                    ? ticker.enrichContext(holder.getContext(), station, player)
+                    : holder.getContext().with("player", player);
+            processEngine.tryStartProcess(station, ctx);
         }
     }
 
@@ -224,7 +230,31 @@ public final class PaperMenuListener implements Listener {
                     StationInstance station = holder.getStation().get();
                     if ("START_PROCESS".equalsIgnoreCase(target)) {
                         syncStorageFromGui(holder);
-                        processEngine.tryStartProcess(station, holder.getContext().with("player", player));
+                        PaperMenuTicker ticker = (menuService != null) ? menuService.getTicker() : null;
+                        EvaluationContext freshContext = (ticker != null)
+                                ? ticker.enrichContext(holder.getContext(), station, player)
+                                : holder.getContext().with("player", player);
+                        boolean started = processEngine.tryStartProcess(station, freshContext);
+                        if (started) {
+                            EvaluationContext updatedContext = (ticker != null)
+                                    ? ticker.enrichContext(freshContext, station, player)
+                                    : freshContext.with("process.state", "RUNNING");
+                            holder.setContext(updatedContext);
+                            renderer.populateStorageContents(holder);
+                            renderer.refreshDynamicSlots(holder);
+                        } else {
+                            Optional<ThermalComponent> thermalOpt = station.getComponent(ThermalComponent.class);
+                            double temp = thermalOpt.map(ThermalComponent::getTemperature).orElse(20.0);
+                            Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+                            boolean hasInputs = storageOpt.isPresent() && !storageOpt.get().getInputs().isEmpty();
+                            if (!hasInputs) {
+                                player.sendMessage(miniMessage.deserialize("<red>No valid recipe ingredients found in the input slots!</red>"));
+                            } else if (temp < 75.0) {
+                                player.sendMessage(miniMessage.deserialize("<red>The cookware is not hot enough! (<gold>" + (int) temp + "°C</gold> / <yellow>75°C required</yellow>).</red>"));
+                            } else {
+                                player.sendMessage(miniMessage.deserialize("<red>No matching recipe found for the provided ingredients.</red>"));
+                            }
+                        }
                     } else if ("EXPERIMENT".equalsIgnoreCase(target) || "DISCOVER_RECIPE".equalsIgnoreCase(target)) {
                         syncStorageFromGui(holder);
                         if (experimentationHandler != null) {
@@ -356,12 +386,41 @@ public final class PaperMenuListener implements Listener {
         Bukkit.getScheduler().runTask(plugin, () -> {
             syncStorageFromGui(holder);
             if (player != null && holder.getStation().isPresent()) {
-                EvaluationContext ctx = holder.getContext().with("player", player);
+                StationInstance station = holder.getStation().get();
+                PaperMenuTicker ticker = (menuService != null) ? menuService.getTicker() : null;
+                EvaluationContext ctx = (ticker != null)
+                        ? ticker.enrichContext(holder.getContext(), station, player)
+                        : holder.getContext().with("player", player);
                 holder.setContext(ctx);
-                processEngine.tryStartProcess(holder.getStation().get(), ctx);
+
+                if (!hasStartProcessButton(holder.getMenu())) {
+                    boolean started = processEngine.tryStartProcess(station, ctx);
+                    if (started) {
+                        EvaluationContext updated = (ticker != null)
+                                ? ticker.enrichContext(ctx, station, player)
+                                : ctx.with("process.state", "RUNNING");
+                        holder.setContext(updated);
+                        renderer.populateStorageContents(holder);
+                    }
+                }
             }
             renderer.refreshDynamicSlots(holder);
         });
+    }
+
+    private boolean hasStartProcessButton(MenuDefinition menu) {
+        if (menu == null) return false;
+        for (int i = 0; i < menu.size(); i++) {
+            Optional<SlotDefinition> slot = menu.getSlotAt(i);
+            if (slot.isPresent() && slot.get().type() == SlotType.ACTION) {
+                for (MenuAction action : slot.get().actions()) {
+                    if (action.type() == MenuActionType.STATION_ACTION && "START_PROCESS".equalsIgnoreCase(action.target())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     public void syncStorageFromGui(PaperMenuHolder holder) {

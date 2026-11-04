@@ -37,14 +37,14 @@ command:
     invalid-stage: "<red>Índice de etapa inválido: <stage>. La etapa máxima es <max>.</red>"
 inspector:
   title: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Inspección de Cultivo"
-  species: "<dark_gray>├─ <gold>Especie: <yellow><name> <gray>(<key>)</gray>"
-  stage: "<dark_gray>├─ <gold>Etapa: <yellow><current>/<total> <gray>(ID: <id>)</gray>"
+  species: "<dark_gray>├─ <gold>Especie: <yellow><name></yellow> <gray>(<key>)</gray>"
+  stage: "<dark_gray>├─ <gold>Etapa: <yellow><current>/<total></yellow> <gray>(ID: <id>)</gray>"
   progress: "<dark_gray>├─ <gold>Progreso: <bar> <gray>(<percent>)</gray>"
   hydration: "<dark_gray>├─ <gold>Hidratación: <status>"
   fertilizer: "<dark_gray>├─ <gold>Fertilizante: <status>"
   policy: "<dark_gray>├─ <gold>Política sin agua: <yellow><policy></yellow>"
-  light: "<dark_gray>├─ <gold>Nivel de Luz: <color><level> <gray>(Mín: <min>)</gray>"
-  water: "<dark_gray>├─ <gold>Nivel de Agua: <color><level>/8 <gray>(Mín: <min>)</gray>"
+  light: "<dark_gray>├─ <gold>Nivel de Luz: <color><level></color> <gray>(Mín: <min>)</gray>"
+  water: "<dark_gray>├─ <gold>Nivel de Agua: <color><level>/8</color> <gray>(Mín: <min>)</gray>"
   status: "<dark_gray>└─ <gold>Estado: <status>"
   none: "<gray>Ninguno</gray>"
   states:

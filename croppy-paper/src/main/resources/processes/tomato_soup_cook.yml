@@ -1,0 +1,31 @@
+id: "croppy:tomato_soup_cook"
+name: "Tomato Soup Cooking"
+station: "croppy:cooking_pot"
+
+start_conditions:
+  - "station.temperature >= 75"
+
+phases:
+  - id: "simmer"
+    name: "Simmering"
+    type: TIMED
+    duration: 15s
+    condition: "station.temperature >= 75"
+    pause_on_condition_failure: true
+    display:
+      template: "<gray>Simmering: <yellow>{progress_percent}%</yellow> <dark_gray>[{progress_bar}]</dark_gray> <aqua>{progress_seconds_left}s</aqua></gray>"
+      bar:
+        length: 10
+        filled: "<gradient:#ff5555:#ffaa00>■</gradient>"
+        empty: "<dark_gray>■</dark_gray>"
+    effects:
+      particles:
+        particle: "SPLASH"
+        count: 2
+        offset: [0.15, 0.05, 0.15]
+        speed: 0.02
+      sound:
+        sound: "BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE"
+        interval: 2s
+        volume: 0.4
+        pitch: 1.2

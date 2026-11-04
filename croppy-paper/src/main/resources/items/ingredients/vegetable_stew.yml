@@ -1,7 +1,6 @@
 id: "croppy:vegetable_stew"
 category: "ingredients"
 material: "MUSHROOM_STEW"
-custom-model-data: 0
 name: "<gradient:#55ff55:#ffaa00>Vegetable Stew</gradient>"
 lore:
   - "<gray>A rich and wholesome stew made from farm-grown harvest vegetables.</gray>"

@@ -18,6 +18,7 @@ import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Server;
@@ -189,8 +190,8 @@ public class CropInspectorService {
                     : "<green><bold>Growing</bold></green>";
         }
 
-        String lightColor = lightOk ? "<green>" : "<red>";
-        String waterColor = waterOk ? "<blue>" : "<red>";
+        NamedTextColor lightColor = lightOk ? NamedTextColor.GREEN : NamedTextColor.RED;
+        NamedTextColor waterColor = waterOk ? NamedTextColor.BLUE : NamedTextColor.RED;
 
         // Daily Hydration string
         String hydrationStr;
@@ -237,15 +238,52 @@ public class CropInspectorService {
 
         if (messageService != null) {
             Component title = messageService.render(audience, MessageKey.of("inspector.title"));
-            Component speciesLine = messageService.render(audience, MessageKey.of("inspector.species"), PaperMessageService.args("name", species.getName(), "key", species.getKey().asString()));
-            Component stageLine = messageService.render(audience, MessageKey.of("inspector.stage"), PaperMessageService.args("current", currentStageIdx + 1, "total", totalStages, "id", stage.id()));
-            Component progressLine = messageService.render(audience, MessageKey.of("inspector.progress"), PaperMessageService.args("bar", progressBar, "percent", pctStr));
-            Component hydrationLine = messageService.render(audience, MessageKey.of("inspector.hydration"), PaperMessageService.arg("status", miniMessage.deserialize(hydrationStr)));
-            Component fertilizerLine = messageService.render(audience, MessageKey.of("inspector.fertilizer"), PaperMessageService.arg("status", miniMessage.deserialize(fertilizerStr)));
-            Component policyLine = messageService.render(audience, MessageKey.of("inspector.policy"), PaperMessageService.arg("policy", policyStr));
-            Component lightLine = messageService.render(audience, MessageKey.of("inspector.light"), PaperMessageService.args("color", lightColor, "level", currentLight, "min", reqLight));
-            Component waterLine = messageService.render(audience, MessageKey.of("inspector.water"), PaperMessageService.args("color", waterColor, "level", currentWater, "min", reqWater));
-            Component statusLine = messageService.render(audience, MessageKey.of("inspector.status"), PaperMessageService.arg("status", miniMessage.deserialize(statusStr)));
+            Component speciesName = messageService.resolveSpeciesDisplayName(audience, species);
+            Component speciesLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.species"),
+                    PaperMessageService.args("name", speciesName, "key", species.getKey().asString())
+            );
+            Component stageLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.stage"),
+                    PaperMessageService.args("current", currentStageIdx + 1, "total", totalStages, "id", stage.id())
+            );
+            Component progressLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.progress"),
+                    PaperMessageService.args("bar", miniMessage.deserialize(progressBar), "percent", pctStr)
+            );
+            Component hydrationLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.hydration"),
+                    PaperMessageService.arg("status", miniMessage.deserialize(hydrationStr))
+            );
+            Component fertilizerLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.fertilizer"),
+                    PaperMessageService.arg("status", miniMessage.deserialize(fertilizerStr))
+            );
+            Component policyLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.policy"),
+                    PaperMessageService.arg("policy", policyStr)
+            );
+            Component lightLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.light"),
+                    PaperMessageService.args("color", lightColor, "level", currentLight, "min", reqLight)
+            );
+            Component waterLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.water"),
+                    PaperMessageService.args("color", waterColor, "level", currentWater, "min", reqWater)
+            );
+            Component statusLine = messageService.render(
+                    audience,
+                    MessageKey.of("inspector.status"),
+                    PaperMessageService.arg("status", miniMessage.deserialize(statusStr))
+            );
 
             return Component.empty()
                     .append(title).append(Component.newline())
@@ -259,6 +297,9 @@ public class CropInspectorService {
                     .append(waterLine).append(Component.newline())
                     .append(statusLine);
         }
+
+        String lightColorTag = "<" + lightColor.toString() + ">";
+        String waterColorTag = "<" + waterColor.toString() + ">";
 
         String card = """
                 <gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Crop Inspection
@@ -282,10 +323,10 @@ public class CropInspectorService {
                         hydrationStr,
                         fertilizerStr,
                         policyStr,
-                        lightColor,
+                        lightColorTag,
                         currentLight,
                         reqLight,
-                        waterColor,
+                        waterColorTag,
                         currentWater,
                         reqWater,
                         statusStr
