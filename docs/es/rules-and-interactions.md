@@ -2,7 +2,7 @@
 title: Reglas e Interacciones de Estaciones
 description: Especificación técnica y referencia YAML para disparadores de interacción y reglas dinámicas de fallo de cocción con compilación de expresiones Pratt AST.
 sidebar:
-  order: 15
+  order: 16
 ---
 
 # Reglas e Interacciones de Estaciones

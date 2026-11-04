@@ -30,9 +30,13 @@ Watering cans store discrete water charges within their Persistent Data Containe
 Watering cans consume one charge per pour action. When empty, a warning appears in the action bar (`watering.empty`).
 
 To refill a watering can to maximum capacity:
-1. Locate any natural water source block (`minecraft:water`), river, ocean, or water-filled cauldron.
-2. Hold the watering can in your main hand and **Right-Click** the water source.
-3. A splash sound and bubble particles confirm the refill, restoring the can to its maximum capacity.
+1. Locate any valid water source:
+   * Natural water source block (`minecraft:water`), ocean, river, or pond.
+   * **Waterlogged blocks** (slabs, stairs, fences, leaves, chest waterlogging).
+   * **Water-filled Cauldrons** (`WATER_CAULDRON` with water level > 0).
+2. Hold the watering can in your main hand and **Right-Click** the water target.
+3. **Fluid Raytracing**: You can also right-click in the air facing a water surface within a 5-block reach distance. Server-side fluid raytracing will accurately detect the liquid and replenish the can.
+4. A splash sound and bubble particles confirm the refill, restoring the can to its maximum capacity.
 
 ---
 

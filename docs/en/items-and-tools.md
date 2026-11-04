@@ -2,7 +2,7 @@
 title: Custom Items & Tools
 description: Catalog of Croppy's custom items, agricultural tools, PDC data persistence, and item registration format.
 sidebar:
-  order: 17
+  order: 18
 ---
 
 # Custom Items & Agricultural Tools

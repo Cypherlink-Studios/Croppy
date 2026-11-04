@@ -2,7 +2,7 @@
 title: Ítems y Herramientas
 description: Catálogo de ítems custom de Croppy, herramientas agrícolas, persistencia de datos en PDC y formato de registro.
 sidebar:
-  order: 17
+  order: 18
 ---
 
 # Ítems Personalizados y Herramientas Agrícolas

@@ -2,7 +2,7 @@
 title: Rules & Station Interactions
 description: Technical specification and YAML reference for station interaction triggers and dynamic cooking failure rules with Pratt AST expression evaluation.
 sidebar:
-  order: 15
+  order: 16
 ---
 
 # Rules & Station Interactions

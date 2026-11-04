@@ -30,9 +30,13 @@ Las regaderas almacenan cargas de agua en su PersistentDataContainer (PDC). Al m
 Cada acción de riego consume una carga. Cuando la regadera se vacía, la barra de acción del jugador emite un aviso (`watering.empty`).
 
 Para recargar la regadera al máximo:
-1. Acércate a cualquier bloque de fuente de agua natural (`minecraft:water`), río, océano o caldero con agua.
+1. Localiza cualquier fuente de agua válida:
+   * Bloques de fuente de agua natural (`minecraft:water`), océanos, ríos o lagos.
+   * **Bloques anegados (*waterlogged*)** (losas, escaleras, vallas, hojas).
+   * **Calderos con agua** (`WATER_CAULDRON` con nivel de agua > 0).
 2. Sostén la regadera en la mano principal y haz **Clic Derecho** en el agua.
-3. Un sonido de agua y partículas de burbujas confirmarán que la regadera se ha recargado por completo.
+3. **Trazado de Rayos de Fluidos (*Raytracing*)**: También puedes hacer clic derecho al aire apuntando hacia una superficie con agua en un rango de hasta 5 bloques. El motor detectará el fluido en el servidor y rellenará la regadera.
+4. Un sonido de agua y partículas de burbujas confirmarán que la regadera se ha recargado por completo.
 
 ---
 

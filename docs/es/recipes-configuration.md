@@ -80,7 +80,7 @@ properties:
 | `name` | String | **Sí** | — | Nombre visible para el jugador con soporte para etiquetas MiniMessage. |
 | `category` | String (`Key`) | No | `croppy:all` | Clave de categoría para pestañas de navegación en el compendio. |
 | `station` | String (`Key`) | **Sí** | — | Clave de la estación donde se cocina (`croppy:cooking_pot`, `croppy:skillet`). |
-| `process` | String (`Key`) | No | Mismo que `id`| Identificador del proceso de cocción secuencial. |
+| `process` | String (`Key`) | No | Mismo que `id`| Identificador del [Proceso Secuencial de Cocción](cooking-processes.md) que gobierna tiempos, fases, efectos y hologramas. |
 | `inputs` | Lista de Mapas | **Sí** | `[]` | Ingredientes requeridos. Cada entrada requiere `item` (Key) y `amount` opcional (entero, defecto `1`). |
 | `result.item` | String (`Key`) | No | Mismo que `id`| Identificador del ítem producido (ej. `croppy:tomato_soup`). |
 | `result.amount` | Entero | No | `1` | Cantidad de ítems generados al terminar la preparación. |

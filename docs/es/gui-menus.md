@@ -2,7 +2,7 @@
 title: Menús Configurables
 description: Guía del sistema de inventarios matriciales 9xN, asignación de slots de entrada y salida, estados condicionales y acciones.
 sidebar:
-  order: 16
+  order: 17
 ---
 
 # Sistema de Menús Configurables

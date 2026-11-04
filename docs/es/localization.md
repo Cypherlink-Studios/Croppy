@@ -2,7 +2,7 @@
 title: Localización e i18n
 description: Guía completa del sistema de paquetes de idioma BCP-47 de Croppy, resolución en cascada, formato MiniMessage e integración con Crowdin.
 sidebar:
-  order: 18
+  order: 19
 ---
 
 # Localización e Internacionalización de Croppy (i18n)

@@ -2,7 +2,7 @@
 title: Localization & i18n
 description: Complete guide to Croppy's BCP-47 locale bundles, fallback resolution, MiniMessage formatting, and Crowdin integration.
 sidebar:
-  order: 18
+  order: 19
 ---
 
 # Croppy Localization & Internationalization (i18n)

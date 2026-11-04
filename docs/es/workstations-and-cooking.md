@@ -50,7 +50,31 @@ En lugar de utilizar Armor Stands reales (que saturan el servidor y dejan entida
 
 ---
 
-## 3. Reglas de Cocción y Quemado
+## 3. Flujo Interactivo de Cocción y Ejecución de Procesos
+
+Croppy v0.5.0 incorpora flujos de cocina dinámicos adaptados a los modelos de interacción de cada estación:
+
+### Flujo en Sartén (Interacción Física Directa)
+1. **Calentar la Sartén**: Coloca la sartén sobre una fuente de calor activa (fogata encendida o estufa). Deja que la temperatura alcance el umbral mínimo de la receta (ej. 120°C para huevos fritos).
+2. **Colocar Ingredientes**: Haz clic derecho en la sartén con el ingrediente en mano (ej. un huevo). El ítem se acoplará sobre la superficie chisporroteante mediante displays virtuales 3D de PacketEvents.
+3. **Disparo Automático del Proceso**: En cuanto se cumplan los ingredientes requeridos y las condiciones térmicas de inicio, el proceso de cocción secuencial comenzará automáticamente.
+4. **Recoger el Plato**: Al llegar al 100% de progreso, haz clic derecho con la mano vacía para recoger el plato recién cocinado.
+
+### Flujo en Olla de Cocina (Híbrida / Menú GUI)
+1. **Abrir el Menú de la Olla**: Haz clic derecho sobre la olla situada sobre una fuente de calor para desplegar su menú matricial interactivo 9xN.
+2. **Introducir Ingredientes**: Coloca las verduras, carnes, caldos o cuencos en los slots de entrada.
+3. **Encender Utensilio (Botón 'B')**: Haz clic en el botón de acción **Encender Utensilio (`START_PROCESS`)**:
+   * El motor valida la coincidencia con una receta válida y las condiciones térmicas de inicio.
+   * Los ingredientes de entrada se consumen inmediatamente de la matriz.
+   * Los slots de entrada se bloquean y actualizan, y el proceso inicia con efectos de audio y partículas de salpicadura.
+4. **Poblado Automático de Resultados (`populateOutputContents`)**: Al finalizar el tiempo, los platos terminados se depositan automáticamente en los slots de salida. Si dichos slots estuvieran llenos, los platos caerán de forma segura al suelo junto a la olla para evitar pérdidas.
+
+### Pausa Térmica y Seguridad en Cocción
+Si la fuente de calor bajo la estación se apaga durante la cocción, el proceso activo entra automáticamente en **pausa** (`pause_on_condition_failure`). El progreso y los segundos transcurridos quedan preservados hasta que la fuente de calor se vuelva a encender.
+
+---
+
+## 4. Reglas de Cocción y Quemado
 
 Cocinar en Croppy exige atención por parte del jugador:
 
@@ -60,7 +84,7 @@ Cocinar en Croppy exige atención por parte del jugador:
 
 ---
 
-## 4. Orientación Dinámica y Apilamiento de Ítems
+## 5. Orientación Dinámica y Apilamiento de Ítems
 
 * **Frente Orientado al Jugador**: Las estaciones colocadas en el mundo se orientan dinámicamente hacia el jugador usando ajuste cardinal (`CARDINAL_4`, `CARDINAL_8`) o ángulo continuo (`FREE_YAW`). Los modelos virtuales 3D y los displays de ingredientes hijos rotan solidariamente con esta orientación.
 * **Apilamiento Nativo de Ítems**: Los ingredientes extraídos de las estaciones conservan los metadatos vanilla limpios. Los cultivos, carnes o condimentos extraídos de ollas o sartenes se apilan sin problemas con ítems idénticos del inventario del jugador.

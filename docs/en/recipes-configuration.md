@@ -80,7 +80,7 @@ properties:
 | `name` | String | **Yes** | — | Player-facing display name supporting MiniMessage tags. |
 | `category` | String (`Key`) | No | `croppy:all` | Compendium category key for navigation tab filtering. |
 | `station` | String (`Key`) | **Yes** | — | Station key where this recipe can be prepared (`croppy:cooking_pot`, `croppy:skillet`). |
-| `process` | String (`Key`) | No | Same as `id` | Associated sequential cooking process identifier. |
+| `process` | String (`Key`) | No | Same as `id` | Identifier of the [Sequential Cooking Process](cooking-processes.md) governing durations, phases, particles, and holograms. |
 | `inputs` | List of Maps | **Yes** | `[]` | List of required ingredients. Each entry requires `item` (Key) and optional `amount` (integer, default `1`). |
 | `result.item` | String (`Key`) | No | Same as `id` | The produced item identifier (e.g. `croppy:tomato_soup` or `minecraft:mushroom_stew`). |
 | `result.amount` | Integer | No | `1` | Number of items produced upon successful completion. |
