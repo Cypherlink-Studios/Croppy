@@ -46,6 +46,10 @@ The system SHALL render dynamic status holograms formatted with configurable Min
 - **WHEN** station progress, thermal zone, or status text changes
 - **THEN** an updated entity metadata packet with the newly formatted MiniMessage text is dispatched to tracking players within the text threshold
 
+#### Scenario: Hologram billboard orientation invariant to station placement yaw
+- **WHEN** a floating text display hologram with camera tracking (e.g., CENTER or VERTICAL billboard) is rendered for a station with non-zero placement yaw
+- **THEN** the text display transformation does not inherit the station instance's horizontal placement yaw in its left-rotation quaternion or translation offsets, maintaining a level camera-facing orientation
+
 ### Requirement: Client-Interpolated Thermal Animations
 The system SHALL dispatch transformation metadata with client interpolation duration to render smooth visual animations based on station thermal and process states.
 

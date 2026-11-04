@@ -39,27 +39,27 @@ import java.util.logging.Logger;
 public class PacketEventsStationRenderer {
 
     // Common Display Entity Metadata indices (Minecraft 1.20 - 1.21)
-    private static final int INDEX_INTERPOLATION_START = 8;
-    private static final int INDEX_INTERPOLATION_DURATION = 9;
-    private static final int INDEX_TRANSLATION = 11;
-    private static final int INDEX_SCALE = 12;
-    private static final int INDEX_ROTATION_LEFT = 13;
-    private static final int INDEX_ROTATION_RIGHT = 14;
-    private static final int INDEX_BILLBOARD = 15;
+    static final int INDEX_INTERPOLATION_START = 8;
+    static final int INDEX_INTERPOLATION_DURATION = 9;
+    static final int INDEX_TRANSLATION = 11;
+    static final int INDEX_SCALE = 12;
+    static final int INDEX_ROTATION_LEFT = 13;
+    static final int INDEX_ROTATION_RIGHT = 14;
+    static final int INDEX_BILLBOARD = 15;
 
     // Item Display specific indices
-    private static final int INDEX_ITEM = 23;
-    private static final int INDEX_ITEM_TRANSFORM = 24;
+    static final int INDEX_ITEM = 23;
+    static final int INDEX_ITEM_TRANSFORM = 24;
 
     // Block Display specific indices
-    private static final int INDEX_BLOCK_STATE = 23;
+    static final int INDEX_BLOCK_STATE = 23;
 
     // Text Display specific indices
-    private static final int INDEX_TEXT = 23;
-    private static final int INDEX_LINE_WIDTH = 24;
-    private static final int INDEX_BACKGROUND_COLOR = 25;
-    private static final int INDEX_TEXT_OPACITY = 26;
-    private static final int INDEX_TEXT_FLAGS = 27;
+    static final int INDEX_TEXT = 23;
+    static final int INDEX_LINE_WIDTH = 24;
+    static final int INDEX_BACKGROUND_COLOR = 25;
+    static final int INDEX_TEXT_OPACITY = 26;
+    static final int INDEX_TEXT_FLAGS = 27;
 
     private final Logger logger;
 
@@ -261,23 +261,30 @@ public class PacketEventsStationRenderer {
         }
     }
 
-    private void applyTransformMetadata(List<EntityData<?>> metadata, DisplayTransform transform, BillboardMode billboard, int interpolation, float stationYaw) {
+    void applyTransformMetadata(List<EntityData<?>> metadata, DisplayTransform transform, BillboardMode billboard, int interpolation, float stationYaw) {
         metadata.add(new EntityData(INDEX_INTERPOLATION_START, EntityDataTypes.INT, 0));
         metadata.add(new EntityData(INDEX_INTERPOLATION_DURATION, EntityDataTypes.INT, interpolation));
 
-        float yawRad = (float) Math.toRadians(-stationYaw);
+        boolean isFixed = (billboard == null || billboard == BillboardMode.FIXED);
+        float effectiveYaw = isFixed ? stationYaw : 0.0f;
+        float yawRad = (float) Math.toRadians(-effectiveYaw);
         float cos = (float) Math.cos(yawRad);
         float sin = (float) Math.sin(yawRad);
         double tx = transform.translationX();
         double ty = transform.translationY();
         double tz = transform.translationZ();
-        float rotatedTx = (float) (tx * cos - tz * sin);
-        float rotatedTz = (float) (tx * sin + tz * cos);
+        float rotatedTx = isFixed ? (float) (tx * cos - tz * sin) : (float) tx;
+        float rotatedTz = isFixed ? (float) (tx * sin + tz * cos) : (float) tz;
 
         metadata.add(new EntityData(INDEX_TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f(rotatedTx, (float) ty, rotatedTz)));
         metadata.add(new EntityData(INDEX_SCALE, EntityDataTypes.VECTOR3F, new Vector3f(transform.scaleX(), transform.scaleY(), transform.scaleZ())));
 
-        Quaternionf q = new Quaternionf().rotateY(yawRad).rotateXYZ(transform.pitch(), transform.yaw(), transform.roll());
+        Quaternionf q = new Quaternionf();
+        if (isFixed) {
+            q.rotateY(yawRad);
+        }
+        q.rotateXYZ(transform.pitch(), transform.yaw(), transform.roll());
+
         Quaternion4f rot = new Quaternion4f(q.x, q.y, q.z, q.w);
         metadata.add(new EntityData(INDEX_ROTATION_LEFT, EntityDataTypes.QUATERNION, rot));
         metadata.add(new EntityData(INDEX_ROTATION_RIGHT, EntityDataTypes.QUATERNION, new Quaternion4f(0.0f, 0.0f, 0.0f, 1.0f)));
