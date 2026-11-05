@@ -259,4 +259,18 @@ class CropInspectorServiceTest {
         assertTrue(text.contains("8/8 (Min: 1)"));
         assertTrue(text.contains("■■■■■■■■■■"));
     }
+
+    @Test
+    void testInspectMultiBlockCropAtSecondaryCoordinate() {
+        BlockPosition rootPos = new BlockPosition("world", 10, 64, 10);
+        BlockPosition secondaryPos = new BlockPosition("world", 10, 65, 10);
+        DefaultCropInstance crop = new DefaultCropInstance(testSpecies.getKey(), rootPos, 0, 50.0, 100L, 100L);
+        cropManager.registerCrop(crop, 2);
+
+        Optional<Component> cardOpt = inspectorService.inspect(secondaryPos);
+        assertTrue(cardOpt.isPresent(), "Inspection on secondary Y+1 coordinate must return the crop card");
+
+        String text = PlainTextComponentSerializer.plainText().serialize(cardOpt.get());
+        assertTrue(text.contains("Golden Wheat"));
+    }
 }

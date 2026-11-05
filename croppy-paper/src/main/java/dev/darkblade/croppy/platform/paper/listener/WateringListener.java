@@ -134,9 +134,9 @@ public class WateringListener implements Listener {
             Block blockAbove = world.getBlockAt(pos.x(), pos.y() + 1, pos.z());
 
             // Check for crop at current block or above block
-            Optional<CropInstance> cropOpt = cropManager.getCrop(pos);
+            Optional<CropInstance> cropOpt = cropManager.getCropAt(pos);
             if (cropOpt.isEmpty()) {
-                cropOpt = cropManager.getCrop(BlockPosition.of(world.getName(), pos.x(), pos.y() + 1, pos.z()));
+                cropOpt = cropManager.getCropAt(BlockPosition.of(world.getName(), pos.x(), pos.y() + 1, pos.z()));
             }
 
             if (cropOpt.isPresent()) {

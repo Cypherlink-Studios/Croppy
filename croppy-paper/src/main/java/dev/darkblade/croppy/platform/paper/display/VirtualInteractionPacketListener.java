@@ -120,8 +120,8 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         Optional<Species> speciesOpt = core.getSpeciesRegistry().get(crop.getSpeciesKey());
         if (speciesOpt.isEmpty()) {
             core.getCropManager().removeCrop(pos);
-            core.getStorage().ifPresent(s -> s.deleteCrop(pos));
-            displayTracker.removeDisplay(pos);
+            core.getStorage().ifPresent(s -> s.deleteCrop(crop.getPosition()));
+            displayTracker.removeDisplay(crop.getPosition());
             return;
         }
 
@@ -296,6 +296,7 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         core.getCropManager().removeCrop(pos);
         core.getStorage().ifPresent(s -> s.deleteCrop(pos));
         displayTracker.removeDisplay(pos);
+        world.getBlockAt(pos.x(), pos.y(), pos.z()).setType(Material.AIR);
 
         for (ItemStack drop : drops) {
             world.dropItemNaturally(dropLoc, drop);
@@ -318,6 +319,7 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         core.getCropManager().removeCrop(pos);
         core.getStorage().ifPresent(s -> s.deleteCrop(pos));
         displayTracker.removeDisplay(pos);
+        block.setType(Material.AIR);
 
         if (player.getGameMode() != GameMode.CREATIVE) {
             Material seedMat = Material.matchMaterial(species.getDisplay().seedItemId());

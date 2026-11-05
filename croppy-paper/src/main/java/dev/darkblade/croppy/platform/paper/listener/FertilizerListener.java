@@ -10,7 +10,6 @@ import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -73,16 +72,16 @@ public class FertilizerListener implements Listener {
         BlockPosition abovePos = BlockPosition.of(world.getName(), clickedBlock.getX(), clickedBlock.getY() + 1, clickedBlock.getZ());
 
         // 1. Check for active crop at clicked block or block above
-        Optional<CropInstance> cropOpt = cropManager.getCrop(clickedPos);
+        Optional<CropInstance> cropOpt = cropManager.getCropAt(clickedPos);
         if (cropOpt.isEmpty()) {
-            cropOpt = cropManager.getCrop(abovePos);
+            cropOpt = cropManager.getCropAt(abovePos);
         }
 
         if (cropOpt.isPresent()) {
             CropInstance crop = cropOpt.get();
             if (crop.hasFertilizer()) {
                 event.setCancelled(true);
-                player.playSound(player.getLocation(), Sound.BLOCK_DISPENSER_FAIL, 0.8f, 1.5f);
+                player.playSound(player.getLocation(), "block.dispenser.fail", 0.8f, 1.5f);
                 if (messageService != null) {
                     messageService.sendActionBar(player, MessageKey.of("fertilizer.already-applied"));
                 } else {
@@ -95,7 +94,7 @@ public class FertilizerListener implements Listener {
             crop.setFertilizerKey(fertilizer.getKey());
             item.subtract(1);
 
-            world.playSound(clickedBlock.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.1f);
+            world.playSound(clickedBlock.getLocation(), "item.bone_meal.use", 0.8f, 1.1f);
             world.spawnParticle(Particle.HAPPY_VILLAGER, clickedBlock.getLocation().add(0.5, 0.5, 0.5), 12, 0.2, 0.2, 0.2, 0.1);
             if (messageService != null) {
                 messageService.sendActionBar(player, MessageKey.of("fertilizer.applied"), PaperMessageService.arg("name", fertilizer.name()));
@@ -111,7 +110,7 @@ public class FertilizerListener implements Listener {
             fertilizerService.bufferSoilFertilizer(abovePos, fertilizer.getKey());
             item.subtract(1);
 
-            world.playSound(clickedBlock.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.0f);
+            world.playSound(clickedBlock.getLocation(), "item.bone_meal.use", 0.8f, 1.0f);
             world.spawnParticle(Particle.COMPOSTER, clickedBlock.getLocation().add(0.5, 1.0, 0.5), 10, 0.2, 0.1, 0.2, 0.1);
             if (messageService != null) {
                 messageService.sendActionBar(player, MessageKey.of("fertilizer.soil-enriched"));

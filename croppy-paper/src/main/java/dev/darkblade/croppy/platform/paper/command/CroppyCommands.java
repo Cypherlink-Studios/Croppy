@@ -383,9 +383,9 @@ public class CroppyCommands {
         }
 
         BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCrop(pos);
+        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCropAt(pos);
         if (cropOpt.isEmpty()) {
-            cropOpt = plugin.getCore().getCropManager().getCrop(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
+            cropOpt = plugin.getCore().getCropManager().getCropAt(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
         }
 
         if (cropOpt.isEmpty()) {
@@ -427,9 +427,9 @@ public class CroppyCommands {
         }
 
         BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCrop(pos);
+        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCropAt(pos);
         if (cropOpt.isEmpty()) {
-            cropOpt = plugin.getCore().getCropManager().getCrop(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
+            cropOpt = plugin.getCore().getCropManager().getCropAt(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
         }
 
         if (cropOpt.isEmpty()) {
@@ -464,7 +464,10 @@ public class CroppyCommands {
         }
 
         BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCrop(pos);
+        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCropAt(pos);
+        if (cropOpt.isEmpty()) {
+            cropOpt = plugin.getCore().getCropManager().getCropAt(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
+        }
         if (cropOpt.isEmpty()) {
             sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
@@ -510,7 +513,10 @@ public class CroppyCommands {
         }
 
         BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCrop(pos);
+        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCropAt(pos);
+        if (cropOpt.isEmpty()) {
+            cropOpt = plugin.getCore().getCropManager().getCropAt(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
+        }
         if (cropOpt.isEmpty()) {
             sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;

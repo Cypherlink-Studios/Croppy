@@ -33,6 +33,7 @@ dependencies {
 
 tasks {
     shadowJar {
+        archiveBaseName.set("Croppy-paper")
         archiveClassifier.set("")
         relocate("org.incendo.cloud", "dev.darkblade.croppy.libs.cloud")
         relocate("io.leangen.geantyref", "dev.darkblade.croppy.libs.geantyref")

@@ -1,11 +1,16 @@
 package dev.darkblade.croppy.platform.paper.listener;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
+import dev.darkblade.croppy.api.species.Species;
+import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.api.storage.StationStorage;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
+import dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker;
+import dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker;
 import org.bukkit.Chunk;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -27,21 +32,30 @@ public class ChunkLifecycleListener implements Listener {
 
     private final CropManager cropManager;
     private final CropStorage cropStorage;
+    private final SpeciesRegistry speciesRegistry;
+    private final DisplaySynchronizer displaySynchronizer;
+    private final VirtualBlockDisplayTracker displayTracker;
     private final DefaultStationManager stationManager;
     private final StationStorage stationStorage;
-    private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
+    private final StationViewerTracker viewerTracker;
     private final Logger logger;
 
     public ChunkLifecycleListener(
             CropManager cropManager,
             CropStorage cropStorage,
+            SpeciesRegistry speciesRegistry,
+            DisplaySynchronizer displaySynchronizer,
+            VirtualBlockDisplayTracker displayTracker,
             DefaultStationManager stationManager,
             StationStorage stationStorage,
-            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            StationViewerTracker viewerTracker,
             Logger logger
     ) {
         this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
         this.cropStorage = Objects.requireNonNull(cropStorage, "cropStorage cannot be null");
+        this.speciesRegistry = speciesRegistry;
+        this.displaySynchronizer = displaySynchronizer;
+        this.displayTracker = displayTracker;
         this.stationManager = stationManager;
         this.stationStorage = stationStorage;
         this.viewerTracker = viewerTracker;
@@ -53,13 +67,24 @@ public class ChunkLifecycleListener implements Listener {
             CropStorage cropStorage,
             DefaultStationManager stationManager,
             StationStorage stationStorage,
+            StationViewerTracker viewerTracker,
             Logger logger
     ) {
-        this(cropManager, cropStorage, stationManager, stationStorage, null, logger);
+        this(cropManager, cropStorage, null, null, null, stationManager, stationStorage, viewerTracker, logger);
+    }
+
+    public ChunkLifecycleListener(
+            CropManager cropManager,
+            CropStorage cropStorage,
+            DefaultStationManager stationManager,
+            StationStorage stationStorage,
+            Logger logger
+    ) {
+        this(cropManager, cropStorage, null, null, null, stationManager, stationStorage, null, logger);
     }
 
     public ChunkLifecycleListener(CropManager cropManager, CropStorage cropStorage, Logger logger) {
-        this(cropManager, cropStorage, null, null, null, logger);
+        this(cropManager, cropStorage, null, null, null, null, null, null, logger);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -74,7 +99,16 @@ public class ChunkLifecycleListener implements Listener {
             Collection<CropInstance> crops = cropStorage.loadChunk(worldName, chunkX, chunkZ);
             for (CropInstance crop : crops) {
                 if (!cropManager.hasCrop(crop.getPosition())) {
-                    cropManager.registerCrop(crop);
+                    Species species = (speciesRegistry != null)
+                            ? speciesRegistry.get(crop.getSpeciesKey()).orElse(null)
+                            : null;
+                    int height = (species != null) ? species.getHeight() : 1;
+                    cropManager.registerCrop(crop, height);
+
+                    if (species != null && displaySynchronizer != null && !species.getStages().isEmpty()) {
+                        int stageIdx = Math.min(crop.getStageIndex(), species.getStages().size() - 1);
+                        displaySynchronizer.synchronizeDisplay(crop, species, species.getStages().get(stageIdx));
+                    }
                 }
             }
         } catch (Exception e) {
@@ -118,6 +152,9 @@ public class ChunkLifecycleListener implements Listener {
 
             for (CropInstance crop : chunkCrops) {
                 cropManager.removeCrop(crop.getPosition());
+                if (displayTracker != null) {
+                    displayTracker.removeDisplay(crop.getPosition());
+                }
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Error saving crops for unloaded chunk [" + chunkX + ", " + chunkZ + "]", e);

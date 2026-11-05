@@ -93,8 +93,10 @@ public class VirtualBlockDisplayTracker {
         if (display.getModel() != null) {
             item = resolveItemStack(display.getModel().itemModel());
         }
-        if (item == null || item.getType().isAir()) {
-            item = new ItemStack(Material.PAPER);
+        if (item == null || isAir(item)) {
+            try {
+                item = new ItemStack(Material.PAPER);
+            } catch (Throwable ignored) {}
         }
 
         Collection<? extends Player> players = world.getPlayers();
@@ -116,6 +118,75 @@ public class VirtualBlockDisplayTracker {
             } else if (!inRange && viewing) {
                 display.removeViewer(playerId);
                 renderer.destroyBlockDisplay(player, display);
+            }
+        }
+    }
+
+    /**
+     * Periodically evaluates player distances for all active virtual block displays,
+     * dispatching spawn packets to approaching players and destroy packets to departing players.
+     */
+    public void tickViewers() {
+        for (VirtualBlockDisplay display : activeDisplays.values()) {
+            BlockPosition pos = display.getPosition();
+            World world = server.getWorld(pos.worldName());
+            if (world == null) {
+                continue;
+            }
+
+            int chunkX = pos.x() >> 4;
+            int chunkZ = pos.z() >> 4;
+            if (!world.isChunkLoaded(chunkX, chunkZ)) {
+                continue;
+            }
+
+            // Clean up viewers that left this world or disconnected
+            for (UUID viewerId : display.getViewers()) {
+                Player player = server.getPlayer(viewerId);
+                if (player == null || !player.isOnline() || !world.equals(player.getWorld())) {
+                    display.removeViewer(viewerId);
+                    if (player != null && player.isOnline()) {
+                        renderer.destroyBlockDisplay(player, display);
+                    }
+                }
+            }
+
+            double centerX = pos.x() + 0.5;
+            double centerY = pos.y() + 0.5;
+            double centerZ = pos.z() + 0.5;
+
+            ItemStack item = null;
+            Collection<? extends Player> players = world.getPlayers();
+            for (Player player : players) {
+                if (!player.isOnline()) {
+                    continue;
+                }
+                UUID playerId = player.getUniqueId();
+                double dx = player.getLocation().getX() - centerX;
+                double dy = player.getLocation().getY() - centerY;
+                double dz = player.getLocation().getZ() - centerZ;
+                double distSq = dx * dx + dy * dy + dz * dz;
+
+                boolean inRange = distSq <= viewDistanceSq;
+                boolean viewing = display.isViewing(playerId);
+
+                if (inRange && !viewing) {
+                    if (item == null) {
+                        if (display.getModel() != null) {
+                            item = resolveItemStack(display.getModel().itemModel());
+                        }
+                        if (item == null || isAir(item)) {
+                            try {
+                                item = new ItemStack(Material.PAPER);
+                            } catch (Throwable ignored) {}
+                        }
+                    }
+                    display.addViewer(playerId);
+                    renderer.spawnBlockDisplay(player, display, item);
+                } else if (!inRange && viewing) {
+                    display.removeViewer(playerId);
+                    renderer.destroyBlockDisplay(player, display);
+                }
             }
         }
     }
@@ -156,13 +227,27 @@ public class VirtualBlockDisplayTracker {
         if (defOpt.isPresent()) {
             return itemFactory.createItemStack(defOpt.get(), 1);
         }
-        ItemStack item = new ItemStack(Material.PAPER);
-        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setItemModel(new org.bukkit.NamespacedKey(itemKey.namespace(), itemKey.value()));
-            item.setItemMeta(meta);
+        try {
+            ItemStack item = new ItemStack(Material.PAPER);
+            org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                meta.setItemModel(new org.bukkit.NamespacedKey(itemKey.namespace(), itemKey.value()));
+                item.setItemMeta(meta);
+            }
+            return item;
+        } catch (Throwable t) {
+            return null;
         }
-        return item;
+    }
+
+    private boolean isAir(ItemStack item) {
+        if (item == null) return true;
+        try {
+            Material type = item.getType();
+            return type == Material.AIR || type == Material.CAVE_AIR || type == Material.VOID_AIR;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     public Map<BlockPosition, VirtualBlockDisplay> getActiveDisplays() {

@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.2"
+  - version: "0.5.3"
     releaseDate: "2026-11-05"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Hardened multi-block crop lifecycles: pre-plant vertical clearance validation, chunk reload footprint retention & immediate mature crop visual displays, canonical root persistence deletion, physical base block clearing, ghost visual display & hitbox cleanup upon physics destruction/withering, spatial occupancy query migration (getCropAt), and continuous viewer proximity tracking."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.2"
+    releaseDate: "2026-11-05"
+    reference: "515dbef"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Modernized config.yml with locale.default and purged legacy sections; multi-block crop vertical occupancy & harvest regrowth; companion resource pack scaffolding (pack_format 64)."
     minecraft:

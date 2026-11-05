@@ -112,6 +112,7 @@ public class CroppyPlugin extends JavaPlugin {
     private dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker virtualBlockDisplayTracker;
     private dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener virtualInteractionListener;
     private dev.darkblade.croppy.platform.paper.station.listener.StationVirtualInteractionPacketListener stationVirtualInteractionListener;
+    private BukkitTask displayTrackerTask;
 
     @Override
     public void onEnable() {
@@ -143,9 +144,9 @@ public class CroppyPlugin extends JavaPlugin {
             setupInteractionDefinitions();
             setupRuleDefinitions();
             setupMenuServices();
+            setupGrowthSimulation();
             loadActiveChunkCrops();
             loadActiveChunkStations();
-            setupGrowthSimulation();
             setupCommands();
             registerListeners();
             getLogger().info("Croppy enabled successfully!");
@@ -162,8 +163,15 @@ public class CroppyPlugin extends JavaPlugin {
                 Collection<CropInstance> crops = storage.loadChunk(world.getName(), chunk.getX(), chunk.getZ());
                 for (CropInstance crop : crops) {
                     if (!core.getCropManager().hasCrop(crop.getPosition())) {
-                        core.getCropManager().registerCrop(crop);
+                        dev.darkblade.croppy.api.species.Species species = core.getSpeciesRegistry().get(crop.getSpeciesKey()).orElse(null);
+                        int height = (species != null) ? species.getHeight() : 1;
+                        core.getCropManager().registerCrop(crop, height);
                         loadedCount++;
+
+                        if (species != null && this.displaySynchronizer != null && !species.getStages().isEmpty()) {
+                            int stageIdx = Math.min(crop.getStageIndex(), species.getStages().size() - 1);
+                            this.displaySynchronizer.synchronizeDisplay(crop, species, species.getStages().get(stageIdx));
+                        }
                     }
                 }
             }
@@ -202,12 +210,13 @@ public class CroppyPlugin extends JavaPlugin {
 
     private void registerListeners() {
         var pm = getServer().getPluginManager();
-        pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getStationManager(),
+        pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getSpeciesRegistry(),
+                this.displaySynchronizer, this.virtualBlockDisplayTracker, core.getStationManager(),
                 this.stationStorage, this.stationViewerTracker, getLogger()), this);
         pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer), this);
         pm.registerEvents(new CropGrowthListener(core), this);
         pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer), this);
-        pm.registerEvents(new CropPhysicsListener(core), this);
+        pm.registerEvents(new CropPhysicsListener(core, this.virtualBlockDisplayTracker), this);
         pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
         pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService),
                 this);
@@ -489,12 +498,23 @@ public class CroppyPlugin extends JavaPlugin {
             return false;
         });
 
-        this.growthTicker = new PaperGrowthTicker(this, core, this.environmentProvider, this.dailyTransitionService);
+        this.growthTicker = new PaperGrowthTicker(this, core, this.environmentProvider, this.dailyTransitionService, this.virtualBlockDisplayTracker);
         this.growthTicker.start(tickInterval);
 
         // Schedule periodic rain hydration task (every 5 seconds / 100 ticks)
         this.rainTask = getServer().getScheduler().runTaskTimer(this,
                 new RainHydrationTask(getServer(), core.getCropManager()), 100L, 100L);
+
+        // Schedule periodic 3D display viewer proximity tracking (every 1 second / 20 ticks)
+        this.displayTrackerTask = getServer().getScheduler().runTaskTimer(this, () -> {
+            try {
+                if (this.virtualBlockDisplayTracker != null) {
+                    this.virtualBlockDisplayTracker.tickViewers();
+                }
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error during virtual display viewer tracking tick", t);
+            }
+        }, 20L, 20L);
 
         this.packetStationRenderer = new dev.darkblade.croppy.platform.paper.station.display.PacketEventsStationRenderer(
                 getLogger());
@@ -661,6 +681,15 @@ public class CroppyPlugin extends JavaPlugin {
                 getLogger().log(Level.WARNING, "Error cancelling menu ticker task during shutdown", t);
             }
             this.menuTickerTask = null;
+        }
+
+        if (this.displayTrackerTask != null && !this.displayTrackerTask.isCancelled()) {
+            try {
+                this.displayTrackerTask.cancel();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error cancelling display tracker task during shutdown", t);
+            }
+            this.displayTrackerTask = null;
         }
 
         flushActiveCrops();

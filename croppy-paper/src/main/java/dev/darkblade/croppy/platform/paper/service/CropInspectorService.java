@@ -99,7 +99,7 @@ public class CropInspectorService {
     }
 
     public Optional<Component> inspect(BlockPosition position, Audience audience) {
-        Optional<CropInstance> cropOpt = cropManager.getCrop(position);
+        Optional<CropInstance> cropOpt = cropManager.getCropAt(position);
         if (cropOpt.isEmpty()) {
             return Optional.empty();
         }
@@ -114,13 +114,13 @@ public class CropInspectorService {
 
         long currentDay = -1L;
         if (server != null) {
-            World world = server.getWorld(position.worldName());
+            World world = server.getWorld(crop.getPosition().worldName());
             if (world != null) {
                 currentDay = world.getFullTime() / 24000L;
             }
         }
 
-        CropEnvironment environment = environmentProvider.getEnvironment(position);
+        CropEnvironment environment = environmentProvider.getEnvironment(crop.getPosition());
         return Optional.of(formatCropCard(crop, speciesOpt.get(), environment, currentDay, audience));
     }
 

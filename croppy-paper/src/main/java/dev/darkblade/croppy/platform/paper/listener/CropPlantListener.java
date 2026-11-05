@@ -10,6 +10,7 @@ import dev.darkblade.croppy.platform.paper.event.CropPlantEvent;
 import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
 import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
@@ -46,6 +47,10 @@ public class CropPlantListener implements Listener {
         this(core, null, null);
     }
 
+    private boolean isAir(Material material) {
+        return material == null || material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
+    }
+
     /**
      * Safeguard: Prevents players from placing blocks inside coordinates already occupied by an active crop.
      */
@@ -63,7 +68,7 @@ public class CropPlantListener implements Listener {
         ItemStack itemInHand = event.getItemInHand();
         Optional<Species> speciesOpt = Optional.empty();
 
-        if (itemInHand.hasItemMeta()) {
+        if (itemInHand != null && itemInHand.hasItemMeta()) {
             ItemMeta meta = itemInHand.getItemMeta();
             if (meta != null) {
                 // 1. Check standardized croppy:item_id
@@ -94,7 +99,7 @@ public class CropPlantListener implements Listener {
             }
         }
 
-        if (speciesOpt.isEmpty()) {
+        if (speciesOpt.isEmpty() && itemInHand != null) {
             String seedId = itemInHand.getType().getKey().toString().toLowerCase();
             speciesOpt = core.getSpeciesRegistry().findBySeedItem(seedId);
         }
@@ -112,7 +117,35 @@ public class CropPlantListener implements Listener {
         Block block = event.getBlockPlaced();
         BlockPosition pos = BlockPosition.of(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
 
-        float playerYaw = event.getPlayer().getLocation().getYaw();
+        // Validate full multi-block spatial clearance and occupancy
+        java.util.List<BlockPosition> occupiedPositions = species.getSpatialFootprint().calculateOccupiedPositions(pos);
+        for (BlockPosition occPos : occupiedPositions) {
+            if (core.getCropManager().isOccupied(occPos)) {
+                event.setCancelled(true);
+                if (event.getPlayer() != null) {
+                    event.getPlayer().sendActionBar(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                            .deserialize("<red>Not enough space to plant this crop!</red>"));
+                }
+                return;
+            }
+
+            if (!occPos.equals(pos)) {
+                try {
+                    Block upperBlock = block.getWorld().getBlockAt(occPos.x(), occPos.y(), occPos.z());
+                    if (upperBlock != null && !isAir(upperBlock.getType()) && !upperBlock.isPassable()) {
+                        event.setCancelled(true);
+                        if (event.getPlayer() != null) {
+                            event.getPlayer().sendActionBar(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                                    .deserialize("<red>Not enough vertical space for this crop!</red>"));
+                        }
+                        return;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        float playerYaw = event.getPlayer() != null ? event.getPlayer().getLocation().getYaw() : 0.0f;
         float effectiveYaw = RotationCalculator.calculate(playerYaw, species.getDisplay().rotationMode());
 
         CropInstance instance = new DefaultCropInstance(

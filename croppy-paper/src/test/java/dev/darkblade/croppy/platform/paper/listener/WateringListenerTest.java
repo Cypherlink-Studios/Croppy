@@ -1,5 +1,6 @@
 package dev.darkblade.croppy.platform.paper.listener;
 
+import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
 import org.bukkit.Location;
@@ -91,6 +92,7 @@ class WateringListenerTest {
                     if ("getFullTime".equals(method.getName())) return 24000L;
                     if ("playSound".equals(method.getName())) return null;
                     if ("spawnParticle".equals(method.getName())) return null;
+                    if ("getBlockAt".equals(method.getName())) return createMockBlock(Material.AIR, null, null);
                     return null;
                 }
         );
@@ -108,6 +110,9 @@ class WateringListenerTest {
                     if ("getType".equals(method.getName())) return material;
                     if ("getBlockData".equals(method.getName())) return data;
                     if ("getLocation".equals(method.getName())) return location != null ? location : new Location(mockWorld, 10, 64, 10);
+                    if ("getX".equals(method.getName())) return location != null ? location.getBlockX() : 10;
+                    if ("getY".equals(method.getName())) return location != null ? location.getBlockY() : 64;
+                    if ("getZ".equals(method.getName())) return location != null ? location.getBlockZ() : 10;
                     if ("getWorld".equals(method.getName())) return mockWorld;
                     if ("equals".equals(method.getName())) return proxy == args[0];
                     if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
@@ -124,6 +129,9 @@ class WateringListenerTest {
                     if ("getType".equals(method.getName())) return material;
                     if ("getBlockData".equals(method.getName())) return data;
                     if ("getLocation".equals(method.getName())) return location != null ? location : new Location(mockWorld, 10, 64, 10);
+                    if ("getX".equals(method.getName())) return location != null ? location.getBlockX() : 10;
+                    if ("getY".equals(method.getName())) return location != null ? location.getBlockY() : 64;
+                    if ("getZ".equals(method.getName())) return location != null ? location.getBlockZ() : 10;
                     if ("getWorld".equals(method.getName())) return mockWorld;
                     if ("getRelative".equals(method.getName())) {
                         BlockFace face = (BlockFace) args[0];
@@ -369,5 +377,28 @@ class WateringListenerTest {
 
         assertNotEquals(Event.Result.DENY, event.useItemInHand(), "Item in hand must not be denied for air click without water");
         assertEquals(0, wateringCanService.getWaterLevel(can), "Water level should not change");
+    }
+
+    @Test
+    @DisplayName("Verify onPlayerInteract waters multi-block crop when clicking secondary Y+1 block")
+    void testWaterMultiBlockCropAtSecondaryCoordinate() {
+        BlockPosition rootPos = BlockPosition.of("world", 10, 64, 10);
+        BlockPosition secondaryPos = BlockPosition.of("world", 10, 65, 10);
+        dev.darkblade.croppy.api.crop.CropInstance crop = new dev.darkblade.croppy.core.crop.DefaultCropInstance(
+                dev.darkblade.croppy.api.identifier.Key.of("croppy", "grape"), rootPos
+        );
+        crop.setLastWateredDay(-1L);
+        cropManager.registerCrop(crop, 2);
+
+        Block clickedBlock = createMockBlock(Material.AIR, null, new Location(mockWorld, 10, 65, 10));
+        Player player = createMockPlayer(null);
+        ItemStack can = createMockWateringCan("copper", 10);
+
+        PlayerInteractEvent event = new PlayerInteractEvent(player, Action.RIGHT_CLICK_BLOCK, can, clickedBlock, BlockFace.UP, EquipmentSlot.HAND);
+        listener.onPlayerInteract(event);
+
+        assertTrue(event.isCancelled(), "Event should be cancelled after watering");
+        assertEquals(1L, crop.getLastWateredDay(), "Crop lastWateredDay should be updated from secondary block interaction");
+        assertEquals(9, wateringCanService.getWaterLevel(can), "Water level should decrease by 1");
     }
 }

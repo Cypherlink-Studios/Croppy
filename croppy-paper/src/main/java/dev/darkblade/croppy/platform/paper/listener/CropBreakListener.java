@@ -55,7 +55,10 @@ public class CropBreakListener implements Listener {
         Optional<Species> speciesOpt = core.getSpeciesRegistry().get(crop.getSpeciesKey());
         if (speciesOpt.isEmpty()) {
             core.getCropManager().removeCrop(pos);
-            core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
+            core.getStorage().ifPresent(storage -> storage.deleteCrop(crop.getPosition()));
+            if (displaySynchronizer instanceof dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer paperSync && paperSync.getDisplayTracker() != null) {
+                paperSync.getDisplayTracker().removeDisplay(crop.getPosition());
+            }
             return;
         }
 
@@ -111,7 +114,10 @@ public class CropBreakListener implements Listener {
             }
 
             core.getCropManager().removeCrop(pos);
-            core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
+            core.getStorage().ifPresent(storage -> storage.deleteCrop(crop.getPosition()));
+            if (displaySynchronizer instanceof dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer paperSync && paperSync.getDisplayTracker() != null) {
+                paperSync.getDisplayTracker().removeDisplay(crop.getPosition());
+            }
 
             for (ItemStack drop : drops) {
                 block.getWorld().dropItemNaturally(block.getLocation(), drop);
@@ -126,7 +132,10 @@ public class CropBreakListener implements Listener {
             }
 
             core.getCropManager().removeCrop(pos);
-            core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
+            core.getStorage().ifPresent(storage -> storage.deleteCrop(crop.getPosition()));
+            if (displaySynchronizer instanceof dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer paperSync && paperSync.getDisplayTracker() != null) {
+                paperSync.getDisplayTracker().removeDisplay(crop.getPosition());
+            }
             event.setDropItems(false);
 
             Material seedMat = Material.matchMaterial(species.getDisplay().seedItemId());

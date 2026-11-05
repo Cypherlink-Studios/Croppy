@@ -9,6 +9,7 @@ import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.growth.GrowthResult;
+import dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker;
 import dev.darkblade.croppy.platform.paper.watering.DailyTransitionService;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -30,17 +31,23 @@ public class PaperGrowthTicker extends BukkitRunnable {
     private final CroppyCore core;
     private final EnvironmentProvider environmentProvider;
     private final DailyTransitionService dailyTransitionService;
+    private final VirtualBlockDisplayTracker displayTracker;
     private BukkitTask task;
 
-    public PaperGrowthTicker(Plugin plugin, CroppyCore core, EnvironmentProvider environmentProvider, DailyTransitionService dailyTransitionService) {
+    public PaperGrowthTicker(Plugin plugin, CroppyCore core, EnvironmentProvider environmentProvider, DailyTransitionService dailyTransitionService, VirtualBlockDisplayTracker displayTracker) {
         this.plugin = Objects.requireNonNull(plugin, "plugin must not be null");
         this.core = Objects.requireNonNull(core, "core must not be null");
         this.environmentProvider = Objects.requireNonNull(environmentProvider, "environmentProvider must not be null");
         this.dailyTransitionService = dailyTransitionService;
+        this.displayTracker = displayTracker;
+    }
+
+    public PaperGrowthTicker(Plugin plugin, CroppyCore core, EnvironmentProvider environmentProvider, DailyTransitionService dailyTransitionService) {
+        this(plugin, core, environmentProvider, dailyTransitionService, null);
     }
 
     public PaperGrowthTicker(Plugin plugin, CroppyCore core, EnvironmentProvider environmentProvider) {
-        this(plugin, core, environmentProvider, null);
+        this(plugin, core, environmentProvider, null, null);
     }
 
     @Override
@@ -88,6 +95,9 @@ public class PaperGrowthTicker extends BukkitRunnable {
     private void handleWitheredCrop(World world, CropInstance crop) {
         core.getCropManager().removeCrop(crop.getPosition());
         core.getStorage().ifPresent(s -> s.deleteCrop(crop.getPosition()));
+        if (displayTracker != null) {
+            displayTracker.removeDisplay(crop.getPosition());
+        }
 
         if (world != null) {
             int chunkX = crop.getPosition().x() >> 4;
