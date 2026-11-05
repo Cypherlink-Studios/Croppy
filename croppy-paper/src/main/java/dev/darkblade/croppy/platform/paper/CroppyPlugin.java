@@ -454,9 +454,9 @@ public class CroppyPlugin extends JavaPlugin {
     }
 
     private void setupGrowthSimulation() {
-        long tickInterval = getConfig().getLong("growth.tick-interval", 20L);
-        double baseProgress = getConfig().getDouble("growth.base-progress", 1.0);
-        int waterSearchRadius = getConfig().getInt("growth.water-search-radius", 4);
+        long tickInterval = this.pluginConfig.getGrowthTickInterval();
+        double baseProgress = this.pluginConfig.getGrowthBaseProgress();
+        int waterSearchRadius = this.pluginConfig.getGrowthWaterSearchRadius();
 
         GrowthEngine growthEngine = core.getGrowthEngine();
         growthEngine.setBaseProgress(baseProgress);
@@ -819,7 +819,7 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("locales/en-US.yml");
         saveResourceIfNotExists("locales/es-ES.yml");
 
-        String defaultLocaleStr = getConfig().getString("messages.default-locale", "en-US");
+        String defaultLocaleStr = this.pluginConfig.getDefaultLocale();
         dev.darkblade.croppy.api.i18n.LocaleRef defaultLocale = dev.darkblade.croppy.api.i18n.LocaleRef
                 .parse(defaultLocaleStr);
         dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(

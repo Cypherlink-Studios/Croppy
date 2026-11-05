@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.1"
+  - version: "0.5.2"
     releaseDate: "2026-11-05"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Modernized config.yml with locale.default and purged legacy sections; multi-block crop vertical occupancy & harvest regrowth; companion resource pack scaffolding (pack_format 64)."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.1"
+    releaseDate: "2026-11-05"
+    reference: "92a8166"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Station base block packet masking (BARRIER) and virtual interaction hitbox projection with left-click dismantling, right-click interaction routing, and Netty packet rewriting."
     minecraft:

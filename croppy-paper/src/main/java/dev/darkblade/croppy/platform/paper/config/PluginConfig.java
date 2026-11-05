@@ -1,59 +1,55 @@
 package dev.darkblade.croppy.platform.paper.config;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
-import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 
-import java.util.List;
+import java.util.Objects;
 
 /**
- * Accessor for configurable plugin settings, inspection tool properties, and MiniMessage templates.
+ * Accessor for core configurable plugin settings (growth parameters, storage backend, default locale).
  */
 public class PluginConfig {
 
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
-    private Material toolMaterial;
-    private String toolName;
-    private List<String> toolLore;
-    private String prefix;
+    private long growthTickInterval = 20L;
+    private double growthBaseProgress = 1.0;
+    private int growthWaterSearchRadius = 4;
+    private String storageType = "pdc";
+    private String defaultLocale = "en-US";
 
     public void load(FileConfiguration config) {
-        String matName = config.getString("inspection-tool.material", "SPYGLASS");
-        Material mat = Material.matchMaterial(matName);
-        this.toolMaterial = (mat != null) ? mat : Material.SPYGLASS;
-        this.toolName = config.getString("inspection-tool.name", "<gradient:#70e000:#38b000><bold>Crop Inspector</bold></gradient>");
-        this.toolLore = config.getStringList("inspection-tool.lore");
-        if (this.toolLore.isEmpty()) {
-            this.toolLore = List.of(
-                    "<gray>Right-click any crop to view",
-                    "<gray>its current growth status."
-            );
+        if (config == null) {
+            return;
         }
-        this.prefix = config.getString("messages.prefix", "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>");
+
+        this.growthTickInterval = Math.max(1L, config.getLong("growth.tick-interval", 20L));
+        this.growthBaseProgress = Math.max(0.01, config.getDouble("growth.base-progress", 1.0));
+        this.growthWaterSearchRadius = Math.max(0, config.getInt("growth.water-search-radius", 4));
+        this.storageType = config.getString("storage.type", "pdc").trim().toLowerCase();
+
+        // Dual fallback: locale.default -> messages.default-locale -> en-US
+        String rawLocale = config.getString("locale.default");
+        if (rawLocale == null || rawLocale.isBlank()) {
+            rawLocale = config.getString("messages.default-locale", "en-US");
+        }
+        this.defaultLocale = (rawLocale != null && !rawLocale.isBlank()) ? rawLocale.trim() : "en-US";
     }
 
-    public Material getToolMaterial() {
-        return toolMaterial;
+    public long getGrowthTickInterval() {
+        return growthTickInterval;
     }
 
-    public Component getToolName() {
-        return miniMessage.deserialize(toolName);
+    public double getGrowthBaseProgress() {
+        return growthBaseProgress;
     }
 
-    public List<Component> getToolLore() {
-        return toolLore.stream().map(miniMessage::deserialize).toList();
+    public int getGrowthWaterSearchRadius() {
+        return growthWaterSearchRadius;
     }
 
-    public Component getMessage(FileConfiguration config, String key, TagResolver... placeholders) {
-        String raw = config.getString("messages." + key, "<red>Missing message: " + key);
-        return miniMessage.deserialize(prefix + raw, placeholders);
+    public String getStorageType() {
+        return storageType;
     }
 
-    public Component getMessageWithoutPrefix(FileConfiguration config, String key, TagResolver... placeholders) {
-        String raw = config.getString("messages." + key, "<red>Missing message: " + key);
-        return miniMessage.deserialize(raw, placeholders);
+    public String getDefaultLocale() {
+        return defaultLocale;
     }
 }

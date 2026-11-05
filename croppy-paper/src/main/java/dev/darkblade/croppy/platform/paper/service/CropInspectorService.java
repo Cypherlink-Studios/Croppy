@@ -14,7 +14,6 @@ import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.api.i18n.MessageKey;
-import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
@@ -344,25 +343,6 @@ public class CropInspectorService {
         int empty = totalBars - filled;
 
         return "<dark_gray>[<green>" + "■".repeat(filled) + "<dark_gray>" + "□".repeat(empty) + "]</dark_gray>";
-    }
-
-    /**
-     * Creates an ItemStack configured as the Crop Inspection Tool.
-     */
-    public static ItemStack createInspectionTool(Plugin plugin, PluginConfig config) {
-        ItemStack item = new ItemStack(config.getToolMaterial());
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.displayName(config.getToolName());
-            meta.lore(config.getToolLore());
-            meta.getPersistentDataContainer().set(
-                    new NamespacedKey(plugin, "tool"),
-                    PersistentDataType.STRING,
-                    "crop_inspector"
-            );
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 
     /**

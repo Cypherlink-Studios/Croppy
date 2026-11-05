@@ -17,7 +17,7 @@ The system SHALL parse hierarchical YAML locale resource files from disk or bund
 - **THEN** the system logs a diagnostic error identifying the offending file and line, skips the corrupted file, and preserves previously loaded catalogs.
 
 ### Requirement: Deterministic Locale Fallback Resolution
-The system SHALL resolve requested translation keys using a deterministic fallback order: requested client locale, base language, configured server default locale, bundled source locale (`en-US`), and final safe missing-key token.
+The system SHALL resolve requested translation keys using a deterministic fallback order: requested client locale, base language, configured server default locale (resolved from `locale.default` in `config.yml` with fallback to `messages.default-locale`), bundled source locale (`en-US`), and final safe missing-key token.
 
 #### Scenario: Direct locale match
 - **WHEN** a player with client locale `es-ES` triggers a message and `es-ES.yml` defines the corresponding key
@@ -34,6 +34,10 @@ The system SHALL resolve requested translation keys using a deterministic fallba
 #### Scenario: Completely missing translation key
 - **WHEN** a queried translation key does not exist in any locale or fallback catalog
 - **THEN** the system returns a safe formatted token `<missing:key>` and logs a single diagnostic warning per session.
+
+#### Scenario: Configured default locale resolution
+- **WHEN** the plugin initializes or reloads localization settings
+- **THEN** the server default locale is resolved from `locale.default` in `config.yml`, falling back to `messages.default-locale` if `locale.default` is not defined.
 
 ### Requirement: Dynamic Arguments and MiniMessage Rendering
 The system SHALL render localized templates into Adventure Components using MiniMessage, inserting dynamic arguments while sanitizing untrusted inputs to prevent formatting tag injection.

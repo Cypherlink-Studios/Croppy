@@ -2,19 +2,21 @@
 # Croppy - Advanced Modular Agriculture Engine Configuration
 # ==============================================================================
 
+# Simulation & Growth Engine Settings
 growth:
-  # Interval between growth simulation cycles in server ticks (20 ticks = 1 second)
+  # Frequency of simulation cycles in server ticks (20 ticks = 1 second)
   tick-interval: 20
 
-  # Base progress points gained per cycle if environmental requirements are met
+  # Base progress percentage gained each cycle when all conditions are satisfied
   base-progress: 1.0
 
-  # Horizontal search radius in blocks for detecting water (4 blocks = 9x9 area)
+  # Horizontal search radius in blocks for detecting water sources (4 blocks = 9x9 area)
   water-search-radius: 4
 
+# Persistent Storage Backend
 storage:
   # Storage engine backend type:
-  # - "pdc" (default): Uses Minecraft's native Chunk PersistentDataContainer.
+  # - "pdc" (default, recommended): Uses Minecraft's native Chunk PersistentDataContainer.
   #   Zero extra dependencies, ultra-compact binary format, perfectly synced with world chunks.
   #
   # - "sqlite": Uses an embedded SQLite database with HikariCP connection pooling.
@@ -30,32 +32,8 @@ storage:
       # Connection timeout in milliseconds
       connection-timeout: 30000
 
-# ==============================================================================
-# Inspection Tool Settings
-# ==============================================================================
-inspection-tool:
-  # Material used for the inspection tool item
-  material: "SPYGLASS"
-  # Display name rendered with MiniMessage
-  name: "<gradient:#70e000:#38b000><bold>Crop Inspector</bold></gradient>"
-  # Item lore lines rendered with MiniMessage
-  lore:
-    - "<gray>Right-click any crop to view"
-    - "<gray>its current growth status."
-
-# ==============================================================================
-# Messages (Kyori Adventure MiniMessage format)
-# ==============================================================================
-messages:
-  default-locale: "en-US"
-  prefix: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>"
-  no-permission: "<red>You do not have permission to execute this command."
-  no-crop-found: "<red>No active crop found at the targeted location."
-  tool-given: "<green>You have received the <gradient:#70e000:#38b000>Crop Inspector</gradient> tool."
-  reload-success: "<green>Configuration and species definitions reloaded successfully."
-  reload-failed: "<red>Failed to reload configuration: <error>"
-  stage-updated: "<green>Updated crop stage to <yellow><stage></yellow>."
-  progress-updated: "<green>Updated crop progress to <yellow><progress>%</yellow>."
-  give-success: "<green>Given <yellow><amount>x <species></yellow> to <aqua><player></aqua>."
-  player-not-found: "<red>Player <player> was not found online."
-  species-not-found: "<red>Species <species> was not found in the registry."
+# Localization & Language Settings
+locale:
+  # Default server locale when a player's client language is unavailable or for console logs.
+  # Bundled locales: en-US, es-ES (see plugins/Croppy/locales/)
+  default: "en-US"

@@ -1,13 +1,13 @@
 ---
 title: Configuration Guide
-description: In-depth reference for Croppy's main config.yml, growth rates, storage backends (PDC vs SQLite), and inspection tool settings.
+description: In-depth reference for Croppy's main config.yml, growth rates, storage backends (PDC vs SQLite), and default locale settings.
 sidebar:
   order: 3
 ---
 
 # Configuration Guide
 
-The primary configuration for Croppy is located at `plugins/Croppy/config.yml`. This file controls core simulation loops, storage engine selection, tool appearances, and fallback messaging.
+The primary configuration for Croppy is located at `plugins/Croppy/config.yml`. This file controls core simulation loops, storage engine selection, and server default locale resolution.
 
 ---
 
@@ -65,33 +65,23 @@ storage:
 
 ---
 
-## 3. Inspection Tool (`inspection-tool`)
+## 3. Localization & Default Locale (`locale`)
 
-Customizes the item used to inspect crop states:
+Croppy features a full multi-locale internationalization system. The server-wide fallback locale is configured in `config.yml`:
 
 ```yaml
-inspection-tool:
-  material: "SPYGLASS"
-  name: "<gradient:#70e000:#38b000><bold>Crop Inspector</bold></gradient>"
-  lore:
-    - "<gray>Right-click any crop to view"
-    - "<gray>its current growth status."
+locale:
+  # Default server locale when a player's client language is unavailable or for console logs.
+  # Bundled locales: en-US, es-ES (see plugins/Croppy/locales/)
+  default: "en-US"
 ```
 
-* **`material`**: Any valid Bukkit `Material` enum name (e.g. `SPYGLASS`, `STICK`, `COMPASS`).
-* **`name` & `lore`**: Formatted with Kyori Adventure MiniMessage tags.
+* **`default`**: The BCP-47 locale tag used when a player's client language is not translated or when messages are dispatched to the server console. Default: `en-US`.
+* **Backward Compatibility**: If an existing installation defines `messages.default-locale`, the plugin automatically reads it as a fallback.
+* **Customizing Messages & Prefixes**: All chat messages, command notifications, item names, and UI labels are managed through per-locale YAML bundles in `plugins/Croppy/locales/` (e.g. `en-US.yml`, `es-ES.yml`). For complete details, see the [Localization Guide](./localization.md).
 
 ---
 
-## 4. Default Messages & Locale Fallback (`messages`)
+## 4. Custom Items & Inspection Tool Customization
 
-```yaml
-messages:
-  default-locale: "en-US"
-  prefix: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>"
-  no-permission: "<red>You do not have permission to execute this command."
-  reload-success: "<green>Configuration and species definitions reloaded successfully."
-```
-
-* **`default-locale`**: The BCP-47 locale tag used when a player's client language is not translated or when messages are dispatched to the server console. Default: `en-US`.
-* For in-depth message overrides and translations, see the [Localization Guide](./localization.md).
+The Crop Inspector tool (`croppy:inspection_tool`) is defined through Croppy's centralized **Item Registry** in `plugins/Croppy/items/tools/inspector.yml`. To customize its material, display name, item model, or lore, edit its YAML definition directly or consult the [Items & Tools Guide](./items-and-tools.md).

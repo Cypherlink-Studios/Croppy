@@ -1,13 +1,13 @@
 ---
 title: Guía de Configuración
-description: Referencia exhaustiva del archivo principal config.yml de Croppy, tasas de crecimiento, backends de almacenamiento (PDC vs SQLite) y ajustes de herramientas.
+description: Referencia exhaustiva del archivo principal config.yml de Croppy, tasas de crecimiento, backends de almacenamiento (PDC vs SQLite) y ajustes de idioma.
 sidebar:
   order: 3
 ---
 
 # Guía de Configuración
 
-El archivo de configuración principal de Croppy se encuentra en `plugins/Croppy/config.yml`. Permite ajustar los ciclos de simulación, la persistencia en disco, las herramientas de diagnóstico y los textos por defecto.
+El archivo de configuración principal de Croppy se encuentra en `plugins/Croppy/config.yml`. Permite ajustar los ciclos del motor de simulación, la selección del backend de persistencia y el idioma por defecto del servidor.
 
 ---
 
@@ -36,7 +36,7 @@ growth:
 
 ## 2. Motores de Almacenamiento (`storage`)
 
-Croppy soporta dos arquitecturas de almacenamiento:
+Croppy soporta dos arquitecturas de almacenamiento de alto rendimiento:
 
 ```yaml
 storage:
@@ -65,33 +65,23 @@ storage:
 
 ---
 
-## 3. Herramienta de Inspección (`inspection-tool`)
+## 3. Localización e Idioma por Defecto (`locale`)
 
-Personaliza el ítem utilizado para inspeccionar cultivos:
+Croppy cuenta con un sistema integral de internacionalización multi-idioma. El idioma de reserva global para el servidor se configura en `config.yml`:
 
 ```yaml
-inspection-tool:
-  material: "SPYGLASS"
-  name: "<gradient:#70e000:#38b000><bold>Inspector de Cultivos</bold></gradient>"
-  lore:
-    - "<gray>Haz clic derecho sobre cualquier cultivo"
-    - "<gray>para consultar su estado de crecimiento."
+locale:
+  # Idioma por defecto cuando el cliente del jugador carece de traducción o para logs de consola.
+  # Idiomas incluidos: en-US, es-ES (ver plugins/Croppy/locales/)
+  default: "en-US"
 ```
 
-* **`material`**: Cualquier nombre válido del enum `Material` de Bukkit (ej. `SPYGLASS`, `STICK`, `COMPASS`).
-* **`name` & `lore`**: Formateados con etiquetas de Kyori Adventure MiniMessage.
+* **`default`**: Código BCP-47 utilizado cuando un cliente carece de traducción o para los avisos en la consola del servidor. Por defecto: `en-US`.
+* **Retrocompatibilidad**: Si una instalación existente tiene configurado `messages.default-locale`, el plugin lo detectará automáticamente como alternativa.
+* **Personalización de Mensajes y Prefijos**: Todos los mensajes de chat, avisos de comandos, nombres de ítems y textos de interfaces se gestionan en los archivos YAML correspondientes dentro de `plugins/Croppy/locales/` (ej. `en-US.yml`, `es-ES.yml`). Para más detalles, consulta la [Guía de Localización](./localization.md).
 
 ---
 
-## 4. Mensajes y Fallback de Idioma (`messages`)
+## 4. Personalización de Herramientas y la Herramienta de Inspección
 
-```yaml
-messages:
-  default-locale: "en-US"
-  prefix: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>"
-  no-permission: "<red>No tienes permisos para ejecutar este comando."
-  reload-success: "<green>Configuración y definiciones recargadas con éxito."
-```
-
-* **`default-locale`**: Código BCP-47 utilizado cuando un cliente carece de traducción o para los avisos en la consola del servidor. Por defecto: `en-US`.
-* Para personalizar todas las traducciones, consulta la [Guía de Localización](./localization.md).
+La herramienta de inspección (`croppy:inspection_tool`) se define de forma modular a través del **Registro de Ítems** en `plugins/Croppy/items/tools/inspector.yml`. Para personalizar su material, nombre visible, modelo 3D o lore, edita directamente su definición YAML o consulta la [Guía de Ítems y Herramientas](./items-and-tools.md).

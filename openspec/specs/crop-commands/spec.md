@@ -32,7 +32,7 @@ The system SHALL provide an inspection command `/croppy inspect [x y z]` that di
 - **THEN** the system sends a localized message stating that no active crop was found at that location.
 
 ### Requirement: Interactive Inspection Tool
-The system SHALL support an interactive inspection tool item tagged with PersistentDataContainer key `croppy:item_id` set to `croppy:inspection_tool` that inspects crops on block right-click, distributable through the centralized item command.
+The system SHALL support an interactive inspection tool item defined in the item registry and tagged with PersistentDataContainer key `croppy:item_id` set to `croppy:inspection_tool` that inspects crops on block right-click, distributable through the centralized item command without relying on dedicated tool appearance keys in `config.yml`.
 
 #### Scenario: Issue inspection tool
 - **WHEN** an administrator runs `/croppy item give tools croppy:inspection_tool`
@@ -47,7 +47,7 @@ The system SHALL support an interactive inspection tool item tagged with Persist
 - **THEN** the interaction is cancelled and a notification indicates no crop exists at the targeted block.
 
 ### Requirement: Configuration Hot Reload
-The system SHALL support reloading configuration settings, YAML crop definitions, item definitions across all categories, and localization resource files at runtime via `/croppy reload`.
+The system SHALL support reloading configuration settings (`growth`, `storage`, and `locale` blocks in `config.yml`), YAML crop definitions, item definitions across all categories, and localization resource files at runtime via `/croppy reload`.
 
 #### Scenario: Successful configuration reload
 - **WHEN** an administrator runs `/croppy reload`
