@@ -11,6 +11,7 @@ import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.station.visual.BillboardMode;
 import dev.darkblade.croppy.api.station.visual.DisplayLayerConfig;
 import dev.darkblade.croppy.api.station.visual.DisplayTransform;
+import dev.darkblade.croppy.api.station.visual.StationInteractionBox;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 import dev.darkblade.croppy.api.station.visual.TextDisplayTemplate;
 import dev.darkblade.croppy.api.world.BlockPosition;
@@ -19,6 +20,7 @@ import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.World;
@@ -62,6 +64,15 @@ public class StationViewerTracker {
 
     public Optional<PacketStationDisplay> getDisplay(BlockPosition pos) {
         return Optional.ofNullable(activeDisplays.get(pos));
+    }
+
+    public Optional<PacketStationDisplay> getDisplayByInteractionId(int entityId) {
+        for (PacketStationDisplay display : activeDisplays.values()) {
+            if (display.getInteractionId() == entityId) {
+                return Optional.of(display);
+            }
+        }
+        return Optional.empty();
     }
 
     public Map<BlockPosition, PacketStationDisplay> getActiveDisplays() {
@@ -134,6 +145,10 @@ public class StationViewerTracker {
 
         DisplayLayerConfig baseConfig = visual.getBaseModel().orElse(null);
         DisplayLayerConfig procConfig = visual.getProcessDisplay().orElse(null);
+        StationInteractionBox interactBox = visual.getInteractionBox().orElse(null);
+        boolean hideBaseBlock = visual.hideBaseBlock();
+        Location blockLoc = hideBaseBlock ? new Location(world, pos.x(), pos.y(), pos.z()) : null;
+        BlockData barrierData = hideBaseBlock ? resolveBarrierBlockData() : null;
 
         Collection<? extends Player> players = world.getPlayers();
         for (Player player : players) {
@@ -152,9 +167,15 @@ public class StationViewerTracker {
                     ItemStack baseItem = baseConfig.getItemKey().map(this::resolveItemStack).orElse(null);
                     BlockData blockData = resolveBlockData(baseConfig.getBlockState().orElse(null));
                     renderer.spawnBaseModel(player, display, baseConfig, baseItem, blockData);
+                    if (hideBaseBlock && barrierData != null && blockLoc != null) {
+                        player.sendBlockChange(blockLoc, barrierData);
+                    }
                 } else if (!inRange && viewing) {
                     display.removeViewer(VisualTier.BASE_MODEL, playerId);
                     renderer.destroyEntities(player, display.getEntityId(VisualTier.BASE_MODEL));
+                    if (hideBaseBlock && blockLoc != null) {
+                        player.sendBlockChange(blockLoc, world.getBlockAt(pos.x(), pos.y(), pos.z()).getBlockData());
+                    }
                 }
             }
 
@@ -191,6 +212,26 @@ public class StationViewerTracker {
                     renderer.updateTextDisplayMetadata(player, display, textTemplate, textComponent);
                 }
             }
+
+            // 4. Interaction Tier
+            if (interactBox != null) {
+                int interactDist = (baseConfig != null) ? baseConfig.viewDistance() : 32;
+                boolean inRange = distSq <= ((long) interactDist * interactDist);
+                boolean viewing = display.isViewing(VisualTier.INTERACTION, playerId);
+                if (inRange && !viewing) {
+                    display.addViewer(VisualTier.INTERACTION, playerId);
+                    renderer.spawnInteraction(player, display, interactBox);
+                    if (hideBaseBlock && barrierData != null && blockLoc != null) {
+                        player.sendBlockChange(blockLoc, barrierData);
+                    }
+                } else if (!inRange && viewing) {
+                    display.removeViewer(VisualTier.INTERACTION, playerId);
+                    renderer.destroyEntities(player, display.getEntityId(VisualTier.INTERACTION));
+                    if (hideBaseBlock && blockLoc != null && (baseConfig == null || !display.isViewing(VisualTier.BASE_MODEL, playerId))) {
+                        player.sendBlockChange(blockLoc, world.getBlockAt(pos.x(), pos.y(), pos.z()).getBlockData());
+                    }
+                }
+            }
         }
 
         displayComp.setDirty(false);
@@ -203,11 +244,20 @@ public class StationViewerTracker {
         PacketStationDisplay display = activeDisplays.remove(pos);
         if (display == null) return;
 
+        StationDefinition def = display.getStation().getDefinition();
+        boolean hideBaseBlock = def.getVisualDefinition().map(StationVisualDefinition::hideBaseBlock).orElse(false);
+
         int[] allIds = display.getAllEntityIds();
         for (UUID playerId : display.getAllViewers()) {
             Player player = server.getPlayer(playerId);
             if (player != null && player.isOnline()) {
                 renderer.destroyEntities(player, allIds);
+                if (hideBaseBlock) {
+                    World world = server.getWorld(pos.worldName());
+                    if (world != null) {
+                        player.sendBlockChange(new Location(world, pos.x(), pos.y(), pos.z()), world.getBlockAt(pos.x(), pos.y(), pos.z()).getBlockData());
+                    }
+                }
             }
         }
         display.clearAllViewers();
@@ -295,6 +345,18 @@ public class StationViewerTracker {
             return Bukkit.createBlockData(blockState);
         } catch (Exception ignored) {
             return null;
+        }
+    }
+
+    public BlockData resolveBarrierBlockData() {
+        try {
+            return server.createBlockData(Material.BARRIER);
+        } catch (Exception ex) {
+            try {
+                return Bukkit.createBlockData(Material.BARRIER);
+            } catch (Exception ignored) {
+                return null;
+            }
         }
     }
 }

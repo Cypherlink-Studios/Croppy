@@ -14,7 +14,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Evaluates and routes player interaction events to matching {@link InteractionDefinition} pipelines.
+ * Evaluates and routes player interaction events to matching {@link InteractionDefinition} pipelines
+ * for both cooking stations and crop species.
  */
 public final class InteractionRouter {
 
@@ -25,7 +26,7 @@ public final class InteractionRouter {
     }
 
     /**
-     * Resolves the highest-priority matching interaction definition for a given player interaction.
+     * Resolves the highest-priority matching interaction definition for a given player interaction with a station.
      *
      * @param station      the target station instance
      * @param trigger      the interaction trigger (e.g. RIGHT_CLICK, SNEAK_RIGHT_CLICK)
@@ -44,10 +45,44 @@ public final class InteractionRouter {
             EvaluationContext context
     ) {
         Objects.requireNonNull(station, "station cannot be null");
+        List<InteractionDefinition> candidates = interactionRegistry.getInteractionsForStation(station.getStationKey());
+        return matchCandidates(candidates, trigger, handItemKey, handMaterial, emptyHand, context);
+    }
+
+    /**
+     * Resolves the highest-priority matching interaction definition for a given player interaction with a crop species.
+     *
+     * @param cropSpeciesKey the target crop species key
+     * @param trigger        the interaction trigger (e.g. RIGHT_CLICK, LEFT_CLICK, SNEAK_LEFT_CLICK)
+     * @param handItemKey    custom item key in player hand, or null
+     * @param handMaterial   vanilla material identifier in hand (e.g. "minecraft:shears"), or null
+     * @param emptyHand      true if player hand is completely empty
+     * @param context        evaluation context for condition expressions
+     * @return matching interaction definition, if any
+     */
+    public Optional<InteractionDefinition> matchCrop(
+            Key cropSpeciesKey,
+            InteractionTrigger trigger,
+            Key handItemKey,
+            String handMaterial,
+            boolean emptyHand,
+            EvaluationContext context
+    ) {
+        Objects.requireNonNull(cropSpeciesKey, "cropSpeciesKey cannot be null");
+        List<InteractionDefinition> candidates = interactionRegistry.getInteractionsForCrop(cropSpeciesKey);
+        return matchCandidates(candidates, trigger, handItemKey, handMaterial, emptyHand, context);
+    }
+
+    private Optional<InteractionDefinition> matchCandidates(
+            List<InteractionDefinition> candidates,
+            InteractionTrigger trigger,
+            Key handItemKey,
+            String handMaterial,
+            boolean emptyHand,
+            EvaluationContext context
+    ) {
         Objects.requireNonNull(trigger, "trigger cannot be null");
         EvaluationContext evalCtx = (context == null) ? EvaluationContext.empty() : context;
-
-        List<InteractionDefinition> candidates = interactionRegistry.getInteractionsForStation(station.getStationKey());
 
         for (InteractionDefinition def : candidates) {
             // 1. Trigger check
@@ -69,7 +104,17 @@ public final class InteractionRouter {
 
             // 4. Match vanilla material
             if (def.matchMaterial().isPresent()) {
-                if (handMaterial == null || !def.matchMaterial().get().equalsIgnoreCase(handMaterial)) {
+                String expected = def.matchMaterial().get();
+                if (handMaterial == null) {
+                    continue;
+                }
+                if (expected.startsWith("tag:axes")) {
+                    if (!handMaterial.endsWith("_axe")) continue;
+                } else if (expected.startsWith("tag:hoes")) {
+                    if (!handMaterial.endsWith("_hoe")) continue;
+                } else if (expected.startsWith("tag:swords")) {
+                    if (!handMaterial.endsWith("_sword")) continue;
+                } else if (!expected.equalsIgnoreCase(handMaterial)) {
                     continue;
                 }
             }

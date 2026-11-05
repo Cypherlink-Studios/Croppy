@@ -1,6 +1,7 @@
 package dev.darkblade.croppy.platform.paper.listener;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.YieldEntry;
 import dev.darkblade.croppy.api.world.BlockPosition;
@@ -19,18 +20,25 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Handles crop breakage and harvesting by players.
+ * Handles crop breakage and harvesting by players on physical blocks.
  */
 public class CropBreakListener implements Listener {
 
     private final CroppyCore core;
+    private final DisplaySynchronizer displaySynchronizer;
+
+    public CropBreakListener(CroppyCore core, DisplaySynchronizer displaySynchronizer) {
+        this.core = Objects.requireNonNull(core, "core cannot be null");
+        this.displaySynchronizer = displaySynchronizer;
+    }
 
     public CropBreakListener(CroppyCore core) {
-        this.core = core;
+        this(core, null);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -38,7 +46,7 @@ public class CropBreakListener implements Listener {
         Block block = event.getBlock();
         BlockPosition pos = BlockPosition.of(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
 
-        Optional<CropInstance> cropOpt = core.getCropManager().getCrop(pos);
+        Optional<CropInstance> cropOpt = core.getCropManager().getCropAt(pos);
         if (cropOpt.isEmpty()) {
             return;
         }
@@ -78,9 +86,32 @@ public class CropBreakListener implements Listener {
                 return;
             }
 
+            event.setDropItems(false);
+
+            // Handle cyclic regrowth
+            if (species.getHarvest().hasRegrowth()) {
+                String targetStageId = species.getHarvest().regrowth().get().targetStageId();
+                int targetIdx = species.getStageIndex(targetStageId);
+                if (targetIdx >= 0) {
+                    crop.setStageIndex(targetIdx);
+                    crop.setProgress(0.0);
+                    crop.updateTimestamp();
+                    core.getStorage().ifPresent(storage -> storage.saveCrop(crop));
+
+                    if (displaySynchronizer != null && targetIdx < species.getStages().size()) {
+                        displaySynchronizer.synchronizeDisplay(crop, species, species.getStages().get(targetIdx));
+                    }
+
+                    for (ItemStack drop : drops) {
+                        block.getWorld().dropItemNaturally(block.getLocation(), drop);
+                    }
+                    event.setCancelled(true); // Retain the block in the world
+                    return;
+                }
+            }
+
             core.getCropManager().removeCrop(pos);
             core.getStorage().ifPresent(storage -> storage.deleteCrop(pos));
-            event.setDropItems(false);
 
             for (ItemStack drop : drops) {
                 block.getWorld().dropItemNaturally(block.getLocation(), drop);

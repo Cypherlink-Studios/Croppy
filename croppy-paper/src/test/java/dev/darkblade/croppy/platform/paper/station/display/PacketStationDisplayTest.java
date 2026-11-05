@@ -42,18 +42,23 @@ class PacketStationDisplayTest {
         int baseId = display.getEntityId(VisualTier.BASE_MODEL);
         int procId = display.getEntityId(VisualTier.PROCESS_ITEM);
         int textId = display.getEntityId(VisualTier.TEXT_DISPLAY);
+        int interactId = display.getEntityId(VisualTier.INTERACTION);
 
         assertTrue(baseId < 0);
         assertTrue(procId < 0);
         assertTrue(textId < 0);
+        assertTrue(interactId < 0);
         assertNotEquals(baseId, procId);
         assertNotEquals(procId, textId);
+        assertNotEquals(textId, interactId);
+        assertEquals(interactId, display.getInteractionId());
 
         int[] allIds = display.getAllEntityIds();
-        assertEquals(3, allIds.length);
+        assertEquals(4, allIds.length);
         assertEquals(baseId, allIds[0]);
         assertEquals(procId, allIds[1]);
         assertEquals(textId, allIds[2]);
+        assertEquals(interactId, allIds[3]);
     }
 
     @Test

@@ -88,4 +88,26 @@ class VirtualBlockDisplayTest {
         display.setModel(nextModel);
         assertEquals(nextModel, display.getModel());
     }
+
+    @Test
+    @DisplayName("Dynamically adjust vertical multi-block hitbox dimensions for trellis crops")
+    void testTrellisMultiBlockHitboxTransition() {
+        BlockPosition pos = BlockPosition.of("world", 10, 64, 20);
+        Model3DDefinition shootModel = Model3DDefinition.of(Key.croppy("grape_stage_0"), 0.4f, 0.4f);
+        VirtualBlockDisplay display = new VirtualBlockDisplay(pos, 0.0f, shootModel);
+
+        assertEquals(0.4f, display.getModel().hitboxHeight(), 0.001f);
+
+        // Advance to multi-block trellis stage
+        Model3DDefinition trellisMature = Model3DDefinition.of(Key.croppy("grape_vine_mature"), 0.8f, 2.0f);
+        display.setModel(trellisMature);
+
+        assertEquals(2.0f, display.getModel().hitboxHeight(), 0.001f);
+        assertEquals(0.8f, display.getModel().hitboxWidth(), 0.001f);
+
+        // Regrowth back to flowering vine
+        Model3DDefinition floweringModel = Model3DDefinition.of(Key.croppy("grape_vine_flowering"), 0.8f, 2.0f);
+        display.setModel(floweringModel);
+        assertEquals(2.0f, display.getModel().hitboxHeight(), 0.001f);
+    }
 }

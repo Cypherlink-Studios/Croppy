@@ -19,7 +19,17 @@ public final class DefaultInteractionRegistry extends SimpleRegistry<Interaction
     @Override
     public List<InteractionDefinition> getInteractionsForStation(Key stationKey) {
         return values().stream()
+                .filter(def -> def.targetCrop().isEmpty()) // station interactions have no targetCrop
                 .filter(def -> def.targetStation().isEmpty() || (stationKey != null && def.targetStation().get().equals(stationKey)))
+                .sorted(PRIORITY_COMPARATOR)
+                .toList();
+    }
+
+    @Override
+    public List<InteractionDefinition> getInteractionsForCrop(Key cropKey) {
+        return values().stream()
+                .filter(def -> def.targetCrop().isPresent())
+                .filter(def -> def.targetCrop().get().equals(cropKey))
                 .sorted(PRIORITY_COMPARATOR)
                 .toList();
     }

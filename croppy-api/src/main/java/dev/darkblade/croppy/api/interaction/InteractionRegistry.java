@@ -19,4 +19,15 @@ public interface InteractionRegistry extends Registry<InteractionDefinition>, Se
      * @return priority-sorted interaction definitions
      */
     List<InteractionDefinition> getInteractionsForStation(Key stationKey);
+
+    /**
+     * Retrieves all interaction definitions applicable to a specific crop species or global,
+     * sorted by priority in descending order.
+     *
+     * @param cropKey crop species key, or null for global interactions
+     * @return priority-sorted interaction definitions
+     */
+    default List<InteractionDefinition> getInteractionsForCrop(Key cropKey) {
+        return List.of();
+    }
 }

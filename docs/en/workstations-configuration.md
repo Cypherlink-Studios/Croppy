@@ -152,6 +152,9 @@ properties:
 | `visual.text_display.translation` | Float Array | `[0, 1.2, 0]` | Hologram height offset above the workstation. |
 | `visual.text_display.billboard` | Enum | `CENTER` | Rotation behavior: `CENTER` (faces player), `FIXED`, `VERTICAL`, `HORIZONTAL`. |
 | `visual.text_display.format` | String | — | Multiline MiniMessage template with dynamic placeholders. |
+| `visual.hide_base_block` | Boolean | `false` | Masks the physical base block in the world with client-side barrier packets to prevent visual interference with 3D displays. |
+| `visual.interaction.width` | Float | `0.8` | Bounding box width for the client-side virtual `INTERACTION` entity. |
+| `visual.interaction.height` | Float | `0.25` | Bounding box height for the client-side virtual `INTERACTION` entity. |
 
 ---
 

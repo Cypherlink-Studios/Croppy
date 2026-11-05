@@ -129,13 +129,32 @@ public final class StationBlockListener implements Listener {
 
         stationManager.addStation(station);
         stationStorage.saveStation(station);
+
+        boolean hideBaseBlock = def.getVisualDefinition()
+                .map(dev.darkblade.croppy.api.station.visual.StationVisualDefinition::hideBaseBlock)
+                .orElse(false);
+        if (hideBaseBlock) {
+            try {
+                event.getPlayer().sendBlockChange(block.getLocation(), org.bukkit.Material.BARRIER.createBlockData());
+            } catch (Exception ignored) {}
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         BlockPosition pos = new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+        dismantleStation(pos, false);
+    }
 
+    /**
+     * Dismantles a station, unregistering it, destroying visual entities, playing break effects,
+     * resetting the block if requested, and dropping the station item and stored contents.
+     *
+     * @param pos    station block position
+     * @param setAir whether to set the block at this position to AIR
+     */
+    public void dismantleStation(BlockPosition pos, boolean setAir) {
         Optional<StationInstance> stationOpt = stationManager.removeStation(pos);
         if (stationOpt.isEmpty()) {
             return;
@@ -148,8 +167,22 @@ public final class StationBlockListener implements Listener {
             viewerTracker.destroyStation(pos);
         }
 
-        World world = block.getWorld();
+        World world = null;
+        try {
+            world = (org.bukkit.Bukkit.getServer() != null) ? org.bukkit.Bukkit.getWorld(pos.worldName()) : null;
+        } catch (Exception ignored) {}
+        if (world == null) {
+            return;
+        }
+
+        Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
         Location dropLoc = block.getLocation().add(0.5, 0.5, 0.5);
+
+        world.playEffect(dropLoc, org.bukkit.Effect.STEP_SOUND, block.getType());
+
+        if (setAir && !block.getType().isAir()) {
+            block.setType(org.bukkit.Material.AIR);
+        }
 
         // Drop the station item itself
         ItemStack stationItem = createStationItem(station);
@@ -168,6 +201,10 @@ public final class StationBlockListener implements Listener {
                 world.dropItemNaturally(dropLoc, createBukkitItem(out));
             }
         }
+    }
+
+    public void dismantleStation(BlockPosition pos) {
+        dismantleStation(pos, true);
     }
 
     public ItemStack createStationItem(StationInstance station) {

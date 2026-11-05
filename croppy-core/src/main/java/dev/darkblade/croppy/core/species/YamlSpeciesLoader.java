@@ -5,7 +5,9 @@ import dev.darkblade.croppy.api.species.CropDisplay;
 import dev.darkblade.croppy.api.species.CropRequirements;
 import dev.darkblade.croppy.api.species.HarvestDefinition;
 import dev.darkblade.croppy.api.species.Model3DDefinition;
+import dev.darkblade.croppy.api.species.RegrowthDefinition;
 import dev.darkblade.croppy.api.species.RotationMode;
+import dev.darkblade.croppy.api.species.SpatialFootprint;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.api.species.YieldEntry;
@@ -246,9 +248,62 @@ public class YamlSpeciesLoader {
                 }
             }
         }
-        HarvestDefinition harvest = new HarvestDefinition(yieldEntries);
 
-        return new SpeciesDefinition(key, name, display, stages, requirements, harvest);
+        // Spatial footprint
+        SpatialFootprint spatialFootprint = SpatialFootprint.SINGLE_BLOCK;
+        Object rawSpatial = root.get("spatial");
+        if (rawSpatial instanceof Map<?, ?> spatialMap) {
+            Object rawHeight = spatialMap.get("height");
+            if (rawHeight instanceof Number hNum) {
+                int height = hNum.intValue();
+                if (height < 1) {
+                    throw new IllegalArgumentException("spatial.height must be at least 1 in: " + sourceName);
+                }
+                spatialFootprint = SpatialFootprint.ofHeight(height);
+            }
+        }
+
+        // Regrowth policy
+        RegrowthDefinition regrowth = null;
+        if (rawHarvest instanceof Map<?, ?> harvestMap) {
+            Object rawRegrowth = harvestMap.get("regrowth");
+            if (rawRegrowth instanceof Map<?, ?> regrowthMap) {
+                Object enabledObj = regrowthMap.get("enabled");
+                boolean enabled = enabledObj == null || Boolean.parseBoolean(enabledObj.toString().trim());
+                if (enabled) {
+                    Object targetStageObj = regrowthMap.get("target_stage");
+                    if (targetStageObj == null || targetStageObj.toString().isBlank()) {
+                        targetStageObj = regrowthMap.get("stage");
+                    }
+                    if (targetStageObj == null || targetStageObj.toString().isBlank()) {
+                        throw new IllegalArgumentException("Missing 'target_stage' in harvest.regrowth in: " + sourceName);
+                    }
+                    String targetStageId = targetStageObj.toString().trim();
+
+                    // Fail-fast validation against stages
+                    boolean found = false;
+                    int targetIdx = -1;
+                    for (int i = 0; i < stages.size(); i++) {
+                        if (stages.get(i).id().equalsIgnoreCase(targetStageId)) {
+                            found = true;
+                            targetIdx = i;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        throw new IllegalArgumentException("Regrowth target_stage '" + targetStageId + "' does not exist in stages of: " + sourceName);
+                    }
+                    if (targetIdx == stages.size() - 1) {
+                        throw new IllegalArgumentException("Regrowth target_stage '" + targetStageId + "' cannot be the terminal mature stage in: " + sourceName);
+                    }
+                    regrowth = new RegrowthDefinition(targetStageId);
+                }
+            }
+        }
+
+        HarvestDefinition harvest = new HarvestDefinition(yieldEntries, regrowth);
+
+        return new SpeciesDefinition(key, name, display, stages, requirements, harvest, spatialFootprint);
     }
 
     private Model3DDefinition parseModel3D(Map<?, ?> map, String stageId, String sourceName) {

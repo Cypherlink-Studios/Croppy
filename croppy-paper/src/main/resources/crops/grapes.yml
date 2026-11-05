@@ -1,0 +1,62 @@
+id: "croppy:grapes"
+name: "<dark_purple>Sweet Grapes</dark_purple>"
+
+display:
+  type: "model_3d"
+  base_block: "minecraft:air"
+  rotation_mode: "CARDINAL_4"
+  seed_item: "croppy:grape_seeds"
+
+spatial:
+  height: 2
+
+stages:
+  - id: "shoot"
+    progress_required: 100
+    model:
+      item_model: "croppy:grape_stage_0"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.5
+        height: 0.4
+  - id: "trellis_climbing"
+    progress_required: 150
+    model:
+      item_model: "croppy:grape_stage_1"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.6
+        height: 1.2
+  - id: "flowering_vine"
+    progress_required: 150
+    model:
+      item_model: "croppy:grape_vine_flowering"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.8
+        height: 2.0
+  - id: "mature_clusters"
+    progress_required: 0
+    model:
+      item_model: "croppy:grape_vine_mature"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.8
+        height: 2.0
+
+requirements:
+  min_light: 9
+  water_fluid_level: 1
+
+harvest:
+  yield:
+    - item: "croppy:grapes"
+      min: 2
+      max: 4
+  regrowth:
+    enabled: true
+    target_stage: "flowering_vine"

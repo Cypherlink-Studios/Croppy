@@ -152,6 +152,9 @@ properties:
 | `visual.text_display.translation` | Float Array | `[0, 1.2, 0]` | Altura del holograma sobre la estación. |
 | `visual.text_display.billboard` | Enum | `CENTER` | Comportamiento de rotación: `CENTER` (mira al jugador), `FIXED`, `VERTICAL`, `HORIZONTAL`. |
 | `visual.text_display.format` | String | — | Plantilla MiniMessage multilínea con placeholders dinámicos. |
+| `visual.hide_base_block` | Booleano | `false` | Enmascara el bloque físico en el mundo con paquetes de barrera para evitar interferencia visual con modelos 3D. |
+| `visual.interaction.width` | Float | `0.8` | Ancho de la caja de colisión para la entidad virtual `INTERACTION`. |
+| `visual.interaction.height` | Float | `0.25` | Alto de la caja de colisión para la entidad virtual `INTERACTION`. |
 
 ---
 

@@ -98,4 +98,41 @@ class CropManagerTest {
         core.shutdown();
         assertEquals(0, coreManager.count(), "CropManager must be cleared on shutdown");
     }
+
+    @Test
+    @DisplayName("Multi-block crop registration, occupancy lookup, and collision rejection")
+    void testMultiBlockCropOccupancy() {
+        CropInstance grapeCrop = new DefaultCropInstance(Key.croppy("grapes"), position);
+        BlockPosition abovePos = BlockPosition.of("world", 10, 65, 20);
+
+        manager.registerCrop(grapeCrop, 2);
+
+        assertEquals(1, manager.count());
+        assertTrue(manager.hasCrop(position));
+        assertTrue(manager.hasCrop(abovePos));
+        assertTrue(manager.isOccupied(abovePos));
+
+        // Direct root lookup
+        Optional<CropInstance> rootLookup = manager.getCrop(position);
+        assertTrue(rootLookup.isPresent());
+        assertEquals(grapeCrop, rootLookup.get());
+
+        // Secondary position lookup resolves to root instance
+        Optional<CropInstance> secondaryLookup = manager.getCropAt(abovePos);
+        assertTrue(secondaryLookup.isPresent());
+        assertSame(grapeCrop, secondaryLookup.get());
+
+        // Collision: trying to register another crop at the secondary position must fail
+        CropInstance conflictingCrop = new DefaultCropInstance(Key.croppy("carrot"), abovePos);
+        assertThrows(IllegalStateException.class, () -> manager.registerCrop(conflictingCrop));
+
+        // Removing by secondary position removes the whole multi-block instance cleanly
+        Optional<CropInstance> removed = manager.removeCrop(abovePos);
+        assertTrue(removed.isPresent());
+        assertSame(grapeCrop, removed.get());
+
+        assertFalse(manager.isOccupied(position));
+        assertFalse(manager.isOccupied(abovePos));
+        assertEquals(0, manager.count());
+    }
 }

@@ -113,6 +113,16 @@ class StationViewerTrackerTest {
     }
 
     @Test
+    void testGetDisplayByInteractionId() {
+        PacketStationDisplay display = tracker.getOrCreateDisplay(station);
+        int interactionId = display.getInteractionId();
+
+        assertTrue(tracker.getDisplayByInteractionId(interactionId).isPresent());
+        assertSame(display, tracker.getDisplayByInteractionId(interactionId).get());
+        assertTrue(tracker.getDisplayByInteractionId(99999).isEmpty());
+    }
+
+    @Test
     void testOnPlayerQuitRemovesPlayerFromTracking() {
         PacketStationDisplay display = tracker.getOrCreateDisplay(station);
         UUID playerId = UUID.randomUUID();

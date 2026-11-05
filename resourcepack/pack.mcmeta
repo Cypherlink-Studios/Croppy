@@ -1,0 +1,19 @@
+{
+  "pack": {
+    "pack_format": 64,
+    "supported_formats": {
+      "min_inclusive": 63,
+      "max_inclusive": 64
+    },
+    "description": [
+      {
+        "text": "Croppy Assets Pack ",
+        "color": "#55FF55"
+      },
+      {
+        "text": "(1.21.8)",
+        "color": "#888888"
+      }
+    ]
+  }
+}

@@ -221,4 +221,136 @@ class InteractionRouterTest {
         assertEquals("croppy:skillet_gui", matchGui.get().key().asString());
         assertEquals("OPEN_GUI", matchGui.get().actions().get(0).type());
     }
+
+    @Test
+    @DisplayName("Routes crop interactions with tools, conditions, and sneak triggers")
+    void testCropInteractionRouting() {
+        Key grapesKey = Key.of("croppy", "grapes");
+
+        InteractionDefinition harvestHand = new InteractionDefinition(
+                Key.of("croppy", "harvest_grapes_hand"),
+                Optional.empty(),
+                Optional.of(grapesKey),
+                InteractionTrigger.RIGHT_CLICK,
+                Optional.empty(),
+                Optional.empty(),
+                false,
+                List.of("crop.stage_id == 'mature_clusters'"),
+                List.of(InteractionAction.of("HARVEST_CROP")),
+                10
+        );
+
+        InteractionDefinition harvestShears = new InteractionDefinition(
+                Key.of("croppy", "harvest_grapes_shears"),
+                Optional.empty(),
+                Optional.of(grapesKey),
+                InteractionTrigger.RIGHT_CLICK,
+                Optional.empty(),
+                Optional.of("minecraft:shears"),
+                false,
+                List.of("crop.is_mature == true"),
+                List.of(InteractionAction.of("HARVEST_CROP")),
+                20
+        );
+
+        InteractionDefinition dismantleAxe = new InteractionDefinition(
+                Key.of("croppy", "dismantle_grapes_axe"),
+                Optional.empty(),
+                Optional.of(grapesKey),
+                InteractionTrigger.LEFT_CLICK,
+                Optional.empty(),
+                Optional.of("tag:axes"),
+                false,
+                List.of(),
+                List.of(InteractionAction.of("DISMANTLE_CROP")),
+                30
+        );
+
+        InteractionDefinition dismantleSneak = new InteractionDefinition(
+                Key.of("croppy", "dismantle_grapes_sneak"),
+                Optional.empty(),
+                Optional.of(grapesKey),
+                InteractionTrigger.SNEAK_LEFT_CLICK,
+                Optional.empty(),
+                Optional.empty(),
+                false,
+                List.of(),
+                List.of(InteractionAction.of("DISMANTLE_CROP")),
+                25
+        );
+
+        registry.register(harvestHand);
+        registry.register(harvestShears);
+        registry.register(dismantleAxe);
+        registry.register(dismantleSneak);
+
+        EvaluationContext matureCtx = EvaluationContext.empty()
+                .with("crop.stage_id", "mature_clusters")
+                .with("crop.is_mature", true)
+                .with("crop.height", 2);
+
+        EvaluationContext immatureCtx = EvaluationContext.empty()
+                .with("crop.stage_id", "flowering_vine")
+                .with("crop.is_mature", false)
+                .with("crop.height", 2);
+
+        // 1. Right click with empty hand on mature crop
+        Optional<InteractionDefinition> matchHand = router.matchCrop(
+                grapesKey,
+                InteractionTrigger.RIGHT_CLICK,
+                null,
+                null,
+                true,
+                matureCtx
+        );
+        assertTrue(matchHand.isPresent());
+        assertEquals("croppy:harvest_grapes_hand", matchHand.get().key().asString());
+
+        // 2. Right click with empty hand on immature crop -> no match
+        Optional<InteractionDefinition> matchImmature = router.matchCrop(
+                grapesKey,
+                InteractionTrigger.RIGHT_CLICK,
+                null,
+                null,
+                true,
+                immatureCtx
+        );
+        assertTrue(matchImmature.isEmpty());
+
+        // 3. Right click with shears on mature crop -> priority 20 beats priority 10
+        Optional<InteractionDefinition> matchShears = router.matchCrop(
+                grapesKey,
+                InteractionTrigger.RIGHT_CLICK,
+                null,
+                "minecraft:shears",
+                false,
+                matureCtx
+        );
+        assertTrue(matchShears.isPresent());
+        assertEquals("croppy:harvest_grapes_shears", matchShears.get().key().asString());
+
+        // 4. Left click with diamond axe -> tag:axes matches
+        Optional<InteractionDefinition> matchAxe = router.matchCrop(
+                grapesKey,
+                InteractionTrigger.LEFT_CLICK,
+                null,
+                "minecraft:diamond_axe",
+                false,
+                matureCtx
+        );
+        assertTrue(matchAxe.isPresent());
+        assertEquals("croppy:dismantle_grapes_axe", matchAxe.get().key().asString());
+
+        // 5. Shift left click with empty hand -> SNEAK_LEFT_CLICK matches
+        Optional<InteractionDefinition> matchSneak = router.matchCrop(
+                grapesKey,
+                InteractionTrigger.SNEAK_LEFT_CLICK,
+                null,
+                null,
+                true,
+                immatureCtx
+        );
+        assertTrue(matchSneak.isPresent());
+        assertEquals("croppy:dismantle_grapes_sneak", matchSneak.get().key().asString());
+    }
 }

@@ -8,6 +8,7 @@ import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.station.visual.BillboardMode;
 import dev.darkblade.croppy.api.station.visual.DisplayLayerConfig;
 import dev.darkblade.croppy.api.station.visual.DisplayTransform;
+import dev.darkblade.croppy.api.station.visual.StationInteractionBox;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 import dev.darkblade.croppy.api.station.visual.TextDisplayTemplate;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -236,7 +237,22 @@ public final class YamlStationLoader {
             textDisplay = parseTextDisplay((Map<String, Object>) tMap);
         }
 
-        return new StationVisualDefinition(baseModel, processDisplay, textDisplay);
+        boolean hideBaseBlock = getBoolean(visualMap, "hide_base_block", false)
+                || getBoolean(visualMap, "hide-base-block", false);
+
+        StationInteractionBox interactionBox = null;
+        Object rawInteraction = visualMap.get("interaction");
+        if (rawInteraction == null) {
+            rawInteraction = visualMap.get("interaction_box");
+        }
+        if (rawInteraction instanceof Map<?, ?> iMap) {
+            Map<String, Object> interactionMap = (Map<String, Object>) iMap;
+            double width = getDouble(interactionMap, "width", 0.8);
+            double height = getDouble(interactionMap, "height", 0.8);
+            interactionBox = new StationInteractionBox((float) width, (float) height);
+        }
+
+        return new StationVisualDefinition(baseModel, processDisplay, textDisplay, hideBaseBlock, interactionBox);
     }
 
     private DisplayLayerConfig parseDisplayLayer(Map<String, Object> map, int defaultViewDistance) {
@@ -339,6 +355,10 @@ public final class YamlStationLoader {
             } catch (IllegalArgumentException ignored) {}
         }
         return def;
+    }
+
+    private double getDouble(Map<String, Object> map, String key, double def) {
+        return parseDouble(map.get(key), def);
     }
 
     private double parseDouble(Object obj, double def) {

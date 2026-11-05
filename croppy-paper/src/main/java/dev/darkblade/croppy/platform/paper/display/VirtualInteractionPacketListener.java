@@ -6,6 +6,12 @@ import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.player.InteractionHand;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.expression.EvaluationContext;
+import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
+import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.interaction.InteractionAction;
+import dev.darkblade.croppy.api.interaction.InteractionDefinition;
+import dev.darkblade.croppy.api.interaction.InteractionTrigger;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.YieldEntry;
 import dev.darkblade.croppy.api.world.BlockPosition;
@@ -16,21 +22,26 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
 /**
- * PacketEvents inbound packet listener intercepting player clicks on virtual Interaction entities.
+ * PacketEvents inbound packet listener intercepting player clicks on virtual Interaction entities,
+ * routing through the declarative InteractionRouter or defaulting to harvest/break behaviors.
  */
 public class VirtualInteractionPacketListener extends PacketListenerAbstract {
 
@@ -38,12 +49,24 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
     private final CroppyCore core;
     private final VirtualBlockDisplayTracker displayTracker;
     private final Logger logger;
+    private final DisplaySynchronizer displaySynchronizer;
 
-    public VirtualInteractionPacketListener(Plugin plugin, CroppyCore core, VirtualBlockDisplayTracker displayTracker, Logger logger) {
+    public VirtualInteractionPacketListener(
+            Plugin plugin,
+            CroppyCore core,
+            VirtualBlockDisplayTracker displayTracker,
+            Logger logger,
+            DisplaySynchronizer displaySynchronizer
+    ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
         this.core = Objects.requireNonNull(core, "core cannot be null");
         this.displayTracker = Objects.requireNonNull(displayTracker, "displayTracker cannot be null");
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.displaySynchronizer = displaySynchronizer;
+    }
+
+    public VirtualInteractionPacketListener(Plugin plugin, CroppyCore core, VirtualBlockDisplayTracker displayTracker, Logger logger) {
+        this(plugin, core, displayTracker, logger, null);
     }
 
     @Override
@@ -82,16 +105,12 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!player.isOnline()) return;
 
-            if (action == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
-                handleAttack(player, pos);
-            } else {
-                handleInteract(player, pos);
-            }
+            handlePlayerInteraction(player, pos, action);
         });
     }
 
-    private void handleAttack(Player player, BlockPosition pos) {
-        Optional<CropInstance> cropOpt = core.getCropManager().getCrop(pos);
+    private void handlePlayerInteraction(Player player, BlockPosition pos, WrapperPlayClientInteractEntity.InteractAction action) {
+        Optional<CropInstance> cropOpt = core.getCropManager().getCropAt(pos);
         if (cropOpt.isEmpty()) {
             displayTracker.removeDisplay(pos);
             return;
@@ -109,68 +128,211 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         Species species = speciesOpt.get();
         boolean isMature = species.isMature(crop.getStageIndex());
 
-        World world = player.getWorld();
-        Location dropLoc = new Location(world, pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
-        Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
-
-        if (isMature) {
-            List<ItemStack> drops = new ArrayList<>();
-            for (YieldEntry yield : species.getHarvest().yields()) {
-                Material mat = Material.matchMaterial(yield.itemId());
-                if (mat != null) {
-                    int count = yield.min() == yield.max() ? yield.min() : ThreadLocalRandom.current().nextInt(yield.min(), yield.max() + 1);
-                    drops.add(new ItemStack(mat, count));
-                }
-            }
-
-            CropHarvestEvent harvestEvent = new CropHarvestEvent(player, species, block, crop, drops);
-            Bukkit.getPluginManager().callEvent(harvestEvent);
-
-            if (!harvestEvent.isCancelled()) {
-                core.getCropManager().removeCrop(pos);
-                core.getStorage().ifPresent(s -> s.deleteCrop(pos));
-                displayTracker.removeDisplay(pos);
-
-                for (ItemStack drop : drops) {
-                    world.dropItemNaturally(dropLoc, drop);
-                }
-            }
+        // Determine interaction trigger
+        InteractionTrigger trigger;
+        if (action == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
+            trigger = player.isSneaking() ? InteractionTrigger.SNEAK_LEFT_CLICK : InteractionTrigger.LEFT_CLICK;
         } else {
-            List<ItemStack> drops = new ArrayList<>();
-            if (player.getGameMode() != GameMode.CREATIVE) {
-                Material seedMat = Material.matchMaterial(species.getDisplay().seedItemId());
-                if (seedMat != null) {
-                    drops.add(new ItemStack(seedMat, 1));
-                }
+            trigger = player.isSneaking() ? InteractionTrigger.SNEAK_RIGHT_CLICK : InteractionTrigger.RIGHT_CLICK;
+        }
+
+        ItemStack itemInHand = player.getInventory().getItemInMainHand();
+        boolean emptyHand = itemInHand.getType().isAir();
+        String handMaterial = emptyHand ? null : itemInHand.getType().getKey().toString();
+        Key handItemKey = null;
+        if (itemInHand.hasItemMeta() && itemInHand.getItemMeta().getPersistentDataContainer().has(new NamespacedKey("croppy", "item_id"), PersistentDataType.STRING)) {
+            String id = itemInHand.getItemMeta().getPersistentDataContainer().get(new NamespacedKey("croppy", "item_id"), PersistentDataType.STRING);
+            if (id != null) {
+                try {
+                    handItemKey = Key.parse(id);
+                } catch (Exception ignored) {}
             }
+        }
 
-            CropBreakEvent breakEvent = new CropBreakEvent(player, species, block, crop);
-            Bukkit.getPluginManager().callEvent(breakEvent);
+        String currentStageId = (crop.getStageIndex() < species.getStages().size())
+                ? species.getStage(crop.getStageIndex()).id()
+                : "unknown";
 
-            if (!breakEvent.isCancelled()) {
-                core.getCropManager().removeCrop(pos);
-                core.getStorage().ifPresent(s -> s.deleteCrop(pos));
-                displayTracker.removeDisplay(pos);
+        EvaluationContext evalCtx = EvaluationContext.empty()
+                .with("crop.stage_id", currentStageId)
+                .with("crop.is_mature", isMature)
+                .with("crop.height", species.getHeight())
+                .with("player.is_sneaking", player.isSneaking());
 
-                for (ItemStack drop : drops) {
-                    world.dropItemNaturally(dropLoc, drop);
+        // Query declarative InteractionRouter
+        Optional<InteractionDefinition> matchOpt = core.getInteractionRouter().matchCrop(
+                species.getKey(),
+                trigger,
+                handItemKey,
+                handMaterial,
+                emptyHand,
+                evalCtx
+        );
+
+        if (matchOpt.isPresent()) {
+            executeInteractionPipeline(player, crop, species, matchOpt.get(), itemInHand);
+            return;
+        }
+
+        // Fallback default handling
+        if (action == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
+            handleDefaultAttack(player, crop, species, pos);
+        } else {
+            if (isMature) {
+                performHarvest(player, crop, species, 1.0);
+            }
+        }
+    }
+
+    private void executeInteractionPipeline(
+            Player player,
+            CropInstance crop,
+            Species species,
+            InteractionDefinition def,
+            ItemStack itemInHand
+    ) {
+        double yieldMultiplier = 1.0;
+        World world = player.getWorld();
+        Location soundLoc = new Location(world, crop.getPosition().x() + 0.5, crop.getPosition().y() + 0.5, crop.getPosition().z() + 0.5);
+
+        for (InteractionAction act : def.actions()) {
+            switch (act.type().toUpperCase(Locale.ROOT)) {
+                case "HARVEST_CROP" -> {
+                    if (act.parameters().containsKey("bonus_yield_multiplier")) {
+                        Object multObj = act.parameters().get("bonus_yield_multiplier");
+                        if (multObj instanceof Number n) {
+                            yieldMultiplier = n.doubleValue();
+                        }
+                    }
+                    performHarvest(player, crop, species, yieldMultiplier);
+                }
+                case "DISMANTLE_CROP" -> {
+                    performDismantle(player, crop, species);
+                }
+                case "DAMAGE_ITEM" -> {
+                    if (itemInHand != null && !itemInHand.getType().isAir() && itemInHand.getItemMeta() instanceof Damageable dmg) {
+                        int amount = 1;
+                        if (act.parameters().get("amount") instanceof Number n) {
+                            amount = n.intValue();
+                        }
+                        dmg.setDamage(dmg.getDamage() + amount);
+                        itemInHand.setItemMeta(dmg);
+                    }
+                }
+                case "DROP_ITEM" -> {
+                    Object itemObj = act.parameters().get("item");
+                    if (itemObj != null) {
+                        Material mat = Material.matchMaterial(itemObj.toString());
+                        int amt = 1;
+                        if (act.parameters().get("amount") instanceof Number n) {
+                            amt = n.intValue();
+                        }
+                        if (mat != null) {
+                            world.dropItemNaturally(soundLoc, new ItemStack(mat, amt));
+                        }
+                    }
+                }
+                case "PLAY_SOUND" -> {
+                    Object sObj = act.parameters().get("sound");
+                    if (sObj != null) {
+                        try {
+                            float vol = 1.0f;
+                            float pitch = 1.0f;
+                            if (act.parameters().get("volume") instanceof Number n) vol = n.floatValue();
+                            if (act.parameters().get("pitch") instanceof Number n) pitch = n.floatValue();
+                            world.playSound(soundLoc, sObj.toString().toLowerCase(Locale.ROOT), vol, pitch);
+                        } catch (Exception ignored) {}
+                    }
                 }
             }
         }
     }
 
-    private void handleInteract(Player player, BlockPosition pos) {
-        Optional<CropInstance> cropOpt = core.getCropManager().getCrop(pos);
-        if (cropOpt.isEmpty()) return;
+    private void performHarvest(Player player, CropInstance crop, Species species, double multiplier) {
+        BlockPosition pos = crop.getPosition();
+        World world = player.getWorld();
+        Location dropLoc = new Location(world, pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+        Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
 
-        CropInstance crop = cropOpt.get();
-        Optional<Species> speciesOpt = core.getSpeciesRegistry().get(crop.getSpeciesKey());
-        if (speciesOpt.isEmpty()) return;
+        List<ItemStack> drops = new ArrayList<>();
+        for (YieldEntry yield : species.getHarvest().yields()) {
+            Material mat = Material.matchMaterial(yield.itemId());
+            if (mat != null) {
+                int baseCount = yield.min() == yield.max() ? yield.min() : ThreadLocalRandom.current().nextInt(yield.min(), yield.max() + 1);
+                int count = Math.max(1, (int) Math.round(baseCount * multiplier));
+                drops.add(new ItemStack(mat, count));
+            }
+        }
 
-        Species species = speciesOpt.get();
-        if (species.isMature(crop.getStageIndex())) {
-            // Right-click harvest on mature crops
-            handleAttack(player, pos);
+        CropHarvestEvent harvestEvent = new CropHarvestEvent(player, species, block, crop, drops);
+        Bukkit.getPluginManager().callEvent(harvestEvent);
+
+        if (harvestEvent.isCancelled()) {
+            return;
+        }
+
+        // Cyclic regrowth support
+        if (species.getHarvest().hasRegrowth()) {
+            String targetStageId = species.getHarvest().regrowth().get().targetStageId();
+            int targetIdx = species.getStageIndex(targetStageId);
+            if (targetIdx >= 0) {
+                crop.setStageIndex(targetIdx);
+                crop.setProgress(0.0);
+                crop.updateTimestamp();
+                core.getStorage().ifPresent(s -> s.saveCrop(crop));
+
+                if (displaySynchronizer != null && targetIdx < species.getStages().size()) {
+                    displaySynchronizer.synchronizeDisplay(crop, species, species.getStages().get(targetIdx));
+                }
+
+                for (ItemStack drop : drops) {
+                    world.dropItemNaturally(dropLoc, drop);
+                }
+                return;
+            }
+        }
+
+        // Monocarpic removal
+        core.getCropManager().removeCrop(pos);
+        core.getStorage().ifPresent(s -> s.deleteCrop(pos));
+        displayTracker.removeDisplay(pos);
+
+        for (ItemStack drop : drops) {
+            world.dropItemNaturally(dropLoc, drop);
+        }
+    }
+
+    private void performDismantle(Player player, CropInstance crop, Species species) {
+        BlockPosition pos = crop.getPosition();
+        World world = player.getWorld();
+        Location dropLoc = new Location(world, pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+        Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
+
+        CropBreakEvent breakEvent = new CropBreakEvent(player, species, block, crop);
+        Bukkit.getPluginManager().callEvent(breakEvent);
+
+        if (breakEvent.isCancelled()) {
+            return;
+        }
+
+        core.getCropManager().removeCrop(pos);
+        core.getStorage().ifPresent(s -> s.deleteCrop(pos));
+        displayTracker.removeDisplay(pos);
+
+        if (player.getGameMode() != GameMode.CREATIVE) {
+            Material seedMat = Material.matchMaterial(species.getDisplay().seedItemId());
+            if (seedMat != null) {
+                world.dropItemNaturally(dropLoc, new ItemStack(seedMat, 1));
+            }
+        }
+    }
+
+    private void handleDefaultAttack(Player player, CropInstance crop, Species species, BlockPosition pos) {
+        boolean isMature = species.isMature(crop.getStageIndex());
+        if (isMature) {
+            performHarvest(player, crop, species, 1.0);
+        } else {
+            performDismantle(player, crop, species);
         }
     }
 }

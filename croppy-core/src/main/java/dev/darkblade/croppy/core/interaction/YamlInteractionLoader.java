@@ -103,6 +103,17 @@ public final class YamlInteractionLoader {
             targetStation = Optional.of(s.contains(":") ? Key.parse(s) : Key.of("croppy", s));
         }
 
+        // 2b. Target Crop
+        Optional<Key> targetCrop = Optional.empty();
+        Object rawCrop = root.get("crop");
+        if (rawCrop == null) {
+            rawCrop = root.get("target_crop");
+        }
+        if (rawCrop != null && !rawCrop.toString().isBlank()) {
+            String s = rawCrop.toString().trim();
+            targetCrop = Optional.of(s.contains(":") ? Key.parse(s) : Key.of("croppy", s));
+        }
+
         // 3. Trigger
         String triggerStr = getString(root, "trigger", "RIGHT_CLICK").toUpperCase(Locale.ROOT);
         InteractionTrigger trigger;
@@ -180,6 +191,7 @@ public final class YamlInteractionLoader {
         return new InteractionDefinition(
                 key,
                 targetStation,
+                targetCrop,
                 trigger,
                 matchItem,
                 matchMaterial,

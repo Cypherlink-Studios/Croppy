@@ -6,5 +6,6 @@ package dev.darkblade.croppy.platform.paper.station.display;
 public enum VisualTier {
     BASE_MODEL,
     PROCESS_ITEM,
-    TEXT_DISPLAY
+    TEXT_DISPLAY,
+    INTERACTION
 }

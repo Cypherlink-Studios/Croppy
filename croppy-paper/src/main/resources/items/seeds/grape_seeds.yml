@@ -1,0 +1,7 @@
+id: "croppy:grape_seeds"
+category: "seeds"
+material: "MELON_SEEDS"
+name: "<dark_purple>Grape Seeds</dark_purple>"
+lore:
+  - "<gray>Plant on farmland to grow climbing sweet grapes.</gray>"
+  - "<dark_gray>Requires a vertical trellis clearance (2 blocks).</dark_gray>"

@@ -214,4 +214,33 @@ class YamlStationLoaderTest {
         assertEquals("<yellow>{recipe_name}</yellow>", text.format());
         assertEquals(dev.darkblade.croppy.api.station.visual.BillboardMode.CENTER, text.billboard());
     }
+
+    @Test
+    void testLoadVisualHideBaseBlockAndInteraction() {
+        String yaml = """
+                id: "croppy:skillet"
+                name: "<gradient:#ffaa00:#ff3300>Skillet</gradient>"
+                block: "minecraft:player_head"
+                has_display: true
+                visual:
+                  hide_base_block: true
+                  interaction:
+                    width: 0.8
+                    height: 0.25
+                  base_model:
+                    enabled: true
+                    type: "ITEM"
+                    item: "minecraft:heavy_weighted_pressure_plate"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        StationDefinition def = loader.load(in, "skillet.yml");
+
+        assertTrue(def.getVisualDefinition().isPresent());
+        var visual = def.getVisualDefinition().get();
+        assertTrue(visual.hideBaseBlock());
+        assertTrue(visual.getInteractionBox().isPresent());
+        assertEquals(0.8f, visual.getInteractionBox().get().width(), 0.001f);
+        assertEquals(0.25f, visual.getInteractionBox().get().height(), 0.001f);
+    }
 }

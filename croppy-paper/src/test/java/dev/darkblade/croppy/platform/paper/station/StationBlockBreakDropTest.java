@@ -184,4 +184,49 @@ class StationBlockBreakDropTest {
         );
         assertEquals(270.0f, effectiveYaw, 0.001f);
     }
+
+    @Test
+    @DisplayName("Verify dismantleStation unregisters station and cleans up storage")
+    void testDismantleStationUnregisters() {
+        DefaultStationManager stationManager = new DefaultStationManager();
+        DefaultStationRegistry stationRegistry = new DefaultStationRegistry();
+        Key stationKey = Key.of("croppy", "skillet");
+        BlockPosition pos = BlockPosition.of("world", 10, 64, 10);
+        StationDefinition stationDef = new StationDefinition(
+                stationKey,
+                "Skillet",
+                "minecraft:player_head",
+                StationInteractionType.PHYSICAL,
+                2,
+                1,
+                true,
+                List.of(),
+                Map.of()
+        );
+        DefaultStationInstance station = new DefaultStationInstance(stationKey, pos, stationDef);
+        stationManager.addStation(station);
+
+        List<BlockPosition> deletedPositions = new ArrayList<>();
+        dev.darkblade.croppy.api.storage.StationStorage storage = new dev.darkblade.croppy.api.storage.StationStorage() {
+            @Override public java.util.Collection<dev.darkblade.croppy.api.station.StationInstance> loadChunk(String w, int x, int z) { return List.of(); }
+            @Override public void saveChunk(String w, int x, int z, java.util.Collection<dev.darkblade.croppy.api.station.StationInstance> s) {}
+            @Override public void deleteChunk(String w, int x, int z) {}
+            @Override public void saveStation(dev.darkblade.croppy.api.station.StationInstance s) {}
+            @Override public void deleteStation(BlockPosition p) { deletedPositions.add(p); }
+        };
+
+        StationBlockListener listener = new StationBlockListener(
+                stationManager,
+                stationRegistry,
+                storage,
+                new ItemFactory(null, new DefaultItemRegistry()),
+                null
+        );
+
+        listener.dismantleStation(pos, false);
+
+        assertTrue(stationManager.getStation(pos).isEmpty(), "Station should be removed from manager");
+        assertEquals(1, deletedPositions.size());
+        assertEquals(pos, deletedPositions.get(0));
+    }
 }

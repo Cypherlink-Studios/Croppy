@@ -264,4 +264,130 @@ class YamlSpeciesLoaderTest {
         assertEquals(0.8f, m1.hitboxWidth(), 0.001f);
         assertEquals(0.9f, m1.hitboxHeight(), 0.001f);
     }
+
+    @Test
+    @DisplayName("Parse species with spatial height and valid cyclic regrowth")
+    void testParseMultiBlockAndRegrowthValid() {
+        String yaml = """
+                id: "croppy:grapes"
+                name: "Uvas"
+                display:
+                  type: "model_3d"
+                  base_block: "minecraft:air"
+                  seed_item: "croppy:grape_seeds"
+                spatial:
+                  height: 2
+                stages:
+                  - id: "shoot"
+                    progress_required: 100
+                  - id: "flowering"
+                    progress_required: 150
+                  - id: "mature"
+                    progress_required: 0
+                requirements:
+                  min_light: 9
+                  water_fluid_level: 1
+                harvest:
+                  yield:
+                    - item: "croppy:grapes"
+                      min: 2
+                      max: 4
+                  regrowth:
+                    enabled: true
+                    target_stage: "flowering"
+                """;
+
+        Species species = loadFromYaml(yaml);
+        assertNotNull(species);
+        assertEquals(2, species.getHeight());
+        assertEquals(2, species.getSpatialFootprint().height());
+        assertTrue(species.getHarvest().hasRegrowth());
+        assertEquals("flowering", species.getHarvest().regrowth().orElseThrow().targetStageId());
+        assertEquals(1, species.getStageIndex("flowering"));
+        assertTrue(species.getStageById("flowering").isPresent());
+    }
+
+    @Test
+    @DisplayName("Fail-fast when regrowth target_stage does not exist")
+    void testRegrowthInvalidStageThrows() {
+        String yaml = """
+                id: "croppy:grapes"
+                display:
+                  type: "vanilla"
+                  block: "minecraft:wheat"
+                  seed_item: "croppy:grape_seeds"
+                stages:
+                  - id: "seed"
+                    progress_required: 100
+                  - id: "mature"
+                    progress_required: 0
+                requirements:
+                  min_light: 9
+                harvest:
+                  yield:
+                    - item: "croppy:grapes"
+                      min: 1
+                  regrowth:
+                    enabled: true
+                    target_stage: "non_existent_stage"
+                """;
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> loadFromYaml(yaml));
+        assertTrue(ex.getMessage().contains("does not exist in stages"));
+    }
+
+    @Test
+    @DisplayName("Fail-fast when regrowth target_stage points to terminal mature stage")
+    void testRegrowthTerminalStageThrows() {
+        String yaml = """
+                id: "croppy:grapes"
+                display:
+                  type: "vanilla"
+                  block: "minecraft:wheat"
+                  seed_item: "croppy:grape_seeds"
+                stages:
+                  - id: "seed"
+                    progress_required: 100
+                  - id: "mature"
+                    progress_required: 0
+                requirements:
+                  min_light: 9
+                harvest:
+                  yield:
+                    - item: "croppy:grapes"
+                      min: 1
+                  regrowth:
+                    enabled: true
+                    target_stage: "mature"
+                """;
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> loadFromYaml(yaml));
+        assertTrue(ex.getMessage().contains("cannot be the terminal mature stage"));
+    }
+
+    @Test
+    @DisplayName("Fail-fast when spatial height is less than 1")
+    void testInvalidSpatialHeightThrows() {
+        String yaml = """
+                id: "croppy:grapes"
+                display:
+                  type: "vanilla"
+                  block: "minecraft:wheat"
+                  seed_item: "croppy:grape_seeds"
+                spatial:
+                  height: 0
+                stages:
+                  - id: "mature"
+                    progress_required: 0
+                requirements:
+                  min_light: 9
+                harvest:
+                  yield:
+                    - item: "croppy:grapes"
+                      min: 1
+                """;
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> loadFromYaml(yaml));
+        assertTrue(ex.getMessage().contains("spatial.height must be at least 1"));
+    }
 }

@@ -111,6 +111,7 @@ public class CroppyPlugin extends JavaPlugin {
     private dev.darkblade.croppy.platform.paper.display.PacketEventsBlockRenderer packetBlockRenderer;
     private dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker virtualBlockDisplayTracker;
     private dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener virtualInteractionListener;
+    private dev.darkblade.croppy.platform.paper.station.listener.StationVirtualInteractionPacketListener stationVirtualInteractionListener;
 
     @Override
     public void onEnable() {
@@ -205,7 +206,7 @@ public class CroppyPlugin extends JavaPlugin {
                 this.stationStorage, this.stationViewerTracker, getLogger()), this);
         pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer), this);
         pm.registerEvents(new CropGrowthListener(core), this);
-        pm.registerEvents(new CropBreakListener(core), this);
+        pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer), this);
         pm.registerEvents(new CropPhysicsListener(core), this);
         pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
         pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService),
@@ -217,7 +218,7 @@ public class CroppyPlugin extends JavaPlugin {
         // Station & Process listeners
         this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
                 core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.menuService,
-                core.getInteractionRouter(), core.getRuleEngine(), this.messageService);
+                core.getInteractionRouter(), core.getRuleEngine(), this.messageService, this);
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
                 core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory,
                 this.stationViewerTracker);
@@ -230,9 +231,14 @@ public class CroppyPlugin extends JavaPlugin {
                 this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
 
         this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
-                this, core, this.virtualBlockDisplayTracker, getLogger());
+                this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer);
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.virtualInteractionListener);
+
+        this.stationVirtualInteractionListener = new dev.darkblade.croppy.platform.paper.station.listener.StationVirtualInteractionPacketListener(
+                this, this.stationViewerTracker, this.stationBlockListener, this.stationInteractListener, getLogger());
+        com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
+                .registerListener(this.stationVirtualInteractionListener);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.BukkitRecipeDiscoveryListener(
                 core.getRecipeDiscoveryEngine(),
                 core.getRecipeRegistry(),
@@ -327,6 +333,8 @@ public class CroppyPlugin extends JavaPlugin {
             saveResourceIfNotExists("interactions/cooking_pot_interactions.yml");
             saveResourceIfNotExists("interactions/skillet_interactions.yml");
             saveResourceIfNotExists("interactions/thermometer_inspect.yml");
+            saveResourceIfNotExists("interactions/crops/grapes.yml");
+            saveResourceIfNotExists("interactions/crops/rice.yml");
         }
 
         dev.darkblade.croppy.core.interaction.YamlInteractionLoader loader = new dev.darkblade.croppy.core.interaction.YamlInteractionLoader();
@@ -376,6 +384,8 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/seeds/carrot_seeds.yml");
         saveResourceIfNotExists("items/seeds/potato_seeds.yml");
         saveResourceIfNotExists("items/seeds/tomato_seeds.yml");
+        saveResourceIfNotExists("items/seeds/grape_seeds.yml");
+        saveResourceIfNotExists("items/seeds/rice_seeds.yml");
         // Tools
         saveResourceIfNotExists("items/tools/inspector.yml");
         saveResourceIfNotExists("items/tools/thermometer.yml");
@@ -387,6 +397,8 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/ingredients/tomato_soup.yml");
         saveResourceIfNotExists("items/ingredients/vegetable_stew.yml");
         saveResourceIfNotExists("items/ingredients/fried_egg.yml");
+        saveResourceIfNotExists("items/ingredients/grapes.yml");
+        saveResourceIfNotExists("items/ingredients/rice_panicle.yml");
         // Watering Cans
         saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
         saveResourceIfNotExists("items/watering_cans/copper_can.yml");
@@ -593,6 +605,8 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("crops/carrot.yml");
         saveResourceIfNotExists("crops/potato.yml");
         saveResourceIfNotExists("crops/tomato.yml");
+        saveResourceIfNotExists("crops/grapes.yml");
+        saveResourceIfNotExists("crops/rice.yml");
 
         YamlSpeciesLoader loader = new YamlSpeciesLoader();
         List<Species> loaded = loader.loadDirectory(cropsDir, getLogger());
@@ -665,6 +679,14 @@ public class CroppyPlugin extends JavaPlugin {
                         .unregisterListener(this.virtualInteractionListener);
             } catch (Throwable t) {
                 getLogger().log(Level.WARNING, "Error unregistering virtual interaction listener", t);
+            }
+        }
+        if (this.stationVirtualInteractionListener != null) {
+            try {
+                com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
+                        .unregisterListener(this.stationVirtualInteractionListener);
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error unregistering station virtual interaction listener", t);
             }
         }
 

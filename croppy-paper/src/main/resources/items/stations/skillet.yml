@@ -1,6 +1,6 @@
 id: "croppy:skillet"
 category: "stations"
-material: "minecraft:heavy_weighted_pressure_plate"
+material: "minecraft:player_head"
 name: "<gradient:#ffaa00:#ff3300>Skillet</gradient>"
 lore:
   - "<gray>A heavy cast iron pan for</gray>"

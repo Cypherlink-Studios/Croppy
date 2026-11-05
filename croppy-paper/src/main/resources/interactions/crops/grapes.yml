@@ -1,0 +1,55 @@
+# 1. Harvest mature grapes with hand
+- id: "croppy:harvest_grapes_hand"
+  crop: "croppy:grapes"
+  trigger: "RIGHT_CLICK"
+  priority: 10
+  conditions:
+    - "crop.stage_id == 'mature_clusters'"
+  actions:
+    - type: "HARVEST_CROP"
+    - type: "PLAY_SOUND"
+      sound: "block.sweet_berry_bush.pick_berries"
+      volume: 1.0
+      pitch: 1.2
+
+# 2. Harvest with shears for bonus yield
+- id: "croppy:harvest_grapes_shears"
+  crop: "croppy:grapes"
+  trigger: "RIGHT_CLICK"
+  match_material: "minecraft:shears"
+  priority: 20
+  conditions:
+    - "crop.stage_id == 'mature_clusters'"
+  actions:
+    - type: "HARVEST_CROP"
+      bonus_yield_multiplier: 1.5
+    - type: "DAMAGE_ITEM"
+      amount: 1
+    - type: "PLAY_SOUND"
+      sound: "entity.sheep.shear"
+
+# 3. Dismantle trellis with an axe
+- id: "croppy:dismantle_grapes_axe"
+  crop: "croppy:grapes"
+  trigger: "LEFT_CLICK"
+  match_material: "tag:axes"
+  priority: 30
+  actions:
+    - type: "DISMANTLE_CROP"
+    - type: "DROP_ITEM"
+      item: "minecraft:oak_fence"
+      amount: 2
+    - type: "DAMAGE_ITEM"
+      amount: 1
+    - type: "PLAY_SOUND"
+      sound: "block.wood.break"
+
+# 4. Universal dismantle with shift + left click
+- id: "croppy:dismantle_grapes_sneak"
+  crop: "croppy:grapes"
+  trigger: "SNEAK_LEFT_CLICK"
+  priority: 25
+  actions:
+    - type: "DISMANTLE_CROP"
+    - type: "PLAY_SOUND"
+      sound: "block.crop.break"

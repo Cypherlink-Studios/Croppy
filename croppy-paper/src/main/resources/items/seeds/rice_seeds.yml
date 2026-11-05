@@ -1,0 +1,6 @@
+id: "croppy:rice_seeds"
+category: "seeds"
+material: "WHEAT_SEEDS"
+name: "<yellow>Rice Seeds</yellow>"
+lore:
+  - "<gray>Plant in submerged paddy fields to grow golden rice.</gray>"

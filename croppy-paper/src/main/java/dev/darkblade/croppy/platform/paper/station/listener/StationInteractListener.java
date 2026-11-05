@@ -45,6 +45,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
 
 import java.util.List;
 import java.util.Locale;
@@ -67,6 +68,7 @@ public final class StationInteractListener implements Listener {
     private final PaperMessageService messageService;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final NamespacedKey durabilityKey = new NamespacedKey("croppy", "durability");
+    private final Plugin plugin;
 
     public StationInteractListener(
             DefaultStationManager stationManager,
@@ -76,7 +78,7 @@ public final class StationInteractListener implements Listener {
             InteractionRouter interactionRouter,
             RuleEngine ruleEngine
     ) {
-        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, null);
+        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, null, null);
     }
 
     public StationInteractListener(
@@ -88,13 +90,27 @@ public final class StationInteractListener implements Listener {
             RuleEngine ruleEngine,
             PaperMessageService messageService
     ) {
+        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, messageService, null);
+    }
+
+    public StationInteractListener(
+            DefaultStationManager stationManager,
+            ProcessEngine processEngine,
+            ItemFactory itemFactory,
+            PaperMenuService menuService,
+            InteractionRouter interactionRouter,
+            RuleEngine ruleEngine,
+            PaperMessageService messageService,
+            Plugin plugin
+    ) {
         this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
         this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
-        this.menuService = Objects.requireNonNull(menuService, "menuService cannot be null");
+        this.menuService = menuService;
         this.interactionRouter = Objects.requireNonNull(interactionRouter, "interactionRouter cannot be null");
         this.ruleEngine = Objects.requireNonNull(ruleEngine, "ruleEngine cannot be null");
         this.messageService = messageService;
+        this.plugin = plugin;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -117,7 +133,32 @@ public final class StationInteractListener implements Listener {
         event.setCancelled(true);
         StationInstance station = stationOpt.get();
         Player player = event.getPlayer();
+        interactWithStation(player, station);
 
+        boolean hideBaseBlock = station.getDefinition().getVisualDefinition()
+                .map(dev.darkblade.croppy.api.station.visual.StationVisualDefinition::hideBaseBlock)
+                .orElse(false);
+        if (hideBaseBlock) {
+            try {
+                player.sendBlockChange(block.getLocation(), org.bukkit.Material.BARRIER.createBlockData());
+                if (plugin != null) {
+                    org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (player.isOnline()) {
+                            player.sendBlockChange(block.getLocation(), org.bukkit.Material.BARRIER.createBlockData());
+                        }
+                    });
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    /**
+     * Executes the interaction pipeline (rules, declarative router, or fallback) for a player and station.
+     *
+     * @param player  interacting player
+     * @param station targeted station instance
+     */
+    public void interactWithStation(Player player, StationInstance station) {
         ItemStack handItem = player.getInventory().getItemInMainHand();
         boolean emptyHand = (handItem == null || handItem.getType().isAir());
         Key handItemKey = resolveItemKey(handItem);
@@ -196,7 +237,9 @@ public final class StationInteractListener implements Listener {
         for (InteractionAction action : def.actions()) {
             String type = action.type().toUpperCase(Locale.ROOT);
             switch (type) {
-                case "OPEN_GUI" -> menuService.openStationMenu(player, station);
+                case "OPEN_GUI" -> {
+                    if (menuService != null) menuService.openStationMenu(player, station);
+                }
                 case "SHOW_TEMPERATURE" -> handleShowTemperature(player, station, handItem);
                 case "INSERT_INPUT" -> handleInsertInput(player, station, handItem, context);
                 case "SERVE_OUTPUT", "EXTRACT_OUTPUTS" -> handleServeOutput(player, station, handItem, action);
@@ -458,7 +501,9 @@ public final class StationInteractListener implements Listener {
                 || (def.interactionType() == StationInteractionType.HYBRID && !player.isSneaking());
 
         if (openGui) {
-            menuService.openStationMenu(player, station);
+            if (menuService != null) {
+                menuService.openStationMenu(player, station);
+            }
             return;
         }
 

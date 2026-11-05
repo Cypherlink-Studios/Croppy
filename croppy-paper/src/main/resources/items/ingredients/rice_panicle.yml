@@ -1,0 +1,6 @@
+id: "croppy:rice_panicle"
+category: "ingredients"
+material: "WHEAT"
+name: "<yellow>Golden Rice Panicle</yellow>"
+lore:
+  - "<gray>A bundle of harvested grain heads ready for threshing and cooking.</gray>"

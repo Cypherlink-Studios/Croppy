@@ -61,6 +61,11 @@ public class PacketEventsStationRenderer {
     static final int INDEX_TEXT_OPACITY = 26;
     static final int INDEX_TEXT_FLAGS = 27;
 
+    // Interaction Entity specific indices
+    static final int INDEX_INTERACTION_WIDTH = 8;
+    static final int INDEX_INTERACTION_HEIGHT = 9;
+    static final int INDEX_INTERACTION_RESPONSE = 10;
+
     private final Logger logger;
 
     public PacketEventsStationRenderer(Logger logger) {
@@ -238,6 +243,43 @@ public class PacketEventsStationRenderer {
         if (template.textShadow()) flags |= 0x01;
         if (template.seeThrough()) flags |= 0x02;
         metadata.add(new EntityData(INDEX_TEXT_FLAGS, EntityDataTypes.BYTE, flags));
+
+        WrapperPlayServerEntityMetadata metaPacket = new WrapperPlayServerEntityMetadata(entityId, metadata);
+        sendPacket(player, metaPacket);
+    }
+
+    /**
+     * Spawns a virtual Interaction entity for player clicks and attacks.
+     *
+     * @param player  target player
+     * @param display packet station display container
+     * @param box     interaction box dimensions
+     */
+    public void spawnInteraction(Player player, PacketStationDisplay display, dev.darkblade.croppy.api.station.visual.StationInteractionBox box) {
+        if (box == null) return;
+
+        BlockPosition pos = display.getPosition();
+        int entityId = display.getEntityId(VisualTier.INTERACTION);
+        UUID uuid = display.getEntityUuid(VisualTier.INTERACTION);
+
+        Vector3d spawnPos = new Vector3d(pos.x() + 0.5, pos.y(), pos.z() + 0.5);
+        WrapperPlayServerSpawnEntity spawnPacket = new WrapperPlayServerSpawnEntity(
+                entityId,
+                Optional.of(uuid),
+                EntityTypes.INTERACTION,
+                spawnPos,
+                0.0f,
+                0.0f,
+                0.0f,
+                0,
+                Optional.empty()
+        );
+        sendPacket(player, spawnPacket);
+
+        List<EntityData<?>> metadata = new ArrayList<>();
+        metadata.add(new EntityData(INDEX_INTERACTION_WIDTH, EntityDataTypes.FLOAT, box.width()));
+        metadata.add(new EntityData(INDEX_INTERACTION_HEIGHT, EntityDataTypes.FLOAT, box.height()));
+        metadata.add(new EntityData(INDEX_INTERACTION_RESPONSE, EntityDataTypes.BOOLEAN, true));
 
         WrapperPlayServerEntityMetadata metaPacket = new WrapperPlayServerEntityMetadata(entityId, metadata);
         sendPacket(player, metaPacket);

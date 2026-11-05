@@ -6,5 +6,6 @@ package dev.darkblade.croppy.api.interaction;
 public enum InteractionTrigger {
     RIGHT_CLICK,
     SNEAK_RIGHT_CLICK,
-    LEFT_CLICK
+    LEFT_CLICK,
+    SNEAK_LEFT_CLICK
 }

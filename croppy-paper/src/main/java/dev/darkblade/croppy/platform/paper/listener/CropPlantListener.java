@@ -53,7 +53,7 @@ public class CropPlantListener implements Listener {
     public void onBlockCollisionSafeguard(BlockPlaceEvent event) {
         Block block = event.getBlockPlaced();
         BlockPosition pos = BlockPosition.of(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-        if (core.getCropManager().getCrop(pos).isPresent()) {
+        if (core.getCropManager().getCropAt(pos).isPresent()) {
             event.setCancelled(true);
         }
     }
@@ -139,7 +139,7 @@ public class CropPlantListener implements Listener {
             return;
         }
 
-        core.getCropManager().registerCrop(instance);
+        core.getCropManager().registerCrop(instance, species.getHeight());
         core.getStorage().ifPresent(storage -> storage.saveCrop(instance));
 
         if ("model_3d".equalsIgnoreCase(species.getDisplay().type())) {

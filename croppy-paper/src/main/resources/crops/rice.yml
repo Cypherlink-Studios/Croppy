@@ -1,0 +1,53 @@
+id: "croppy:rice"
+name: "<yellow>Paddy Rice</yellow>"
+
+display:
+  type: "model_3d"
+  base_block: "minecraft:water"
+  rotation_mode: "RANDOM_JITTER"
+  seed_item: "croppy:rice_seeds"
+
+spatial:
+  height: 2
+
+stages:
+  - id: "submerged_seedling"
+    progress_required: 80
+    model:
+      item_model: "croppy:rice_stage_0"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.5
+        height: 0.6
+  - id: "emergent_tillering"
+    progress_required: 120
+    model:
+      item_model: "croppy:rice_stage_1"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.7
+        height: 1.1
+  - id: "mature_panicle"
+    progress_required: 0
+    model:
+      item_model: "croppy:rice_mature"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.1, 0.0]
+      hitbox:
+        width: 0.8
+        height: 1.7
+
+requirements:
+  min_light: 9
+  water_fluid_level: 8
+
+harvest:
+  yield:
+    - item: "croppy:rice_panicle"
+      min: 2
+      max: 4
+    - item: "croppy:rice_seeds"
+      min: 1
+      max: 2

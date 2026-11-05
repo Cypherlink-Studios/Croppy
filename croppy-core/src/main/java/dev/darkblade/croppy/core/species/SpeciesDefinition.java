@@ -4,6 +4,7 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.species.CropDisplay;
 import dev.darkblade.croppy.api.species.CropRequirements;
 import dev.darkblade.croppy.api.species.HarvestDefinition;
+import dev.darkblade.croppy.api.species.SpatialFootprint;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
 
@@ -20,7 +21,8 @@ public record SpeciesDefinition(
         CropDisplay display,
         List<StageDefinition> stages,
         CropRequirements requirements,
-        HarvestDefinition harvest
+        HarvestDefinition harvest,
+        SpatialFootprint spatialFootprint
 ) implements Species {
 
     public SpeciesDefinition {
@@ -33,7 +35,22 @@ public record SpeciesDefinition(
         }
         Objects.requireNonNull(requirements, "Species requirements cannot be null");
         Objects.requireNonNull(harvest, "Species harvest cannot be null");
+        spatialFootprint = (spatialFootprint == null) ? SpatialFootprint.SINGLE_BLOCK : spatialFootprint;
         stages = Collections.unmodifiableList(stages);
+    }
+
+    /**
+     * Backward-compatible constructor defaulting to single-block spatial footprint.
+     */
+    public SpeciesDefinition(
+            Key key,
+            String name,
+            CropDisplay display,
+            List<StageDefinition> stages,
+            CropRequirements requirements,
+            HarvestDefinition harvest
+    ) {
+        this(key, name, display, stages, requirements, harvest, SpatialFootprint.SINGLE_BLOCK);
     }
 
     @Override
@@ -64,5 +81,10 @@ public record SpeciesDefinition(
     @Override
     public HarvestDefinition getHarvest() {
         return harvest;
+    }
+
+    @Override
+    public SpatialFootprint getSpatialFootprint() {
+        return spatialFootprint;
     }
 }

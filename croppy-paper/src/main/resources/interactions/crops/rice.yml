@@ -1,0 +1,26 @@
+# 1. Harvest mature rice panicles with hoe or sickle
+- id: "croppy:harvest_rice_hoe"
+  crop: "croppy:rice"
+  trigger: "LEFT_CLICK"
+  match_material: "tag:hoes"
+  priority: 20
+  conditions:
+    - "crop.is_mature == true"
+  actions:
+    - type: "HARVEST_CROP"
+    - type: "DAMAGE_ITEM"
+      amount: 1
+    - type: "PLAY_SOUND"
+      sound: "block.grass.break"
+
+# 2. Harvest with right click
+- id: "croppy:harvest_rice_hand"
+  crop: "croppy:rice"
+  trigger: "RIGHT_CLICK"
+  priority: 10
+  conditions:
+    - "crop.is_mature == true"
+  actions:
+    - type: "HARVEST_CROP"
+    - type: "PLAY_SOUND"
+      sound: "block.grass.break"
