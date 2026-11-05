@@ -1,6 +1,7 @@
 id: "croppy:stove"
 category: "stations"
-material: "minecraft:smoker"
+material: "minecraft:blast_furnace"
+item_model: "croppy:stove"
 name: "<gradient:#ff8800:#ff3300>Rustic Stove</gradient>"
 lore:
   - "<gray>A solid stone stove providing</gray>"

@@ -1,11 +1,29 @@
 id: "croppy:stove"
 name: "<gradient:#ff8800:#ff3300>Stove</gradient>"
-block: "minecraft:smoker"
+block: "minecraft:barrier"
 interaction: "HYBRID"
 input_capacity: 1
 output_capacity: 0
 menu: "croppy:stove_menu"
-has_display: false
+has_display: true
+
+visual:
+  hide_base_block: true
+  interaction:
+    width: 1.01
+    height: 1.01
+    
+  base_model:
+    enabled: true
+    type: "ITEM"
+    item: "croppy:stove"
+    translation: [0.0, 0.5, 0.0]
+    scale: [2.0, 2.0, 2.0]
+    rotation: [0.0, 0.0, 0.0]
+    billboard: "FIXED"
+    view_distance: 48
+    interpolation_duration: 0
+
 properties:
   heat_source: "true"
   min_temperature: "20.0"

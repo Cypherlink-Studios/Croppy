@@ -3,8 +3,8 @@ title: "<gradient:#ffaa00:#ff5555>Cooking Pot</gradient>"
 rows: 4
 pattern:
   - "X X X X X X X X X"
-  - "X I I I . O O . X"
-  - "X I I I . S . . X"
+  - "X I I I X X X O X"
+  - "X I I I X S X O X"
   - "X X X X B X X X X"
 elements:
   'X':
