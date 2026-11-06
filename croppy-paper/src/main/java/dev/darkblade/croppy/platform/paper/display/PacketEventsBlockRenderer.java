@@ -7,6 +7,7 @@ import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.util.Quaternion4f;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
+import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
@@ -66,14 +67,15 @@ public class PacketEventsBlockRenderer {
         Objects.requireNonNull(display, "display cannot be null");
 
         BlockPosition pos = display.getPosition();
-        Vector3d centerPos = new Vector3d(pos.x() + 0.5, pos.y(), pos.z() + 0.5);
+        Vector3d itemPos = new Vector3d(pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+        Vector3d interactionPos = new Vector3d(pos.x() + 0.5, pos.y(), pos.z() + 0.5);
 
         // 1. Spawn ItemDisplay
         WrapperPlayServerSpawnEntity spawnItem = new WrapperPlayServerSpawnEntity(
                 display.getItemDisplayId(),
                 Optional.of(display.getItemDisplayUuid()),
                 EntityTypes.ITEM_DISPLAY,
-                centerPos,
+                itemPos,
                 0.0f,
                 0.0f,
                 0.0f,
@@ -87,7 +89,7 @@ public class PacketEventsBlockRenderer {
                 display.getInteractionId(),
                 Optional.of(display.getInteractionUuid()),
                 EntityTypes.INTERACTION,
-                centerPos,
+                interactionPos,
                 0.0f,
                 0.0f,
                 0.0f,
@@ -171,11 +173,14 @@ public class PacketEventsBlockRenderer {
         sendPacket(player, destroyPacket);
     }
 
-    private void sendPacket(Player player, Object packetWrapper) {
+    public void sendPacket(Player player, PacketWrapper<?> packet) {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
         try {
-            PacketEvents.getAPI().getPlayerManager().sendPacket(player, packetWrapper);
+            PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
         } catch (Exception e) {
-            logger.log(Level.FINE, "Failed to dispatch packet to player " + player.getName(), e);
+            logger.log(Level.WARNING, "Failed to dispatch packet to player " + player.getName(), e);
         }
     }
 }

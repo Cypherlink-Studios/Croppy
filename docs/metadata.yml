@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.5.4"
+    releaseDate: "2026-11-06"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Fixed 3D crop PacketEvents display and interaction entity spawning, prevented viewer state lockouts on dispatch errors, and added immediate projection on player join."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.5.3"
     releaseDate: "2026-11-05"
-    reference: "main"
+    reference: "a879efd"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Hardened multi-block crop lifecycles: pre-plant vertical clearance validation, chunk reload footprint retention & immediate mature crop visual displays, canonical root persistence deletion, physical base block clearing, ghost visual display & hitbox cleanup upon physics destruction/withering, spatial occupancy query migration (getCropAt), and continuous viewer proximity tracking."
     minecraft:

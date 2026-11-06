@@ -36,6 +36,11 @@ class CropResourcesIntegrityTest {
         assertEquals(2, grapes.getHeight());
         assertTrue(grapes.getHarvest().hasRegrowth());
         assertEquals("flowering_vine", grapes.getHarvest().regrowth().orElseThrow().targetStageId());
+        assertEquals(6, grapes.getStages().size(), "Grapes should have 6 growth stages (0-5)");
+        for (int i = 0; i <= 5; i++) {
+            assertNotNull(grapes.getStages().get(i).model3D(), "Stage " + i + " must have a 3D model");
+            assertEquals("croppy:plant/grape/stage_" + i, grapes.getStages().get(i).model3D().itemModel().asString());
+        }
 
         // Verify rice properties
         Species rice = loaded.stream().filter(s -> s.getKey().asString().equals("croppy:rice")).findFirst().orElseThrow();

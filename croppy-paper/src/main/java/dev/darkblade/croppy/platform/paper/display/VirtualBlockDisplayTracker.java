@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -111,8 +112,12 @@ public class VirtualBlockDisplayTracker {
             boolean viewing = display.isViewing(playerId);
 
             if (inRange && !viewing) {
-                display.addViewer(playerId);
-                renderer.spawnBlockDisplay(player, display, item);
+                try {
+                    renderer.spawnBlockDisplay(player, display, item);
+                    display.addViewer(playerId);
+                } catch (Exception e) {
+                    logger.log(Level.WARNING, "Failed to spawn virtual block display for player " + player.getName(), e);
+                }
             } else if (inRange && viewing) {
                 renderer.updateBlockDisplay(player, display, item, true);
             } else if (!inRange && viewing) {
@@ -181,8 +186,12 @@ public class VirtualBlockDisplayTracker {
                             } catch (Throwable ignored) {}
                         }
                     }
-                    display.addViewer(playerId);
-                    renderer.spawnBlockDisplay(player, display, item);
+                    try {
+                        renderer.spawnBlockDisplay(player, display, item);
+                        display.addViewer(playerId);
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Failed to spawn virtual block display for player " + player.getName(), e);
+                    }
                 } else if (!inRange && viewing) {
                     display.removeViewer(playerId);
                     renderer.destroyBlockDisplay(player, display);

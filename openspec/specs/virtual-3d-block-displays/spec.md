@@ -21,6 +21,14 @@ The system SHALL project a pair of client-side virtual entities for each 3D crop
 - **WHEN** a 3D crop is destroyed by water flow, pistons, farmland trampling, or withering
 - **THEN** the system SHALL immediately destroy both virtual entities for all tracking players
 
+#### Scenario: Reliable PacketWrapper dispatch
+- **WHEN** virtual entity spawn, metadata, or destroy packets are dispatched to a player
+- **THEN** the system SHALL dispatch them as typed PacketWrapper instances to ensure error-free transmission across the network pipeline
+
+#### Scenario: Immediate projection on player connection
+- **WHEN** a player connects to the server and is within tracking range of an active 3D crop
+- **THEN** the system SHALL evaluate proximity and dispatch the virtual display entity pair immediately without waiting for background polling cycles
+
 ### Requirement: Dynamic Growth Stage Hitbox Scaling
 The system SHALL scale the virtual Interaction entity's width and height dynamically according to the active developmental stage of the crop.
 

@@ -38,8 +38,18 @@ class KeyTest {
         assertThrows(IllegalArgumentException.class, () -> Key.of("croppy", null));
         assertThrows(IllegalArgumentException.class, () -> Key.of("", "wheat"));
         assertThrows(IllegalArgumentException.class, () -> Key.of("croppy", "   "));
-        assertThrows(IllegalArgumentException.class, () -> Key.of("croppy", "invalid/char"));
+        assertThrows(IllegalArgumentException.class, () -> Key.of("croppy", "invalid@char"));
+        assertThrows(IllegalArgumentException.class, () -> Key.of("invalid/space", "wheat"));
         assertThrows(IllegalArgumentException.class, () -> Key.of("invalid space", "wheat"));
+    }
+
+    @Test
+    @DisplayName("Key with forward slashes in value is allowed for subpath resources")
+    void testKeyWithSubpaths() {
+        Key key = Key.of("croppy", "plant/grape/stage_0");
+        assertEquals("croppy", key.namespace());
+        assertEquals("plant/grape/stage_0", key.value());
+        assertEquals("croppy:plant/grape/stage_0", key.asString());
     }
 
     @Test

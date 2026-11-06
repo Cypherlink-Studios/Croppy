@@ -12,27 +12,45 @@ spatial:
 
 stages:
   - id: "shoot"
-    progress_required: 100
+    progress_required: 80
     model:
-      item_model: "croppy:grape_stage_0"
+      item_model: "croppy:plant/grape/stage_0"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:
         width: 0.5
         height: 0.4
-  - id: "trellis_climbing"
-    progress_required: 150
+  - id: "sprout"
+    progress_required: 100
     model:
-      item_model: "croppy:grape_stage_1"
+      item_model: "croppy:plant/grape/stage_1"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.6
+        height: 0.8
+  - id: "trellis_climbing"
+    progress_required: 120
+    model:
+      item_model: "croppy:plant/grape/stage_2"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:
         width: 0.6
         height: 1.2
+  - id: "vine_growth"
+    progress_required: 140
+    model:
+      item_model: "croppy:plant/grape/stage_3"
+      scale: [1.0, 1.0, 1.0]
+      translation: [0.0, 0.0, 0.0]
+      hitbox:
+        width: 0.7
+        height: 1.6
   - id: "flowering_vine"
     progress_required: 150
     model:
-      item_model: "croppy:grape_vine_flowering"
+      item_model: "croppy:plant/grape/stage_4"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:
@@ -41,7 +59,7 @@ stages:
   - id: "mature_clusters"
     progress_required: 0
     model:
-      item_model: "croppy:grape_vine_mature"
+      item_model: "croppy:plant/grape/stage_5"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:

@@ -8,7 +8,8 @@ import java.util.regex.Pattern;
  */
 public record Key(String namespace, String value) implements Comparable<Key> {
 
-    private static final Pattern VALID_CHARS = Pattern.compile("^[a-z0-9_.-]+$");
+    private static final Pattern VALID_NAMESPACE = Pattern.compile("^[a-z0-9_.-]+$");
+    private static final Pattern VALID_VALUE = Pattern.compile("^[a-z0-9/._-]+$");
     public static final String DEFAULT_NAMESPACE = "croppy";
 
     public Key {
@@ -20,10 +21,10 @@ public record Key(String namespace, String value) implements Comparable<Key> {
         }
         namespace = namespace.trim().toLowerCase();
         value = value.trim().toLowerCase();
-        if (!VALID_CHARS.matcher(namespace).matches()) {
+        if (!VALID_NAMESPACE.matcher(namespace).matches()) {
             throw new IllegalArgumentException("Invalid namespace characters: " + namespace);
         }
-        if (!VALID_CHARS.matcher(value).matches()) {
+        if (!VALID_VALUE.matcher(value).matches()) {
             throw new IllegalArgumentException("Invalid value characters: " + value);
         }
     }

@@ -6,6 +6,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
@@ -26,6 +27,13 @@ public class StationPlayerConnectionListener implements Listener {
 
     public StationPlayerConnectionListener(StationViewerTracker viewerTracker) {
         this(viewerTracker, null);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        if (blockTracker != null) {
+            blockTracker.tickViewers();
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
