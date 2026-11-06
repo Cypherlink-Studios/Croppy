@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = "dev.darkblade.croppy"
-    version = "0.5.5"
+    version = "0.5.6"
 
     repositories {
         mavenCentral()

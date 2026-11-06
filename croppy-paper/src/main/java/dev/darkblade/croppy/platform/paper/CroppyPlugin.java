@@ -243,7 +243,7 @@ public class CroppyPlugin extends JavaPlugin {
                 this.stationStorage, this.stationViewerTracker, getLogger()), this);
         pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer, getProtectionPort()), this);
         pm.registerEvents(new CropGrowthListener(core), this);
-        pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer, getProtectionPort()), this);
+        pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer, getProtectionPort(), this.itemFactory), this);
         pm.registerEvents(new CropPhysicsListener(core, this.virtualBlockDisplayTracker), this);
         pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
         pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService, getProtectionPort()),
@@ -268,7 +268,7 @@ public class CroppyPlugin extends JavaPlugin {
                 this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
 
         this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
-                this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer, getProtectionPort());
+                this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer, getProtectionPort(), this.itemFactory);
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.virtualInteractionListener);
 

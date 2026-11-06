@@ -8,6 +8,7 @@ import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.platform.paper.event.CropBreakEvent;
 import dev.darkblade.croppy.platform.paper.event.CropHarvestEvent;
+import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -32,19 +33,30 @@ public class CropBreakListener implements Listener {
     private final CroppyCore core;
     private final DisplaySynchronizer displaySynchronizer;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+    private final ItemFactory itemFactory;
 
-    public CropBreakListener(CroppyCore core, DisplaySynchronizer displaySynchronizer, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort) {
+    public CropBreakListener(
+            CroppyCore core,
+            DisplaySynchronizer displaySynchronizer,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
+            ItemFactory itemFactory
+    ) {
         this.core = Objects.requireNonNull(core, "core cannot be null");
         this.displaySynchronizer = displaySynchronizer;
         this.protectionPort = protectionPort;
+        this.itemFactory = (itemFactory != null) ? itemFactory : new ItemFactory(null, core.getItemRegistry());
+    }
+
+    public CropBreakListener(CroppyCore core, DisplaySynchronizer displaySynchronizer, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort) {
+        this(core, displaySynchronizer, protectionPort, null);
     }
 
     public CropBreakListener(CroppyCore core, DisplaySynchronizer displaySynchronizer) {
-        this(core, displaySynchronizer, null);
+        this(core, displaySynchronizer, null, null);
     }
 
     public CropBreakListener(CroppyCore core) {
-        this(core, null, null);
+        this(core, null, null, null);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -81,15 +93,12 @@ public class CropBreakListener implements Listener {
         if (isMature) {
             List<ItemStack> drops = new ArrayList<>();
             for (YieldEntry yield : species.getHarvest().yields()) {
-                Material mat = Material.matchMaterial(yield.itemId());
-                if (mat != null) {
-                    int count = yield.min();
-                    if (yield.max() > yield.min()) {
-                        count += ThreadLocalRandom.current().nextInt(yield.max() - yield.min() + 1);
-                    }
-                    if (count > 0) {
-                        drops.add(new ItemStack(mat, count));
-                    }
+                int count = yield.min();
+                if (yield.max() > yield.min()) {
+                    count += ThreadLocalRandom.current().nextInt(yield.max() - yield.min() + 1);
+                }
+                if (count > 0) {
+                    itemFactory.resolveItemStack(yield.itemId(), count).ifPresent(drops::add);
                 }
             }
 
@@ -150,10 +159,8 @@ public class CropBreakListener implements Listener {
             }
             event.setDropItems(false);
 
-            Material seedMat = Material.matchMaterial(species.getDisplay().seedItemId());
-            if (seedMat != null) {
-                block.getWorld().dropItemNaturally(block.getLocation(), new ItemStack(seedMat, 1));
-            }
+            itemFactory.resolveItemStack(species.getDisplay().seedItemId(), 1)
+                    .ifPresent(seedStack -> block.getWorld().dropItemNaturally(block.getLocation(), seedStack));
         }
     }
 }

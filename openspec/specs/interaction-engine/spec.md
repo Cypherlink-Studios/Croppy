@@ -40,7 +40,7 @@ The system SHALL evaluate registered interaction definitions when a player inter
 - **THEN** the interaction router evaluates context variables (including `crop.stage_id` and `crop.is_mature`) and executes the matching pipeline
 
 ### Requirement: Extensible Action Execution
-The system SHALL support extensible action types within interaction pipelines including opening GUIs, displaying action bar notices, inserting or extracting inputs, extracting outputs, advancing process ticks, harvesting crops, dismantling crops, playing sounds, and emitting particles.
+The system SHALL support extensible action types within interaction pipelines including opening GUIs, displaying action bar notices, inserting or extracting inputs, extracting outputs, advancing process ticks, harvesting crops, dismantling crops, playing sounds, and emitting particles, resolving custom registered items and vanilla materials when spawning item drops.
 
 #### Scenario: Advance process progress on tool action
 - **WHEN** an interaction definition executes an `ADVANCE_PROGRESS` action with a valid tool
@@ -52,8 +52,8 @@ The system SHALL support extensible action types within interaction pipelines in
 
 #### Scenario: Harvest crop action execution
 - **WHEN** an interaction definition executes a `HARVEST_CROP` action on a mature crop
-- **THEN** harvest yields SHALL be dropped and the crop SHALL follow its configured regrowth policy
+- **THEN** harvest yields SHALL be dropped resolving custom items from `ItemRegistry` and vanilla materials and the crop SHALL follow its configured regrowth policy
 
 #### Scenario: Dismantle crop action execution
 - **WHEN** an interaction definition executes a `DISMANTLE_CROP` action on a crop
-- **THEN** the crop instance and all its multi-block occupancy positions SHALL be completely removed and dismantling drops SHALL be spawned
+- **THEN** the crop instance and all its multi-block occupancy positions SHALL be completely removed and dismantling drops SHALL be spawned resolving custom items and vanilla materials

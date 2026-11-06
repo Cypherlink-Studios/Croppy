@@ -174,6 +174,65 @@ public class ItemFactory {
     }
 
     /**
+     * Resolves an arbitrary item identifier (such as "croppy:grapes", "minecraft:wheat", or "wheat")
+     * into a Bukkit ItemStack with amount 1.
+     *
+     * @param identifier the item identifier string
+     * @return an Optional containing the constructed ItemStack, or empty if unresolvable
+     */
+    public Optional<ItemStack> resolveItemStack(String identifier) {
+        return resolveItemStack(identifier, 1);
+    }
+
+    /**
+     * Resolves an arbitrary item identifier (such as "croppy:grapes", "minecraft:wheat", or "wheat")
+     * into a Bukkit ItemStack with the specified amount.
+     *
+     * <p>If the identifier corresponds to a registered {@link ItemDefinition} in {@link ItemRegistry},
+     * the custom item is constructed with complete PDC metadata, display names, lore, and models.
+     * If the identifier corresponds to a vanilla Minecraft material, a raw vanilla {@link ItemStack}
+     * is created. If unresolvable or invalid, {@link Optional#empty()} is returned.</p>
+     *
+     * @param identifier the item identifier string
+     * @param amount number of items in the stack (must be > 0)
+     * @return an Optional containing the constructed ItemStack, or empty if unresolvable
+     */
+    public Optional<ItemStack> resolveItemStack(String identifier, int amount) {
+        if (identifier == null || identifier.isBlank() || amount <= 0) {
+            return Optional.empty();
+        }
+
+        String trimmed = identifier.trim();
+
+        // 1. Check ItemRegistry by Key
+        try {
+            Key key = Key.parse(trimmed);
+            Optional<ItemDefinition> defOpt = itemRegistry.get(key);
+            if (defOpt.isPresent()) {
+                return Optional.ofNullable(createItemStack(defOpt.get(), amount));
+            }
+        } catch (Exception ignored) {
+        }
+
+        // 2. Check vanilla Material
+        String normalized = trimmed.toUpperCase(Locale.ROOT);
+        if (normalized.startsWith("MINECRAFT:")) {
+            normalized = normalized.substring("MINECRAFT:".length());
+        }
+        Material mat = Material.matchMaterial(normalized);
+        if (mat != null && !isAir(mat)) {
+            return Optional.ofNullable(createRawVanillaItemStack(mat, amount));
+        }
+
+        logger.warning("Unable to resolve item identifier '" + identifier + "' to an ItemRegistry entry or valid Material.");
+        return Optional.empty();
+    }
+
+    private boolean isAir(Material material) {
+        return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
+    }
+
+    /**
      * Resolves a raw texture string into a base64 encoded texture payload.
      * If a Mojang URL or 64-char hash is passed, it encapsulates it in a skin JSON payload.
      */

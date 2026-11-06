@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.5"
+  - version: "0.5.6"
     releaseDate: "2026-11-06"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Resolved custom crop harvest yields and seed drops via ItemFactory for right-click harvest, shearing, breaking, and declarative interaction drops."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.5"
+    releaseDate: "2026-11-06"
+    reference: "5eb3678"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added decoupled integration modules for WorldGuard (claim & custom flag protection), PlaceholderAPI (crop, soil, station, compendium tokens), and Vault (economy transactions)."
     minecraft:

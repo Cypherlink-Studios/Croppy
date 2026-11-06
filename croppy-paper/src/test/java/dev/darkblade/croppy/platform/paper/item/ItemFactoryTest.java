@@ -219,6 +219,87 @@ class ItemFactoryTest {
     }
 
     @Test
+    @DisplayName("resolveItemStack correctly resolves custom registered items")
+    void testResolveItemStackCustom() {
+        ItemDefinition grapesDef = new ItemDefinition(
+                Key.of("croppy", "grapes"),
+                "ingredients",
+                "minecraft:sweet_berries",
+                1001,
+                "<purple>Sweet Grapes</purple>",
+                List.of("<gray>Fresh grapes</gray>"),
+                Map.of()
+        );
+        registry.register(grapesDef);
+
+        AtomicReference<ItemDefinition> customDefCalled = new AtomicReference<>();
+        AtomicInteger customAmountCalled = new AtomicInteger();
+
+        ItemFactory testFactory = new ItemFactory(null, null, registry) {
+            @Override
+            public ItemStack createItemStack(ItemDefinition definition, int amount) {
+                customDefCalled.set(definition);
+                customAmountCalled.set(amount);
+                return null;
+            }
+        };
+
+        testFactory.resolveItemStack("croppy:grapes", 3);
+        assertEquals(grapesDef, customDefCalled.get());
+        assertEquals(3, customAmountCalled.get());
+    }
+
+    @Test
+    @DisplayName("resolveItemStack cleanly resolves vanilla materials")
+    void testResolveItemStackVanilla() {
+        AtomicReference<Material> vanillaMaterialCalled = new AtomicReference<>();
+        AtomicInteger vanillaAmountCalled = new AtomicInteger();
+
+        ItemFactory testFactory = new ItemFactory(null, null, registry) {
+            @Override
+            public ItemStack createRawVanillaItemStack(Material material, int amount) {
+                vanillaMaterialCalled.set(material);
+                vanillaAmountCalled.set(amount);
+                return null;
+            }
+        };
+
+        testFactory.resolveItemStack("minecraft:oak_fence", 2);
+        assertEquals(Material.OAK_FENCE, vanillaMaterialCalled.get());
+        assertEquals(2, vanillaAmountCalled.get());
+
+        testFactory.resolveItemStack("wheat", 4);
+        assertEquals(Material.WHEAT, vanillaMaterialCalled.get());
+        assertEquals(4, vanillaAmountCalled.get());
+    }
+
+    @Test
+    @DisplayName("resolveItemStack returns empty for invalid, unknown, or non-positive arguments")
+    void testResolveItemStackEdgeCases() {
+        ItemFactory testFactory = new ItemFactory(null, null, registry) {
+            @Override
+            public ItemStack createItemStack(ItemDefinition definition, int amount) {
+                return null;
+            }
+
+            @Override
+            public ItemStack createRawVanillaItemStack(Material material, int amount) {
+                return null;
+            }
+        };
+
+        assertTrue(testFactory.resolveItemStack(null, 1).isEmpty());
+        assertTrue(testFactory.resolveItemStack("", 1).isEmpty());
+        assertTrue(testFactory.resolveItemStack("   ", 1).isEmpty());
+        assertTrue(testFactory.resolveItemStack("croppy:grapes", 0).isEmpty());
+        assertTrue(testFactory.resolveItemStack("croppy:grapes", -2).isEmpty());
+        assertTrue(testFactory.resolveItemStack("croppy:nonexistent_item_xyz", 1).isEmpty());
+        assertTrue(testFactory.resolveItemStack("not_a_valid_material_12345", 1).isEmpty());
+        assertTrue(testFactory.resolveItemStack("minecraft:air", 1).isEmpty());
+        assertTrue(testFactory.resolveItemStack("air", 1).isEmpty());
+    }
+
+    @Test
     @DisplayName("resolveBase64Texture handles raw base64, Mojang URLs, and hash formats")
     void testResolveBase64TextureFormats() {
         String base64 = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTIzIn19fQ==";

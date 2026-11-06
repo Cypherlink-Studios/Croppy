@@ -18,6 +18,7 @@ import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.platform.paper.event.CropBreakEvent;
 import dev.darkblade.croppy.platform.paper.event.CropHarvestEvent;
+import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -51,6 +52,25 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
     private final Logger logger;
     private final DisplaySynchronizer displaySynchronizer;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+    private final ItemFactory itemFactory;
+
+    public VirtualInteractionPacketListener(
+            Plugin plugin,
+            CroppyCore core,
+            VirtualBlockDisplayTracker displayTracker,
+            Logger logger,
+            DisplaySynchronizer displaySynchronizer,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
+            ItemFactory itemFactory
+    ) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.core = Objects.requireNonNull(core, "core cannot be null");
+        this.displayTracker = Objects.requireNonNull(displayTracker, "displayTracker cannot be null");
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.displaySynchronizer = displaySynchronizer;
+        this.protectionPort = protectionPort;
+        this.itemFactory = (itemFactory != null) ? itemFactory : new ItemFactory(plugin, core.getItemRegistry());
+    }
 
     public VirtualInteractionPacketListener(
             Plugin plugin,
@@ -60,12 +80,7 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             DisplaySynchronizer displaySynchronizer,
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.core = Objects.requireNonNull(core, "core cannot be null");
-        this.displayTracker = Objects.requireNonNull(displayTracker, "displayTracker cannot be null");
-        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
-        this.displaySynchronizer = displaySynchronizer;
-        this.protectionPort = protectionPort;
+        this(plugin, core, displayTracker, logger, displaySynchronizer, protectionPort, null);
     }
 
     public VirtualInteractionPacketListener(
@@ -75,11 +90,11 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             Logger logger,
             DisplaySynchronizer displaySynchronizer
     ) {
-        this(plugin, core, displayTracker, logger, displaySynchronizer, null);
+        this(plugin, core, displayTracker, logger, displaySynchronizer, null, null);
     }
 
     public VirtualInteractionPacketListener(Plugin plugin, CroppyCore core, VirtualBlockDisplayTracker displayTracker, Logger logger) {
-        this(plugin, core, displayTracker, logger, null, null);
+        this(plugin, core, displayTracker, logger, null, null, null);
     }
 
     @Override
@@ -244,14 +259,12 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
                 case "DROP_ITEM" -> {
                     Object itemObj = act.parameters().get("item");
                     if (itemObj != null) {
-                        Material mat = Material.matchMaterial(itemObj.toString());
                         int amt = 1;
                         if (act.parameters().get("amount") instanceof Number n) {
                             amt = n.intValue();
                         }
-                        if (mat != null) {
-                            world.dropItemNaturally(soundLoc, new ItemStack(mat, amt));
-                        }
+                        itemFactory.resolveItemStack(itemObj.toString(), amt)
+                                .ifPresent(stack -> world.dropItemNaturally(soundLoc, stack));
                     }
                 }
                 case "PLAY_SOUND" -> {
@@ -278,12 +291,9 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
 
         List<ItemStack> drops = new ArrayList<>();
         for (YieldEntry yield : species.getHarvest().yields()) {
-            Material mat = Material.matchMaterial(yield.itemId());
-            if (mat != null) {
-                int baseCount = yield.min() == yield.max() ? yield.min() : ThreadLocalRandom.current().nextInt(yield.min(), yield.max() + 1);
-                int count = Math.max(1, (int) Math.round(baseCount * multiplier));
-                drops.add(new ItemStack(mat, count));
-            }
+            int baseCount = yield.min() == yield.max() ? yield.min() : ThreadLocalRandom.current().nextInt(yield.min(), yield.max() + 1);
+            int count = Math.max(1, (int) Math.round(baseCount * multiplier));
+            itemFactory.resolveItemStack(yield.itemId(), count).ifPresent(drops::add);
         }
 
         CropHarvestEvent harvestEvent = new CropHarvestEvent(player, species, block, crop, drops);
@@ -344,10 +354,8 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         block.setType(Material.AIR);
 
         if (player.getGameMode() != GameMode.CREATIVE) {
-            Material seedMat = Material.matchMaterial(species.getDisplay().seedItemId());
-            if (seedMat != null) {
-                world.dropItemNaturally(dropLoc, new ItemStack(seedMat, 1));
-            }
+            itemFactory.resolveItemStack(species.getDisplay().seedItemId(), 1)
+                    .ifPresent(stack -> world.dropItemNaturally(dropLoc, stack));
         }
     }
 
