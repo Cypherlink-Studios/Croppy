@@ -50,6 +50,23 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
     private final VirtualBlockDisplayTracker displayTracker;
     private final Logger logger;
     private final DisplaySynchronizer displaySynchronizer;
+    private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+
+    public VirtualInteractionPacketListener(
+            Plugin plugin,
+            CroppyCore core,
+            VirtualBlockDisplayTracker displayTracker,
+            Logger logger,
+            DisplaySynchronizer displaySynchronizer,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
+    ) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.core = Objects.requireNonNull(core, "core cannot be null");
+        this.displayTracker = Objects.requireNonNull(displayTracker, "displayTracker cannot be null");
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.displaySynchronizer = displaySynchronizer;
+        this.protectionPort = protectionPort;
+    }
 
     public VirtualInteractionPacketListener(
             Plugin plugin,
@@ -58,15 +75,11 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             Logger logger,
             DisplaySynchronizer displaySynchronizer
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.core = Objects.requireNonNull(core, "core cannot be null");
-        this.displayTracker = Objects.requireNonNull(displayTracker, "displayTracker cannot be null");
-        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
-        this.displaySynchronizer = displaySynchronizer;
+        this(plugin, core, displayTracker, logger, displaySynchronizer, null);
     }
 
     public VirtualInteractionPacketListener(Plugin plugin, CroppyCore core, VirtualBlockDisplayTracker displayTracker, Logger logger) {
-        this(plugin, core, displayTracker, logger, null);
+        this(plugin, core, displayTracker, logger, null, null);
     }
 
     @Override
@@ -113,6 +126,15 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         Optional<CropInstance> cropOpt = core.getCropManager().getCropAt(pos);
         if (cropOpt.isEmpty()) {
             displayTracker.removeDisplay(pos);
+            return;
+        }
+
+        dev.darkblade.croppy.api.protection.ProtectionAction protAction =
+                (action == WrapperPlayClientInteractEntity.InteractAction.ATTACK)
+                        ? dev.darkblade.croppy.api.protection.ProtectionAction.BREAK
+                        : dev.darkblade.croppy.api.protection.ProtectionAction.HARVEST;
+
+        if (protectionPort != null && !protectionPort.canInteract(player.getUniqueId(), pos, protAction)) {
             return;
         }
 

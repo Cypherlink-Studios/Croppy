@@ -82,6 +82,37 @@ locale:
 
 ---
 
-## 4. Custom Items & Inspection Tool Customization
+## 4. Third-Party Integrations (`integrations`)
+
+Croppy supports seamless, modular integrations with WorldGuard, PlaceholderAPI, and Vault:
+
+```yaml
+integrations:
+  worldguard:
+    # Enables land claim and region protection checks via WorldGuard
+    enabled: true
+    # Registers custom WorldGuard flags (croppy-plant, croppy-harvest, croppy-water, croppy-fertilize, croppy-cook)
+    use-custom-flags: true
+
+  papi:
+    # Enables PlaceholderAPI expansion for live telemetry
+    enabled: true
+    # Maximum raycast distance in blocks to resolve targeted crops and workstations
+    raycast-distance: 5
+
+  vault:
+    # Enables currency operations and transaction validations via Vault
+    enabled: true
+```
+
+* **`worldguard`**: Enforces land claims and registers custom agricultural/cooking state flags.
+* **`papi`**: Provides live crop, soil, workstation, and player compendium placeholders with configurable raycast range.
+* **`vault`**: Connects to the server's economy provider for recipe and cooking transactions.
+
+For in-depth details on flags, placeholders, and adapter behavior, see the [Third-Party Integrations Guide](./integrations.md).
+
+---
+
+## 5. Custom Items & Inspection Tool Customization
 
 The Crop Inspector tool (`croppy:inspection_tool`) is defined through Croppy's centralized **Item Registry** in `plugins/Croppy/items/tools/inspector.yml`. To customize its material, display name, item model, or lore, edit its YAML definition directly or consult the [Items & Tools Guide](./items-and-tools.md).

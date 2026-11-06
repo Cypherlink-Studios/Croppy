@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = "dev.darkblade.croppy"
-    version = "0.5.4"
+    version = "0.5.5"
 
     repositories {
         mavenCentral()
@@ -12,6 +12,9 @@ allprojects {
         maven("https://oss.sonatype.org/content/groups/public/")
         maven("https://repo.alessiodp.com/releases/")
         maven("https://repo.codemc.io/repository/maven-releases/")
+        maven("https://maven.enginehub.org/repo/")
+        maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
+        maven("https://jitpack.io")
     }
 }
 

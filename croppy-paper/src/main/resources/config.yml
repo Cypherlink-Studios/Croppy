@@ -37,3 +37,23 @@ locale:
   # Default server locale when a player's client language is unavailable or for console logs.
   # Bundled locales: en-US, es-ES (see plugins/Croppy/locales/)
   default: "en-US"
+
+# ==============================================================================
+# Third-Party Plugin Integrations
+# ==============================================================================
+integrations:
+  worldguard:
+    # Enables land claim and region protection checks via WorldGuard
+    enabled: true
+    # Registers custom WorldGuard flags (croppy-plant, croppy-harvest, croppy-water, croppy-fertilize, croppy-cook)
+    use-custom-flags: true
+
+  papi:
+    # Enables PlaceholderAPI expansion for live telemetry
+    enabled: true
+    # Maximum raycast distance in blocks to resolve targeted crops and workstations
+    raycast-distance: 5
+
+  vault:
+    # Enables currency operations and transaction validations via Vault
+    enabled: true

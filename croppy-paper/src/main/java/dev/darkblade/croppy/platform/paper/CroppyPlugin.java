@@ -114,18 +114,46 @@ public class CroppyPlugin extends JavaPlugin {
     private dev.darkblade.croppy.platform.paper.station.listener.StationVirtualInteractionPacketListener stationVirtualInteractionListener;
     private BukkitTask displayTrackerTask;
 
+    // External Integrations
+    private dev.darkblade.croppy.integration.common.IntegrationManager integrationManager;
+    private dev.darkblade.croppy.api.protection.ProtectionPort protectionPort = dev.darkblade.croppy.integration.common.NoOpProtectionAdapter.INSTANCE;
+    private dev.darkblade.croppy.api.economy.EconomyPort economyPort = dev.darkblade.croppy.integration.common.NoOpEconomyAdapter.INSTANCE;
+
+    @Override
+    public void onLoad() {
+        saveDefaultConfig();
+        this.pluginConfig = new PluginConfig();
+        this.pluginConfig.load(getConfig());
+
+        this.integrationManager = new dev.darkblade.croppy.integration.common.IntegrationManager(getLogger());
+
+        // Register WorldGuard integration early in onLoad for custom flag registration
+        dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wg =
+                new dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration(
+                        getLogger(),
+                        this.pluginConfig.isWorldGuardEnabled(),
+                        this.pluginConfig.isWorldGuardUseCustomFlags()
+                );
+        this.integrationManager.register(wg);
+        this.integrationManager.onLoad();
+    }
+
     @Override
     public void onEnable() {
         getLogger().info("Enabling Croppy plugin...");
         saveDefaultConfig();
 
-        this.pluginConfig = new PluginConfig();
-        this.pluginConfig.load(getConfig());
+        if (this.pluginConfig == null) {
+            this.pluginConfig = new PluginConfig();
+            this.pluginConfig.load(getConfig());
+        }
 
         this.core = new CroppyCore(getLogger());
         try {
             preloadShutdownClasses();
             this.core.initialize();
+
+            setupIntegrations();
 
             this.libbyLoader = new LibbyDependencyLoader(this);
             this.storage = CropStorageFactory.create(this, libbyLoader);
@@ -213,15 +241,15 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getSpeciesRegistry(),
                 this.displaySynchronizer, this.virtualBlockDisplayTracker, core.getStationManager(),
                 this.stationStorage, this.stationViewerTracker, getLogger()), this);
-        pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer), this);
+        pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer, getProtectionPort()), this);
         pm.registerEvents(new CropGrowthListener(core), this);
-        pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer), this);
+        pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer, getProtectionPort()), this);
         pm.registerEvents(new CropPhysicsListener(core, this.virtualBlockDisplayTracker), this);
         pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
-        pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService),
+        pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService, getProtectionPort()),
                 this);
         pm.registerEvents(new TimeSkipListener(this.dailyTransitionService), this);
-        pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager(), this.messageService),
+        pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager(), this.messageService, getProtectionPort()),
                 this);
 
         // Station & Process listeners
@@ -230,7 +258,7 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getInteractionRouter(), core.getRuleEngine(), this.messageService, this);
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
                 core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory,
-                this.stationViewerTracker);
+                this.stationViewerTracker, getProtectionPort());
 
         pm.registerEvents(this.chatPromptService, this);
         pm.registerEvents(this.menuListener, this);
@@ -240,12 +268,12 @@ public class CroppyPlugin extends JavaPlugin {
                 this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
 
         this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
-                this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer);
+                this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer, getProtectionPort());
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.virtualInteractionListener);
 
         this.stationVirtualInteractionListener = new dev.darkblade.croppy.platform.paper.station.listener.StationVirtualInteractionPacketListener(
-                this, this.stationViewerTracker, this.stationBlockListener, this.stationInteractListener, getLogger());
+                this, this.stationViewerTracker, this.stationBlockListener, this.stationInteractListener, getLogger(), getProtectionPort());
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.stationVirtualInteractionListener);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.BukkitRecipeDiscoveryListener(
@@ -734,6 +762,13 @@ public class CroppyPlugin extends JavaPlugin {
                 getLogger().log(Level.WARNING, "Error shutting down core", t);
             }
         }
+        if (this.integrationManager != null) {
+            try {
+                this.integrationManager.onDisable();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error disabling integrations", t);
+            }
+        }
         getLogger().info("Croppy disabled cleanly.");
     }
 
@@ -874,5 +909,70 @@ public class CroppyPlugin extends JavaPlugin {
 
     public dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker getVirtualBlockDisplayTracker() {
         return virtualBlockDisplayTracker;
+    }
+
+    private void setupIntegrations() {
+        if (this.integrationManager == null) {
+            this.integrationManager = new dev.darkblade.croppy.integration.common.IntegrationManager(getLogger());
+            dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wg =
+                    new dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration(
+                            getLogger(),
+                            this.pluginConfig.isWorldGuardEnabled(),
+                            this.pluginConfig.isWorldGuardUseCustomFlags()
+                    );
+            this.integrationManager.register(wg);
+        }
+
+        // Register PAPI integration
+        dev.darkblade.croppy.integration.papi.PapiIntegration papi =
+                new dev.darkblade.croppy.integration.papi.PapiIntegration(
+                        getLogger(),
+                        this.core,
+                        getDescription().getVersion(),
+                        this.pluginConfig.isPapiEnabled(),
+                        this.pluginConfig.getPapiRaycastDistance()
+                );
+        this.integrationManager.register(papi);
+
+        // Register Vault integration
+        dev.darkblade.croppy.integration.vault.VaultIntegration vault =
+                new dev.darkblade.croppy.integration.vault.VaultIntegration(
+                        getLogger(),
+                        this.pluginConfig.isVaultEnabled()
+                );
+        this.integrationManager.register(vault);
+
+        // Enable all integrations
+        this.integrationManager.onEnable();
+
+        // Resolve active ProtectionPort
+        var wgOpt = this.integrationManager.getIntegration("worldguard");
+        if (wgOpt.isPresent() && wgOpt.get() instanceof dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wgIntegration
+                && wgIntegration.getProtectionAdapter() != null) {
+            this.protectionPort = wgIntegration.getProtectionAdapter();
+        } else {
+            this.protectionPort = dev.darkblade.croppy.integration.common.NoOpProtectionAdapter.INSTANCE;
+        }
+
+        // Resolve active EconomyPort
+        var vaultOpt = this.integrationManager.getIntegration("vault");
+        if (vaultOpt.isPresent() && vaultOpt.get() instanceof dev.darkblade.croppy.integration.vault.VaultIntegration vaultIntegration
+                && vaultIntegration.getEconomyAdapter() != null) {
+            this.economyPort = vaultIntegration.getEconomyAdapter();
+        } else {
+            this.economyPort = dev.darkblade.croppy.integration.common.NoOpEconomyAdapter.INSTANCE;
+        }
+    }
+
+    public dev.darkblade.croppy.api.protection.ProtectionPort getProtectionPort() {
+        return protectionPort != null ? protectionPort : dev.darkblade.croppy.integration.common.NoOpProtectionAdapter.INSTANCE;
+    }
+
+    public dev.darkblade.croppy.api.economy.EconomyPort getEconomyPort() {
+        return economyPort != null ? economyPort : dev.darkblade.croppy.integration.common.NoOpEconomyAdapter.INSTANCE;
+    }
+
+    public dev.darkblade.croppy.integration.common.IntegrationManager getIntegrationManager() {
+        return integrationManager;
     }
 }

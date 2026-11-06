@@ -6,6 +6,10 @@ plugins {
 dependencies {
     implementation(project(":croppy-api"))
     implementation(project(":croppy-core"))
+    implementation(project(":croppy-integrations:common"))
+    implementation(project(":croppy-integrations:worldguard"))
+    implementation(project(":croppy-integrations:papi"))
+    implementation(project(":croppy-integrations:vault"))
 
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
     testImplementation("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")

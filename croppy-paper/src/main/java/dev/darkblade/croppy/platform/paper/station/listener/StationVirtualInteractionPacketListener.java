@@ -35,6 +35,23 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
     private final StationBlockListener blockListener;
     private final StationInteractListener interactListener;
     private final Logger logger;
+    private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+
+    public StationVirtualInteractionPacketListener(
+            Plugin plugin,
+            StationViewerTracker viewerTracker,
+            StationBlockListener blockListener,
+            StationInteractListener interactListener,
+            Logger logger,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
+    ) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.viewerTracker = Objects.requireNonNull(viewerTracker, "viewerTracker cannot be null");
+        this.blockListener = Objects.requireNonNull(blockListener, "blockListener cannot be null");
+        this.interactListener = Objects.requireNonNull(interactListener, "interactListener cannot be null");
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.protectionPort = protectionPort;
+    }
 
     public StationVirtualInteractionPacketListener(
             Plugin plugin,
@@ -43,11 +60,7 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
             StationInteractListener interactListener,
             Logger logger
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.viewerTracker = Objects.requireNonNull(viewerTracker, "viewerTracker cannot be null");
-        this.blockListener = Objects.requireNonNull(blockListener, "blockListener cannot be null");
-        this.interactListener = Objects.requireNonNull(interactListener, "interactListener cannot be null");
-        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this(plugin, viewerTracker, blockListener, interactListener, logger, null);
     }
 
     @Override
@@ -87,6 +100,16 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
         // Dispatch on Bukkit main thread
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!player.isOnline()) return;
+
+            if (protectionPort != null) {
+                dev.darkblade.croppy.api.protection.ProtectionAction protAction =
+                        (action == WrapperPlayClientInteractEntity.InteractAction.ATTACK)
+                                ? dev.darkblade.croppy.api.protection.ProtectionAction.BREAK
+                                : dev.darkblade.croppy.api.protection.ProtectionAction.STATION_USE;
+                if (!protectionPort.canInteract(player.getUniqueId(), pos, protAction)) {
+                    return;
+                }
+            }
 
             if (action == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
                 // Left-click attack -> dismantle station

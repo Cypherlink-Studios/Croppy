@@ -15,6 +15,13 @@ public class PluginConfig {
     private String storageType = "pdc";
     private String defaultLocale = "en-US";
 
+    // Integrations
+    private boolean worldGuardEnabled = true;
+    private boolean worldGuardUseCustomFlags = true;
+    private boolean papiEnabled = true;
+    private int papiRaycastDistance = 5;
+    private boolean vaultEnabled = true;
+
     public void load(FileConfiguration config) {
         if (config == null) {
             return;
@@ -31,6 +38,13 @@ public class PluginConfig {
             rawLocale = config.getString("messages.default-locale", "en-US");
         }
         this.defaultLocale = (rawLocale != null && !rawLocale.isBlank()) ? rawLocale.trim() : "en-US";
+
+        // Integrations configuration
+        this.worldGuardEnabled = config.getBoolean("integrations.worldguard.enabled", true);
+        this.worldGuardUseCustomFlags = config.getBoolean("integrations.worldguard.use-custom-flags", true);
+        this.papiEnabled = config.getBoolean("integrations.papi.enabled", true);
+        this.papiRaycastDistance = Math.max(1, Math.min(config.getInt("integrations.papi.raycast-distance", 5), 32));
+        this.vaultEnabled = config.getBoolean("integrations.vault.enabled", true);
     }
 
     public long getGrowthTickInterval() {
@@ -51,5 +65,25 @@ public class PluginConfig {
 
     public String getDefaultLocale() {
         return defaultLocale;
+    }
+
+    public boolean isWorldGuardEnabled() {
+        return worldGuardEnabled;
+    }
+
+    public boolean isWorldGuardUseCustomFlags() {
+        return worldGuardUseCustomFlags;
+    }
+
+    public boolean isPapiEnabled() {
+        return papiEnabled;
+    }
+
+    public int getPapiRaycastDistance() {
+        return papiRaycastDistance;
+    }
+
+    public boolean isVaultEnabled() {
+        return vaultEnabled;
     }
 }

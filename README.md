@@ -80,19 +80,21 @@ Built on modern Minecraft technical foundations, Croppy does not require client-
 
 ## Architectural Principles
 
-Croppy follows a strict **Hexagonal Architecture (Ports & Adapters)** across a 3-module Gradle structure:
+Croppy follows a strict **Hexagonal Architecture (Ports & Adapters)** across modular Gradle projects:
 
 ```
 Croppy (Root)
-├── croppy-api     # Pure Java 21 contracts, ports, coordinates, and immutable records
-├── croppy-core    # Pure Java 21 domain engine, simulation, codecs, and registries
+├── croppy-api          # Pure Java 21 contracts, ports, coordinates, and immutable records
+├── croppy-core         # Pure Java 21 domain engine, simulation, codecs, and registries
+├── croppy-integrations # Modular third-party integration adapters (WorldGuard, PAPI, Vault)
 └── croppy-paper   # Paper 1.21.8 adapter, PacketEvents displays, PDC/SQLite, & listeners
 ```
 
 1. **Zero Bukkit in Core & API**: The domain simulation (`croppy-core`) and public API (`croppy-api`) contain zero references to Bukkit, Paper, or Minecraft internals. This guarantees 100% deterministic unit testing and portable simulation logic.
 2. **Ghost-Free Packet Displays**: Virtual station models and crop overlays are handled entirely via **PacketEvents** clientbound packets, preventing phantom entities, chunk clutter, or server lag.
-3. **Chunk-Synced Persistent Storage**: Default storage uses Minecraft's native Chunk **PersistentDataContainer (PDC)** with an ultra-compact binary format (`CropBinaryCodec`), ensuring zero external dependencies and seamless chunk lifecycle synchronization. Optional SQLite with HikariCP is also available.
-4. **Fail-Fast Startup**: All species, recipes, and station YAML configurations are validated upon server boot to catch errors before players connect.
+3. **Decoupled Integrations Subsystem**: Region protection (WorldGuard), live placeholder expansion (PlaceholderAPI), and economy bridging (Vault) reside in isolated integration submodules with zero runtime coupling and transparent NoOp fallbacks.
+4. **Chunk-Synced Persistent Storage**: Default storage uses Minecraft's native Chunk **PersistentDataContainer (PDC)** with an ultra-compact binary format (`CropBinaryCodec`), ensuring zero external dependencies and seamless chunk lifecycle synchronization. Optional SQLite with HikariCP is also available.
+5. **Fail-Fast Startup**: All species, recipes, and station YAML configurations are validated upon server boot to catch errors before players connect.
 
 ---
 
@@ -102,6 +104,10 @@ Croppy (Root)
 - **Java Runtime**: Java 21 LTS (GraalVM or Eclipse Temurin recommended).
 - **Required Plugin**:
   - [PacketEvents](https://github.com/retrooper/packetevents) `2.14.0+` (required for virtual packet display projections).
+- **Supported Integrations** (Optional):
+  - [WorldGuard](https://enginehub.org/worldguard/) `7.0.12+` (Land claims and custom flags: plant, harvest, water, fertilize, cook).
+  - [PlaceholderAPI](https://placeholderapi.com/) `2.11.6+` (Live crop, soil, station, and compendium tokens).
+  - [Vault](https://github.com/MilkBowl/VaultAPI) `1.7+` (Culinary recipes and monetary transaction support).
 - **Client Requirements**: Standard Minecraft Java Client (1.21.8+) with the **Croppy Companion Resource Pack** loaded.
 
 ---
@@ -110,7 +116,7 @@ Croppy (Root)
 
 ### 1. Installation
 1. Install `packetevents-spigot.jar` into your server's `plugins/` directory.
-2. Download the latest `Croppy-paper-0.5.4.jar` from [Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it in `plugins/`.
+2. Download the latest `Croppy-paper-0.5.5.jar` from [Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it in `plugins/`.
 3. Provide the **Croppy Companion Resource Pack** (`resourcepack/`) to your players via `server.properties` or server resource pack hosting.
 4. Start your server.
 

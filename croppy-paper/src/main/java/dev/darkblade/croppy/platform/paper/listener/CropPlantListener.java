@@ -32,19 +32,25 @@ public class CropPlantListener implements Listener {
     private final CroppyCore core;
     private final FertilizerService fertilizerService;
     private final PaperDisplaySynchronizer displaySynchronizer;
+    private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
 
-    public CropPlantListener(CroppyCore core, FertilizerService fertilizerService, PaperDisplaySynchronizer displaySynchronizer) {
+    public CropPlantListener(CroppyCore core, FertilizerService fertilizerService, PaperDisplaySynchronizer displaySynchronizer, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort) {
         this.core = core;
         this.fertilizerService = fertilizerService;
         this.displaySynchronizer = displaySynchronizer;
+        this.protectionPort = protectionPort;
+    }
+
+    public CropPlantListener(CroppyCore core, FertilizerService fertilizerService, PaperDisplaySynchronizer displaySynchronizer) {
+        this(core, fertilizerService, displaySynchronizer, null);
     }
 
     public CropPlantListener(CroppyCore core, FertilizerService fertilizerService) {
-        this(core, fertilizerService, null);
+        this(core, fertilizerService, null, null);
     }
 
     public CropPlantListener(CroppyCore core) {
-        this(core, null, null);
+        this(core, null, null, null);
     }
 
     private boolean isAir(Material material) {
@@ -119,6 +125,16 @@ public class CropPlantListener implements Listener {
 
         // Validate full multi-block spatial clearance and occupancy
         java.util.List<BlockPosition> occupiedPositions = species.getSpatialFootprint().calculateOccupiedPositions(pos);
+
+        // Validate spatial protection / land claim permissions
+        if (protectionPort != null && event.getPlayer() != null) {
+            for (BlockPosition occPos : occupiedPositions) {
+                if (!protectionPort.canInteract(event.getPlayer().getUniqueId(), occPos, dev.darkblade.croppy.api.protection.ProtectionAction.PLANT)) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
         for (BlockPosition occPos : occupiedPositions) {
             if (core.getCropManager().isOccupied(occPos)) {
                 event.setCancelled(true);

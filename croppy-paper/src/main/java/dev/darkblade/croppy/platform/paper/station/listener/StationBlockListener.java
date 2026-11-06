@@ -47,6 +47,23 @@ public final class StationBlockListener implements Listener {
     private final StationStorage stationStorage;
     private final ItemFactory itemFactory;
     private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
+    private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+
+    public StationBlockListener(
+            DefaultStationManager stationManager,
+            StationRegistry stationRegistry,
+            StationStorage stationStorage,
+            ItemFactory itemFactory,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
+    ) {
+        this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
+        this.stationRegistry = Objects.requireNonNull(stationRegistry, "stationRegistry cannot be null");
+        this.stationStorage = Objects.requireNonNull(stationStorage, "stationStorage cannot be null");
+        this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
+        this.viewerTracker = viewerTracker;
+        this.protectionPort = protectionPort;
+    }
 
     public StationBlockListener(
             DefaultStationManager stationManager,
@@ -55,15 +72,11 @@ public final class StationBlockListener implements Listener {
             ItemFactory itemFactory,
             dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker
     ) {
-        this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
-        this.stationRegistry = Objects.requireNonNull(stationRegistry, "stationRegistry cannot be null");
-        this.stationStorage = Objects.requireNonNull(stationStorage, "stationStorage cannot be null");
-        this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
-        this.viewerTracker = viewerTracker;
+        this(stationManager, stationRegistry, stationStorage, itemFactory, viewerTracker, null);
     }
 
     public StationBlockListener(DefaultStationManager stationManager, StationRegistry stationRegistry, StationStorage stationStorage, ItemFactory itemFactory) {
-        this(stationManager, stationRegistry, stationStorage, itemFactory, null);
+        this(stationManager, stationRegistry, stationStorage, itemFactory, null, null);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -82,6 +95,12 @@ public final class StationBlockListener implements Listener {
         StationDefinition def = defOpt.get();
         Block block = event.getBlockPlaced();
         BlockPosition pos = new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+
+        if (protectionPort != null && event.getPlayer() != null &&
+                !protectionPort.canInteract(event.getPlayer().getUniqueId(), pos, dev.darkblade.croppy.api.protection.ProtectionAction.PLANT)) {
+            event.setCancelled(true);
+            return;
+        }
 
         float playerYaw = event.getPlayer().getLocation().getYaw();
         float effectiveYaw = RotationCalculator.calculate(playerYaw + 180.0f, def.rotationMode());
@@ -140,10 +159,18 @@ public final class StationBlockListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         BlockPosition pos = new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+        if (stationManager.getStation(pos).isEmpty()) {
+            return;
+        }
+        if (protectionPort != null && event.getPlayer() != null &&
+                !protectionPort.canInteract(event.getPlayer().getUniqueId(), pos, dev.darkblade.croppy.api.protection.ProtectionAction.BREAK)) {
+            event.setCancelled(true);
+            return;
+        }
         dismantleStation(pos, false);
     }
 

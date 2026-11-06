@@ -21,6 +21,11 @@ class PluginConfigTest {
         assertEquals(4, config.getGrowthWaterSearchRadius());
         assertEquals("pdc", config.getStorageType());
         assertEquals("en-US", config.getDefaultLocale());
+        assertEquals(true, config.isWorldGuardEnabled());
+        assertEquals(true, config.isWorldGuardUseCustomFlags());
+        assertEquals(true, config.isPapiEnabled());
+        assertEquals(5, config.getPapiRaycastDistance());
+        assertEquals(true, config.isVaultEnabled());
 
         config.load(new YamlConfiguration());
         assertEquals(20L, config.getGrowthTickInterval());
@@ -28,6 +33,11 @@ class PluginConfigTest {
         assertEquals(4, config.getGrowthWaterSearchRadius());
         assertEquals("pdc", config.getStorageType());
         assertEquals("en-US", config.getDefaultLocale());
+        assertEquals(true, config.isWorldGuardEnabled());
+        assertEquals(true, config.isWorldGuardUseCustomFlags());
+        assertEquals(true, config.isPapiEnabled());
+        assertEquals(5, config.getPapiRaycastDistance());
+        assertEquals(true, config.isVaultEnabled());
     }
 
     @Test

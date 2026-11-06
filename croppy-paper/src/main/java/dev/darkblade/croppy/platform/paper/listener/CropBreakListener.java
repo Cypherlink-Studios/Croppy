@@ -31,14 +31,20 @@ public class CropBreakListener implements Listener {
 
     private final CroppyCore core;
     private final DisplaySynchronizer displaySynchronizer;
+    private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
 
-    public CropBreakListener(CroppyCore core, DisplaySynchronizer displaySynchronizer) {
+    public CropBreakListener(CroppyCore core, DisplaySynchronizer displaySynchronizer, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort) {
         this.core = Objects.requireNonNull(core, "core cannot be null");
         this.displaySynchronizer = displaySynchronizer;
+        this.protectionPort = protectionPort;
+    }
+
+    public CropBreakListener(CroppyCore core, DisplaySynchronizer displaySynchronizer) {
+        this(core, displaySynchronizer, null);
     }
 
     public CropBreakListener(CroppyCore core) {
-        this(core, null);
+        this(core, null, null);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -48,6 +54,12 @@ public class CropBreakListener implements Listener {
 
         Optional<CropInstance> cropOpt = core.getCropManager().getCropAt(pos);
         if (cropOpt.isEmpty()) {
+            return;
+        }
+
+        if (protectionPort != null && event.getPlayer() != null &&
+                !protectionPort.canInteract(event.getPlayer().getUniqueId(), pos, dev.darkblade.croppy.api.protection.ProtectionAction.BREAK)) {
+            event.setCancelled(true);
             return;
         }
 

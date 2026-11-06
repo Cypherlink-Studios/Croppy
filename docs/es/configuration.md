@@ -82,6 +82,37 @@ locale:
 
 ---
 
-## 4. Personalización de Herramientas y la Herramienta de Inspección
+## 4. Integraciones de Terceros (`integrations`)
+
+Croppy incluye integraciones modulares y fluidas con WorldGuard, PlaceholderAPI y Vault:
+
+```yaml
+integrations:
+  worldguard:
+    # Habilita la verificación de protecciones y regiones mediante WorldGuard
+    enabled: true
+    # Registra banderas personalizadas (croppy-plant, croppy-harvest, croppy-water, croppy-fertilize, croppy-cook)
+    use-custom-flags: true
+
+  papi:
+    # Habilita la expansión de PlaceholderAPI para telemetría en tiempo real
+    enabled: true
+    # Distancia máxima de raycast en bloques para identificar cultivos y estaciones
+    raycast-distance: 5
+
+  vault:
+    # Habilita operaciones monetarias y validaciones de transacciones mediante Vault
+    enabled: true
+```
+
+* **`worldguard`**: Valida regiones protegidas y registra banderas personalizadas agrícolas y culinarias.
+* **`papi`**: Proporciona marcadores dinámicos para cultivos, tierra, estaciones y compendio con alcance de raycast configurable.
+* **`vault`**: Permite transacciones económicas e interoperabilidad de cobro/depósito para recetas.
+
+Para conocer a fondo todas las banderas y marcadores, consulta la [Guía de Integraciones de Terceros](./integrations.md).
+
+---
+
+## 5. Personalización de Herramientas y la Herramienta de Inspección
 
 La herramienta de inspección (`croppy:inspection_tool`) se define de forma modular a través del **Registro de Ítems** en `plugins/Croppy/items/tools/inspector.yml`. Para personalizar su material, nombre visible, modelo 3D o lore, edita directamente su definición YAML o consulta la [Guía de Ítems y Herramientas](./items-and-tools.md).

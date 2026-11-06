@@ -32,16 +32,22 @@ public class FertilizerListener implements Listener {
     private final FertilizerService fertilizerService;
     private final CropManager cropManager;
     private final PaperMessageService messageService;
+    private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    public FertilizerListener(FertilizerService fertilizerService, CropManager cropManager, PaperMessageService messageService) {
+    public FertilizerListener(FertilizerService fertilizerService, CropManager cropManager, PaperMessageService messageService, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort) {
         this.fertilizerService = Objects.requireNonNull(fertilizerService, "fertilizerService cannot be null");
         this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
         this.messageService = messageService;
+        this.protectionPort = protectionPort;
+    }
+
+    public FertilizerListener(FertilizerService fertilizerService, CropManager cropManager, PaperMessageService messageService) {
+        this(fertilizerService, cropManager, messageService, null);
     }
 
     public FertilizerListener(FertilizerService fertilizerService, CropManager cropManager) {
-        this(fertilizerService, cropManager, null);
+        this(fertilizerService, cropManager, null, null);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -70,6 +76,12 @@ public class FertilizerListener implements Listener {
         World world = clickedBlock.getWorld();
         BlockPosition clickedPos = BlockPosition.of(world.getName(), clickedBlock.getX(), clickedBlock.getY(), clickedBlock.getZ());
         BlockPosition abovePos = BlockPosition.of(world.getName(), clickedBlock.getX(), clickedBlock.getY() + 1, clickedBlock.getZ());
+
+        if (protectionPort != null && (!protectionPort.canInteract(player.getUniqueId(), clickedPos, dev.darkblade.croppy.api.protection.ProtectionAction.FERTILIZE)
+                || !protectionPort.canInteract(player.getUniqueId(), abovePos, dev.darkblade.croppy.api.protection.ProtectionAction.FERTILIZE))) {
+            event.setCancelled(true);
+            return;
+        }
 
         // 1. Check for active crop at clicked block or block above
         Optional<CropInstance> cropOpt = cropManager.getCropAt(clickedPos);

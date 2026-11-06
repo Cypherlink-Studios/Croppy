@@ -40,16 +40,22 @@ public class WateringListener implements Listener {
     private final WateringCanService wateringCanService;
     private final CropManager cropManager;
     private final PaperMessageService messageService;
+    private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    public WateringListener(WateringCanService wateringCanService, CropManager cropManager, PaperMessageService messageService) {
+    public WateringListener(WateringCanService wateringCanService, CropManager cropManager, PaperMessageService messageService, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort) {
         this.wateringCanService = Objects.requireNonNull(wateringCanService, "wateringCanService cannot be null");
         this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
         this.messageService = messageService;
+        this.protectionPort = protectionPort;
+    }
+
+    public WateringListener(WateringCanService wateringCanService, CropManager cropManager, PaperMessageService messageService) {
+        this(wateringCanService, cropManager, messageService, null);
     }
 
     public WateringListener(WateringCanService wateringCanService, CropManager cropManager) {
-        this(wateringCanService, cropManager, null);
+        this(wateringCanService, cropManager, null, null);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -129,6 +135,10 @@ public class WateringListener implements Listener {
 
         boolean wateredAny = false;
         for (BlockPosition pos : aoe) {
+            if (protectionPort != null && !protectionPort.canInteract(player.getUniqueId(), pos, dev.darkblade.croppy.api.protection.ProtectionAction.WATER)) {
+                continue;
+            }
+
             Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
             Block blockBelow = world.getBlockAt(pos.x(), pos.y() - 1, pos.z());
             Block blockAbove = world.getBlockAt(pos.x(), pos.y() + 1, pos.z());
