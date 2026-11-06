@@ -1,7 +1,6 @@
 {
 	"format_version": "1.21.6",
 	"credit": "Made with Blockbench",
-	"texture_size": [16, 32],
 	"textures": {
 		"0": "croppy:block/plant/grape/grape_plant_stage_1",
 		"particle": "croppy:block/plant/grape/grape_plant_stage_1"
@@ -12,9 +11,9 @@
 			"to": [17, 32, 8],
 			"rotation": {"angle": 45, "axis": "y", "origin": [8, 0, 8]},
 			"faces": {
-				"north": {"uv": [0, 0, 16, 32], "texture": "#0"},
+				"north": {"uv": [0, 0, 16, 16], "texture": "#0"},
 				"east": {"uv": [2, 0, 2, 16], "texture": "#0"},
-				"south": {"uv": [0, 0, 16, 32], "texture": "#0"},
+				"south": {"uv": [0, 0, 16, 16], "texture": "#0"},
 				"west": {"uv": [0, 0, 0, 16], "texture": "#0"},
 				"up": {"uv": [0, 0, 16, 0], "texture": "#0"},
 				"down": {"uv": [0, 1, 16, 1], "texture": "#0"}
@@ -25,9 +24,9 @@
 			"to": [17, 32, 8],
 			"rotation": {"angle": -45, "axis": "y", "origin": [8, 0, 8]},
 			"faces": {
-				"north": {"uv": [0, 0, 16, 32], "texture": "#0"},
+				"north": {"uv": [0, 0, 16, 16], "texture": "#0"},
 				"east": {"uv": [2, 0, 2, 16], "texture": "#0"},
-				"south": {"uv": [0, 0, 16, 32], "texture": "#0"},
+				"south": {"uv": [0, 0, 16, 16], "texture": "#0"},
 				"west": {"uv": [0, 0, 0, 16], "texture": "#0"},
 				"up": {"uv": [0, 0, 16, 0], "texture": "#0"},
 				"down": {"uv": [0, 1, 16, 1], "texture": "#0"}
