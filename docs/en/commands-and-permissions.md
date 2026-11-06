@@ -97,6 +97,32 @@ All administrative subcommands require the **`croppy.admin`** permission node.
 
 ---
 
+### Addon Lifecycle Management
+
+```text
+/croppy addon list
+/croppy addon status <addonId>
+/croppy addon load <addonId | all>
+/croppy addon enable <addonId | all>
+/croppy addon disable <addonId | all>
+/croppy addon unload <addonId | all>
+```
+
+* **`/croppy addon list`**:
+  Lists all discovered addons in `plugins/Croppy/addons/`, displaying their version, type (Java code addon or Declarative pack), and lifecycle state.
+* **`/croppy addon status <addonId>`**:
+  Inspects detailed metadata, loaded classes, registered species/items, active listeners, and task metrics for the specified addon.
+* **`/croppy addon load <addonId | all>`**:
+  Prepares an addon in memory and links its classloader hierarchy without activating gameplay mechanics (`LOADED` state).
+* **`/croppy addon enable <addonId | all>`**:
+  Enables the addon, resolves dependencies, registers its content in core registries, and invokes `onEnable` (`ENABLED` state).
+* **`/croppy addon disable <addonId | all>`**:
+  Safely executes the 5-phase decommissioning protocol, unregistering listeners and clearing domain registries while leaving classes in memory (`LOADED` state).
+* **`/croppy addon unload <addonId | all>`**:
+  Completely disables the addon, closes its `URLClassLoader`, and detaches graph references (`ON_DISK` state).
+
+---
+
 ### Plugin Lifecycle & Reload
 
 ```text
@@ -113,3 +139,4 @@ All administrative subcommands require the **`croppy.admin`** permission node.
 | Permission Node | Default | Description |
 |---|---|---|
 | `croppy.admin` | `op` | Full access to all `/croppy` administrative and debugging subcommands. |
+| `croppy.admin.addon` | `op` | Full access to `/croppy addon` lifecycle management subcommands. |

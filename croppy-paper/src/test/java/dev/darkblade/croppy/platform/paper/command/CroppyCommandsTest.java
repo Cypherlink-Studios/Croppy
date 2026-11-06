@@ -91,4 +91,20 @@ class CroppyCommandsTest {
         assertEquals(1, fertilizers.size());
         assertTrue(fertilizers.contains("croppy:basic_fertilizer"));
     }
+
+    @Test
+    @DisplayName("Verify addon IDs suggestion provider")
+    void testSuggestAddonIds() {
+        dev.darkblade.croppy.platform.paper.addon.PaperAddonManager manager =
+                new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(null, null, java.nio.file.Path.of("addons"), null);
+        dev.darkblade.croppy.api.addon.AddonDescription desc = new dev.darkblade.croppy.api.addon.AddonDescription(
+                "orchard", "Orchard", "1.0", "orchard", java.util.Optional.empty(), List.of(), "", List.of(), List.of()
+        );
+        manager.registerDiscovered(desc, java.nio.file.Path.of("addons/orchard"));
+        commands.setAddonManager(manager);
+
+        List<String> suggestions = commands.suggestAddonIds(null, CommandInput.empty());
+        assertTrue(suggestions.contains("all"));
+        assertTrue(suggestions.contains("orchard"));
+    }
 }

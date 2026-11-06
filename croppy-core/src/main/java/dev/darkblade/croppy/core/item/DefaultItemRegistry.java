@@ -51,6 +51,20 @@ public class DefaultItemRegistry extends SimpleRegistry<ItemDefinition> implemen
     }
 
     @Override
+    public boolean unregister(Key key) {
+        Optional<ItemDefinition> existing = get(key);
+        if (existing.isPresent()) {
+            ItemDefinition item = existing.get();
+            Set<Key> set = categoryIndex.get(item.category().toLowerCase(Locale.ROOT));
+            if (set != null) {
+                set.remove(key);
+            }
+            return super.unregister(key);
+        }
+        return false;
+    }
+
+    @Override
     public void clear() {
         super.clear();
         categoryIndex.clear();

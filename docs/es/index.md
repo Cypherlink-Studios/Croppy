@@ -48,6 +48,10 @@ Croppy une la agricultura tradicional de Minecraft con una experiencia culinaria
 |  Mensajes, barras de acción, tooltips y nombres de ítems se muestran en     |
 |  el idioma del cliente Minecraft del jugador mediante Crowdin.              |
 |                                                                             |
+|  [8. SISTEMA MODULAR DE ADDONS Y FUSIÓN DE RESOURCE PACKS]                  |
+|  Expande mecánicas mediante addons de código Java o packs YAML declarativos  |
+|  con ciclo de vida en caliente (/croppy addon) y resource packs automáticos.|
+|                                                                             |
 +-----------------------------------------------------------------------------+
 ```
 
@@ -72,3 +76,4 @@ Croppy está desarrollado siguiendo una estricta **Arquitectura Hexagonal (Puert
 - **Estación de Trabajo**: Bloque físico (ej. olla, sartén) capaz de contener ingredientes y ejecutar procesos culinarios.
 - **Fuente Térmica**: Componente de estación (como una estufa de leña) que consume combustible y transfiere calor.
 - **Compendio Culinario**: Enciclopedia interactiva de recetas (`croppy:recipe_book`) que permite consultar preparaciones ordenadas por categorías.
+- **Addon**: Módulo externo (JAR o directorio de pack declarativo) ubicado en `plugins/Croppy/addons/` que inyecta nuevos cultivos, ítems, estaciones y lógica personalizada en Croppy.

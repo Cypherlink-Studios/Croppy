@@ -38,6 +38,24 @@ public class DefaultSpeciesRegistry extends SimpleRegistry<Species> implements S
     }
 
     @Override
+    public boolean unregister(dev.darkblade.croppy.api.identifier.Key key) {
+        Optional<Species> existing = get(key);
+        if (existing.isPresent()) {
+            Species species = existing.get();
+            if (species.getDisplay() != null) {
+                if (species.getDisplay().seedItemId() != null) {
+                    bySeedItem.remove(species.getDisplay().seedItemId().toLowerCase());
+                }
+                if (species.getDisplay().blockId() != null) {
+                    byBlock.remove(species.getDisplay().blockId().toLowerCase());
+                }
+            }
+            return super.unregister(key);
+        }
+        return false;
+    }
+
+    @Override
     public void clear() {
         super.clear();
         bySeedItem.clear();

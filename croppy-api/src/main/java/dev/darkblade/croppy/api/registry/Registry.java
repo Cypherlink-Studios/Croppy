@@ -67,4 +67,31 @@ public interface Registry<T extends Keyed> {
      * Clears all registered entries from this registry.
      */
     void clear();
+
+    /**
+     * Unregisters an entry by its unique key.
+     *
+     * @param key the unique key to unregister
+     * @return true if an entry was removed, false if no entry was found for the key
+     */
+    boolean unregister(Key key);
+
+    /**
+     * Unregisters all entries matching the given predicate filter.
+     *
+     * @param filter the predicate defining entries to remove
+     * @return the number of removed entries
+     */
+    default int unregisterAll(java.util.function.Predicate<T> filter) {
+        java.util.Objects.requireNonNull(filter, "Filter predicate cannot be null");
+        int count = 0;
+        for (T entry : values()) {
+            if (filter.test(entry)) {
+                if (unregister(entry.getKey())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
 }

@@ -74,6 +74,11 @@ public class CroppyCommands {
     private RecipeDiscoveryEngine discoveryEngine;
     private RecipeKnowledgeStorage recipeStorage;
     private CompendiumMenuController compendiumController;
+    private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
+
+    public void setAddonManager(dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager) {
+        this.addonManager = addonManager;
+    }
 
     public CroppyCommands(
             CroppyPlugin plugin,
@@ -629,6 +634,180 @@ public class CroppyCommands {
         sender.sendMessage(miniMessage.deserialize("<gold><bold>--- Croppy Registered Recipes (" + recipeRegistry.size() + ") ---</bold></gold>"));
         for (RecipeDefinition r : recipeRegistry.values()) {
             sender.sendMessage(miniMessage.deserialize(" <yellow>•</yellow> <white>" + r.key().asString() + "</white> <gray>(" + r.displayName() + ")</gray> <dark_gray>[" + r.categoryKey().value() + " @ " + r.stationKey().value() + "]</dark_gray>"));
+        }
+    }
+
+    @Suggestions("addon_ids")
+    public List<String> suggestAddonIds(CommandContext<Source> context, CommandInput input) {
+        if (addonManager == null) {
+            return List.of("all");
+        }
+        List<String> list = new java.util.ArrayList<>();
+        list.add("all");
+        for (dev.darkblade.croppy.api.addon.AddonDescription desc : addonManager.getDiscoveredAddons()) {
+            list.add(desc.id());
+        }
+        return list;
+    }
+
+    @Command("croppy addon list")
+    @Permission("croppy.admin.addon")
+    public void listAddons(Source source) {
+        CommandSender sender = source.source();
+        if (addonManager == null || addonManager.getDiscoveredAddons().isEmpty()) {
+            sender.sendMessage(miniMessage.deserialize("<gray>No addons discovered in <white>plugins/Croppy/addons/</white>.</gray>"));
+            return;
+        }
+
+        sender.sendMessage(miniMessage.deserialize("<gold><bold>--- Croppy Addons (" + addonManager.getDiscoveredAddons().size() + ") ---</bold></gold>"));
+        for (dev.darkblade.croppy.api.addon.AddonDescription addon : addonManager.getDiscoveredAddons()) {
+            dev.darkblade.croppy.api.addon.AddonState state = addonManager.getState(addon.id());
+            String stateColor = switch (state) {
+                case ENABLED -> "<green>ENABLED</green>";
+                case LOADED -> "<yellow>LOADED</yellow>";
+                case ON_DISK -> "<gray>ON_DISK</gray>";
+            };
+            String type = addon.isCodeAddon() ? "Java" : "Content Pack";
+            sender.sendMessage(miniMessage.deserialize(" <yellow>•</yellow> <white>" + addon.id() + "</white> <gray>v" + addon.version() + "</gray> <dark_gray>[" + type + "]</dark_gray> - " + stateColor));
+        }
+    }
+
+    @Command("croppy addon status <addonId>")
+    @Permission("croppy.admin.addon")
+    public void addonStatus(
+            Source source,
+            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+    ) {
+        CommandSender sender = source.source();
+        if (addonManager == null) return;
+
+        Optional<dev.darkblade.croppy.api.addon.AddonDescription> descOpt = addonManager.getAddon(addonId);
+        if (descOpt.isEmpty()) {
+            sender.sendMessage(miniMessage.deserialize("<red>Addon '" + addonId + "' not found.</red>"));
+            return;
+        }
+
+        dev.darkblade.croppy.api.addon.AddonDescription desc = descOpt.get();
+        dev.darkblade.croppy.api.addon.AddonState state = addonManager.getState(addonId);
+        String stateColor = switch (state) {
+            case ENABLED -> "<green>ENABLED</green>";
+            case LOADED -> "<yellow>LOADED</yellow>";
+            case ON_DISK -> "<gray>ON_DISK</gray>";
+        };
+
+        sender.sendMessage(miniMessage.deserialize("<gold><bold>=== Addon: " + desc.name() + " (" + desc.id() + ") ===</bold></gold>"));
+        sender.sendMessage(miniMessage.deserialize("<gray>Version:</gray> <white>" + desc.version() + "</white>"));
+        sender.sendMessage(miniMessage.deserialize("<gray>Namespace:</gray> <aqua>" + desc.namespace() + "</aqua>"));
+        sender.sendMessage(miniMessage.deserialize("<gray>Type:</gray> <white>" + (desc.isCodeAddon() ? "Java Code Addon" : "Declarative Content Pack") + "</white>"));
+        sender.sendMessage(miniMessage.deserialize("<gray>State:</gray> " + stateColor));
+        if (!desc.authors().isEmpty()) {
+            sender.sendMessage(miniMessage.deserialize("<gray>Authors:</gray> <white>" + String.join(", ", desc.authors()) + "</white>"));
+        }
+        if (!desc.dependencies().isEmpty()) {
+            sender.sendMessage(miniMessage.deserialize("<gray>Dependencies:</gray> <yellow>" + String.join(", ", desc.dependencies()) + "</yellow>"));
+        }
+        if (state == dev.darkblade.croppy.api.addon.AddonState.ENABLED) {
+            addonManager.getContext(addonId).ifPresent(ctx -> {
+                sender.sendMessage(miniMessage.deserialize("<gray>Registered Species:</gray> <white>" + ctx.getRegisteredSpecies().size() + "</white>"));
+                sender.sendMessage(miniMessage.deserialize("<gray>Registered Items:</gray> <white>" + ctx.getRegisteredItems().size() + "</white>"));
+                sender.sendMessage(miniMessage.deserialize("<gray>Registered Recipes:</gray> <white>" + ctx.getRegisteredRecipes().size() + "</white>"));
+                sender.sendMessage(miniMessage.deserialize("<gray>Active Listeners:</gray> <white>" + ctx.getRegisteredListeners().size() + "</white>"));
+            });
+        }
+    }
+
+    @Command("croppy addon load <addonId>")
+    @Permission("croppy.admin.addon")
+    public void loadAddon(
+            Source source,
+            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+    ) {
+        CommandSender sender = source.source();
+        if (addonManager == null) return;
+
+        if ("all".equalsIgnoreCase(addonId)) {
+            addonManager.discoverAddons();
+            int count = 0;
+            for (dev.darkblade.croppy.api.addon.AddonDescription desc : addonManager.getDiscoveredAddons()) {
+                if (addonManager.loadAddon(desc.id())) count++;
+            }
+            sender.sendMessage(miniMessage.deserialize("<green>Successfully loaded " + count + " addons into memory.</green>"));
+            return;
+        }
+
+        if (addonManager.loadAddon(addonId)) {
+            sender.sendMessage(miniMessage.deserialize("<green>Addon '" + addonId + "' loaded into memory successfully.</green>"));
+        } else {
+            sender.sendMessage(miniMessage.deserialize("<red>Failed to load addon '" + addonId + "'. Check logs for details.</red>"));
+        }
+    }
+
+    @Command("croppy addon enable <addonId>")
+    @Permission("croppy.admin.addon")
+    public void enableAddon(
+            Source source,
+            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+    ) {
+        CommandSender sender = source.source();
+        if (addonManager == null) return;
+
+        if ("all".equalsIgnoreCase(addonId)) {
+            addonManager.enableAll();
+            sender.sendMessage(miniMessage.deserialize("<green>Enabled all discovered addons.</green>"));
+            return;
+        }
+
+        if (addonManager.enableAddon(addonId)) {
+            sender.sendMessage(miniMessage.deserialize("<green>Addon '" + addonId + "' enabled successfully.</green>"));
+        } else {
+            sender.sendMessage(miniMessage.deserialize("<red>Failed to enable addon '" + addonId + "'. Check logs for details.</red>"));
+        }
+    }
+
+    @Command("croppy addon disable <addonId>")
+    @Permission("croppy.admin.addon")
+    public void disableAddon(
+            Source source,
+            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+    ) {
+        CommandSender sender = source.source();
+        if (addonManager == null) return;
+
+        if ("all".equalsIgnoreCase(addonId)) {
+            addonManager.disableAll();
+            sender.sendMessage(miniMessage.deserialize("<yellow>Disabled all active addons.</yellow>"));
+            return;
+        }
+
+        if (addonManager.disableAddon(addonId)) {
+            sender.sendMessage(miniMessage.deserialize("<yellow>Addon '" + addonId + "' disabled successfully.</yellow>"));
+        } else {
+            sender.sendMessage(miniMessage.deserialize("<red>Failed to disable addon '" + addonId + "'. It may not be enabled.</red>"));
+        }
+    }
+
+    @Command("croppy addon unload <addonId>")
+    @Permission("croppy.admin.addon")
+    public void unloadAddon(
+            Source source,
+            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+    ) {
+        CommandSender sender = source.source();
+        if (addonManager == null) return;
+
+        if ("all".equalsIgnoreCase(addonId)) {
+            int count = 0;
+            for (dev.darkblade.croppy.api.addon.AddonDescription desc : addonManager.getDiscoveredAddons()) {
+                if (addonManager.unloadAddon(desc.id())) count++;
+            }
+            sender.sendMessage(miniMessage.deserialize("<yellow>Unloaded " + count + " addons completely.</yellow>"));
+            return;
+        }
+
+        if (addonManager.unloadAddon(addonId)) {
+            sender.sendMessage(miniMessage.deserialize("<yellow>Addon '" + addonId + "' unloaded completely.</yellow>"));
+        } else {
+            sender.sendMessage(miniMessage.deserialize("<red>Failed to unload addon '" + addonId + "'.</red>"));
         }
     }
 }

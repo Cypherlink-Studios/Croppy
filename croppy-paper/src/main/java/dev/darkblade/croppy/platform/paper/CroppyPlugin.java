@@ -119,6 +119,13 @@ public class CroppyPlugin extends JavaPlugin {
     private dev.darkblade.croppy.api.protection.ProtectionPort protectionPort = dev.darkblade.croppy.integration.common.NoOpProtectionAdapter.INSTANCE;
     private dev.darkblade.croppy.api.economy.EconomyPort economyPort = dev.darkblade.croppy.integration.common.NoOpEconomyAdapter.INSTANCE;
 
+    // Addon System
+    private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
+
+    public dev.darkblade.croppy.platform.paper.addon.PaperAddonManager getAddonManager() {
+        return addonManager;
+    }
+
     @Override
     public void onLoad() {
         saveDefaultConfig();
@@ -175,6 +182,7 @@ public class CroppyPlugin extends JavaPlugin {
             setupGrowthSimulation();
             loadActiveChunkCrops();
             loadActiveChunkStations();
+            setupAddonSystem();
             setupCommands();
             registerListeners();
             getLogger().info("Croppy enabled successfully!");
@@ -182,6 +190,21 @@ public class CroppyPlugin extends JavaPlugin {
             getLogger().log(Level.SEVERE, "Failed to initialize Croppy", e);
             getServer().getPluginManager().disablePlugin(this);
         }
+    }
+
+    private void setupAddonSystem() {
+        Path addonsDir = getDataFolder().toPath().resolve("addons");
+        if (!Files.exists(addonsDir)) {
+            try {
+                Files.createDirectories(addonsDir);
+            } catch (Exception ignored) {
+            }
+        }
+        Path resourcePackDir = getDataFolder().toPath().resolve("resourcepack");
+        dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger merger =
+                new dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger(resourcePackDir, getLogger());
+        this.addonManager = new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(this, this.core, addonsDir, merger);
+        this.addonManager.enableAll();
     }
 
     private void loadActiveChunkCrops() {
@@ -617,6 +640,7 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getRecipeDiscoveryEngine(),
                 this.recipeStorage,
                 this.compendiumController);
+        commands.setAddonManager(this.addonManager);
         annotationParser.parse(commands);
         getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
     }
@@ -643,6 +667,10 @@ public class CroppyPlugin extends JavaPlugin {
         setupStationDefinitions();
         setupInteractionDefinitions();
         setupRuleDefinitions();
+        if (this.addonManager != null) {
+            this.addonManager.disableAll();
+            this.addonManager.enableAll();
+        }
         getLogger().info(
                 "Croppy configuration, items, fertilizers, menus, stations, interactions, rules, and crop definitions reloaded successfully.");
     }
@@ -675,6 +703,15 @@ public class CroppyPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         getLogger().info("Disabling Croppy plugin...");
+        if (this.addonManager != null) {
+            try {
+                this.addonManager.disableAll();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error disabling addons during shutdown", t);
+            }
+            this.addonManager = null;
+        }
+
         if (this.growthTicker != null) {
             try {
                 this.growthTicker.stop();

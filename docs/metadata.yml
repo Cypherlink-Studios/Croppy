@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.6"
+  - version: "0.5.7"
     releaseDate: "2026-11-06"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added decoupled Addon System supporting declarative content packs and Java code addons with DAG ClassLoader graphs, safe hot-swapping (/croppy addon), and companion resource pack asset merging."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.6"
+    releaseDate: "2026-11-06"
+    reference: "61cf6b4"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Resolved custom crop harvest yields and seed drops via ItemFactory for right-click harvest, shearing, breaking, and declarative interaction drops."
     minecraft:

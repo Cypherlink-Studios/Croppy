@@ -18,7 +18,7 @@ The system SHALL represent domain resource identifiers using an immutable key co
 - **THEN** the system SHALL reject key creation with an IllegalArgumentException
 
 ### Requirement: Generic In-Memory Registry
-The system SHALL provide an in-memory registry allowing domain objects to be registered and queried by their unique namespaced key.
+The system SHALL provide an in-memory registry allowing domain objects to be registered, queried, and unregistered by their unique namespaced key in a thread-safe manner.
 
 #### Scenario: Successful entry registration and lookup
 - **WHEN** an entry is registered under a unique key "croppy:test"
@@ -32,3 +32,18 @@ The system SHALL provide an in-memory registry allowing domain objects to be reg
 #### Scenario: Querying non-existent key
 - **WHEN** querying the registry for an unregistered key
 - **THEN** the registry SHALL return an empty result without throwing an exception
+
+#### Scenario: Unregistering an existing entry by key
+- **WHEN** an entry registered under "croppy:test" is unregistered
+- **THEN** the registry removes the entry, returns true, and subsequent lookups for "croppy:test" return empty
+
+#### Scenario: Unregistering a non-existent key
+- **WHEN** unregistering a key that is not registered
+- **THEN** the registry returns false without throwing an exception
+
+### Requirement: Predicate-Based Bulk Registry Removal
+The system SHALL allow bulk unregistration of registry entries matching a provided predicate, returning the count of removed entries.
+
+#### Scenario: Bulk removal by namespace
+- **WHEN** unregistering all entries matching namespace "addon_example"
+- **THEN** all entries registered under "addon_example" are removed atomically while entries with other namespaces remain unaffected

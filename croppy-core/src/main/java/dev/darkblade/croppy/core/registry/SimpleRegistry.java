@@ -57,7 +57,30 @@ public class SimpleRegistry<T extends Keyed> implements Registry<T> {
         return entries.size();
     }
 
+    @Override
     public void clear() {
         entries.clear();
+    }
+
+    @Override
+    public boolean unregister(Key key) {
+        if (key == null) {
+            return false;
+        }
+        return entries.remove(key) != null;
+    }
+
+    @Override
+    public int unregisterAll(java.util.function.Predicate<T> filter) {
+        Objects.requireNonNull(filter, "Filter predicate cannot be null");
+        int removedCount = 0;
+        for (Map.Entry<Key, T> entry : entries.entrySet()) {
+            if (filter.test(entry.getValue())) {
+                if (entries.remove(entry.getKey(), entry.getValue())) {
+                    removedCount++;
+                }
+            }
+        }
+        return removedCount;
     }
 }

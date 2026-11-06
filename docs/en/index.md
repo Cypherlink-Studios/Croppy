@@ -48,6 +48,10 @@ Croppy bridges the gap between traditional vanilla farming and immersive, deep c
 |  All messages, action bars, tooltips, and item names render in each         |
 |  player's preferred Minecraft client language with Crowdin synchronization. |
 |                                                                             |
+|  [8. MODULAR ADDON SYSTEM & RESOURCE PACK MERGING]                          |
+|  Expand game mechanics via Java code addons or drop-in YAML content packs   |
+|  with hot-swapping lifecycle (/croppy addon) and companion pack generation.  |
+|                                                                             |
 +-----------------------------------------------------------------------------+
 ```
 
@@ -72,3 +76,4 @@ Croppy is engineered from the ground up following **Hexagonal Architecture (Port
 - **Workstation**: A physical station block (e.g., cooking pot, skillet) capable of holding ingredients and executing transformation recipes.
 - **Heat Source**: A station component (such as a wood-fired stove) that consumes fuels and supplies ambient thermal energy to adjacent or overlying workstations.
 - **Culinary Compendium**: The in-game recipe encyclopedia (`croppy:recipe_book`) allowing players to browse discovered culinary preparations, categorized by meal types.
+- **Addon**: An external module (JAR or declarative pack directory) living in `plugins/Croppy/addons/` that injects custom crops, items, workstations, and gameplay logic into Croppy.

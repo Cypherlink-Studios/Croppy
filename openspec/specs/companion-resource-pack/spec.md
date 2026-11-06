@@ -13,11 +13,15 @@ The companion resource pack SHALL declare root configuration in `pack.mcmeta` sp
 - **THEN** the client recognizes the pack format as 64 without compatibility warnings
 
 ### Requirement: Namespaced Asset Hierarchy and Path Compliance
-All resource pack assets SHALL be contained under `assets/croppy/`. Every directory and filename within the assets tree MUST strictly adhere to the lowercase regex `^[a-z0-9_.-]+$`.
+All resource pack assets SHALL be contained under `assets/<namespace>/`, where `<namespace>` is `croppy` or any registered addon namespace. Every directory and filename within the assets tree MUST strictly adhere to the lowercase regex `^[a-z0-9_.-]+$`.
 
 #### Scenario: Auditing asset paths
-- **WHEN** the asset directory tree is traversed
+- **WHEN** the asset directory tree is traversed across core and addon namespaces
 - **THEN** all path segments contain only lowercase alphanumeric characters, dots, underscores, and dashes
+
+#### Scenario: Supporting multi-namespace asset trees
+- **WHEN** an addon declares namespace "winery" and provides assets in `assets/winery/`
+- **THEN** the system validates paths under `assets/winery/` against regex `^[a-z0-9_.-]+$` without requiring assets to live under `assets/croppy/`
 
 ### Requirement: Modern Item Model Definitions
 The resource pack SHALL declare custom item models inside `assets/croppy/items/<item>.json` utilizing modern dispatch trees (`minecraft:model`, `minecraft:select`, `minecraft:range_dispatch`). Item models MUST NOT declare legacy `overrides` arrays in `models/item/`.
@@ -50,3 +54,14 @@ The companion resource pack SHALL declare all element face UV coordinates in cus
 #### Scenario: Rendering multi-block crop stages
 - **WHEN** a 2-block crop model with a 16x32 texture renders in the world
 - **THEN** the model samples the full vertical sprite within the normalized 0.0 to 16.0 UV range without bleeding into neighboring atlas textures
+
+### Requirement: Automated Addon Asset Merging
+The companion resource pack compiler SHALL discover `assets/` subdirectories inside enabled addons and merge their models, textures, and sounds into the compiled companion resource pack.
+
+#### Scenario: Merging addon models and textures
+- **WHEN** an addon containing `assets/custom/models/item/wand.json` is enabled
+- **THEN** the compiled resource pack output includes `assets/custom/models/item/wand.json` alongside base Croppy assets
+
+#### Scenario: Addon asset cleanup on disable
+- **WHEN** an addon is disabled or unloaded
+- **THEN** its asset tree is excluded from subsequent resource pack builds without corrupting base Croppy assets

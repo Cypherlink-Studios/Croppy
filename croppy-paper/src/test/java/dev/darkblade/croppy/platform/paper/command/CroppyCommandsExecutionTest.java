@@ -214,4 +214,91 @@ class CroppyCommandsExecutionTest {
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Croppy Registered Recipes")));
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("croppy:tomato_soup")));
     }
+
+    @Test
+    @DisplayName("Verify /croppy addon subcommands route and execute cleanly")
+    void testAddonCommandsExecution() {
+        DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
+        DefaultFertilizerRegistry fertilizerRegistry = new DefaultFertilizerRegistry();
+        CropInspectorService inspector = new CropInspectorService(
+                new CropManager(),
+                new DefaultSpeciesRegistry(),
+                pos -> null
+        );
+
+        CroppyCommands commands = new CroppyCommands(
+                null,
+                inspector,
+                new PluginConfig(),
+                null,
+                null,
+                fertilizerRegistry,
+                null,
+                itemRegistry
+        );
+
+        dev.darkblade.croppy.platform.paper.addon.PaperAddonManager manager =
+                new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(null, null, java.nio.file.Path.of("addons"), null);
+        dev.darkblade.croppy.api.addon.AddonDescription desc = new dev.darkblade.croppy.api.addon.AddonDescription(
+                "orchard", "Orchard Addon", "1.0.0", "orchard", java.util.Optional.empty(), List.of("DarkBladeDev"), "Fruit trees", List.of(), List.of()
+        );
+        manager.registerDiscovered(desc, java.nio.file.Path.of("addons/orchard"));
+        commands.setAddonManager(manager);
+
+        CommandManager<Source> commandManager = new CommandManager<>(
+                ExecutionCoordinator.simpleCoordinator(),
+                CommandRegistrationHandler.nullCommandRegistrationHandler()
+        ) {
+            @Override
+            public boolean hasPermission(Source sender, String permission) {
+                return true;
+            }
+        };
+
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(org.bukkit.entity.Player.class),
+                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success((org.bukkit.entity.Player) null)
+        );
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(Key.class),
+                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+
+        AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);
+        parser.parse(commands);
+
+        List<String> receivedMessages = new ArrayList<>();
+        CommandSender mockSender = (CommandSender) Proxy.newProxyInstance(
+                CommandSender.class.getClassLoader(),
+                new Class<?>[]{CommandSender.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("sendMessage") && args != null && args.length > 0) {
+                        if (args[0] instanceof Component component) {
+                            receivedMessages.add(PlainTextComponentSerializer.plainText().serialize(component));
+                        } else if (args[0] != null) {
+                            receivedMessages.add(args[0].toString());
+                        }
+                    }
+                    return null;
+                }
+        );
+
+        Source mockSource = (Source) Proxy.newProxyInstance(
+                Source.class.getClassLoader(),
+                new Class<?>[]{Source.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("source")) {
+                        return mockSender;
+                    }
+                    return null;
+                }
+        );
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon list").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Croppy Addons (1)")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("orchard")));
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon status orchard").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Addon: Orchard Addon")));
+    }
 }

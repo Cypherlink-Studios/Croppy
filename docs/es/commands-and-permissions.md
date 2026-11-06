@@ -97,6 +97,32 @@ Todos los subcomandos de gestión y depuración requieren el permiso **`croppy.a
 
 ---
 
+### Gestión del Ciclo de Vida de Addons
+
+```text
+/croppy addon list
+/croppy addon status <addonId>
+/croppy addon load <addonId | all>
+/croppy addon enable <addonId | all>
+/croppy addon disable <addonId | all>
+/croppy addon unload <addonId | all>
+```
+
+* **`/croppy addon list`**:
+  Lista todos los addons descubiertos en `plugins/Croppy/addons/`, indicando su versión, tipo (addon de código Java o pack declarativo) y estado de ciclo de vida.
+* **`/croppy addon status <addonId>`**:
+  Inspecciona metadatos detallados, clases cargadas, especies/ítems registrados, listeners activos y métricas de tareas del addon especificado.
+* **`/croppy addon load <addonId | all>`**:
+  Prepara un addon en memoria y enlaza su jerarquía de classloaders sin activar mecánicas de juego (estado `LOADED`).
+* **`/croppy addon enable <addonId | all>`**:
+  Habilita el addon, resuelve dependencias, registra su contenido en los registros centrales y ejecuta `onEnable` (estado `ENABLED`).
+* **`/croppy addon disable <addonId | all>`**:
+  Ejecuta de forma segura el protocolo de desmantelamiento de 5 fases, desregistrando listeners y limpiando registros de dominio mientras conserva las clases en memoria (estado `LOADED`).
+* **`/croppy addon unload <addonId | all>`**:
+  Deshabilita por completo el addon, cierra su `URLClassLoader` y desacopla todas las referencias del grafo (estado `ON_DISK`).
+
+---
+
 ### Recarga del Plugin
 
 ```text
@@ -113,3 +139,4 @@ Todos los subcomandos de gestión y depuración requieren el permiso **`croppy.a
 | Permiso | Predeterminado | Descripción |
 |---|---|---|
 | `croppy.admin` | `op` | Acceso completo a todos los subcomandos administrativos y herramientas de depuración de `/croppy`. |
+| `croppy.admin.addon` | `op` | Acceso completo a los subcomandos de gestión del ciclo de vida de `/croppy addon`. |

@@ -77,4 +77,40 @@ class SimpleRegistryTest {
             registry.values().clear();
         });
     }
+
+    @Test
+    @DisplayName("Unregister existing entry removes it and returns true")
+    void testUnregisterExistingKey() {
+        Key key = Key.croppy("potato");
+        registry.register(new TestEntry(key, "Potato"));
+
+        assertTrue(registry.contains(key));
+        assertTrue(registry.unregister(key));
+        assertFalse(registry.contains(key));
+        assertEquals(0, registry.size());
+        assertTrue(registry.get(key).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Unregister non-existent or null key returns false")
+    void testUnregisterNonExistentKey() {
+        assertFalse(registry.unregister(Key.croppy("non_existent")));
+        assertFalse(registry.unregister(null));
+    }
+
+    @Test
+    @DisplayName("UnregisterAll with predicate removes matching entries atomically")
+    void testUnregisterAllWithPredicate() {
+        registry.register(new TestEntry(Key.of("addon_a", "crop_1"), "Addon Crop 1"));
+        registry.register(new TestEntry(Key.of("addon_a", "crop_2"), "Addon Crop 2"));
+        registry.register(new TestEntry(Key.of("addon_b", "crop_3"), "Other Crop"));
+        assertEquals(3, registry.size());
+
+        int removed = registry.unregisterAll(entry -> "addon_a".equals(entry.getKey().namespace()));
+        assertEquals(2, removed);
+        assertEquals(1, registry.size());
+        assertTrue(registry.contains(Key.of("addon_b", "crop_3")));
+        assertFalse(registry.contains(Key.of("addon_a", "crop_1")));
+        assertFalse(registry.contains(Key.of("addon_a", "crop_2")));
+    }
 }
