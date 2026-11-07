@@ -94,4 +94,24 @@ public interface AddonContext {
      * @return the adapter instance or empty if incompatible
      */
     <T> Optional<T> getPlatformAdapter(Class<T> adapterType);
+
+    /**
+     * @return the active configuration instance for this addon
+     */
+    AddonConfig getConfig();
+
+    /**
+     * Extracts the bundled default config.yml to this addon's data folder if it does not already exist.
+     */
+    void saveDefaultConfig();
+
+    /**
+     * Reloads this addon's configuration from disk.
+     */
+    void reloadConfig();
+
+    /**
+     * Persists this addon's in-memory configuration modifications to disk.
+     */
+    void saveConfig();
 }

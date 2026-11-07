@@ -99,16 +99,21 @@ public class PaperAddonManager extends DefaultAddonManager {
             return false;
         }
 
-        // Prepare context
-        Path dataFolder = addonsDirectory.resolve(desc.id());
+        // 1. Delegate to super.loadAddon for Path Ownership Gate validation and state change
+        if (!super.loadAddon(addonId)) {
+            return false;
+        }
+
+        // 2. Prepare context with dataFolder resolved by DefaultAddonManager
+        Path dataFolder = getDataFolder(addonId).orElseGet(() -> addonsDirectory.resolve(desc.id()));
         PaperAddonContext context = new PaperAddonContext(
-                desc, dataFolder,
+                desc, dataFolder, path, null,
                 Logger.getLogger("Croppy-" + desc.id()),
                 plugin, core
         );
         addonContexts.put(addonId, context);
 
-        // If Java code addon, instantiate AddonClassLoader
+        // 3. If Java code addon, instantiate AddonClassLoader
         if (desc.isCodeAddon()) {
             try {
                 URL jarUrl = path.toUri().toURL();
@@ -130,13 +135,14 @@ public class PaperAddonManager extends DefaultAddonManager {
                 }
 
                 classLoaders.put(addonId, loader);
+                context.setAddonClassLoader(loader);
             } catch (Exception e) {
                 logger.log(Level.SEVERE, "Failed to create class loader for addon '" + addonId + "'", e);
                 return false;
             }
         }
 
-        return super.loadAddon(addonId);
+        return true;
     }
 
     @Override

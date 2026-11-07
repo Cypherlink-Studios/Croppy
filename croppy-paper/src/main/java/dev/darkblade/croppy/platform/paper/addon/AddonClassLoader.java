@@ -119,6 +119,71 @@ public class AddonClassLoader extends URLClassLoader {
     }
 
     @Override
+    public URL getResource(String name) {
+        Objects.requireNonNull(name, "name cannot be null");
+
+        // 1. Check local URLs first (child-first resource resolution)
+        URL url = findResource(name);
+        if (url != null) {
+            return url;
+        }
+
+        // 2. Delegate horizontally across declared dependencies
+        for (AddonClassLoader depLoader : dependencyLoaders) {
+            url = depLoader.findResource(name);
+            if (url != null) {
+                return url;
+            }
+        }
+
+        // 3. Isolated addon resources must never leak from parent host plugin
+        if (isAddonScopedResource(name)) {
+            return null;
+        }
+
+        // 4. Fallback to parent class loader
+        return getParent() != null ? getParent().getResource(name) : null;
+    }
+
+    @Override
+    public java.util.Enumeration<URL> getResources(String name) throws IOException {
+        Objects.requireNonNull(name, "name cannot be null");
+        java.util.List<URL> all = new java.util.ArrayList<>();
+
+        // 1. Local resources
+        java.util.Enumeration<URL> local = findResources(name);
+        while (local.hasMoreElements()) {
+            all.add(local.nextElement());
+        }
+
+        // 2. Dependencies
+        for (AddonClassLoader depLoader : dependencyLoaders) {
+            java.util.Enumeration<URL> dep = depLoader.findResources(name);
+            while (dep.hasMoreElements()) {
+                all.add(dep.nextElement());
+            }
+        }
+
+        // 3. Parent (unless addon-scoped)
+        if (!isAddonScopedResource(name) && getParent() != null) {
+            java.util.Enumeration<URL> parent = getParent().getResources(name);
+            while (parent.hasMoreElements()) {
+                all.add(parent.nextElement());
+            }
+        }
+
+        return java.util.Collections.enumeration(all);
+    }
+
+    private boolean isAddonScopedResource(String name) {
+        String clean = name.startsWith("/") ? name.substring(1) : name;
+        return "config.yml".equalsIgnoreCase(clean)
+                || "addon.yml".equalsIgnoreCase(clean)
+                || "plugin.yml".equalsIgnoreCase(clean)
+                || "paper-plugin.yml".equalsIgnoreCase(clean);
+    }
+
+    @Override
     public void close() throws IOException {
         dependencyLoaders.clear();
         super.close();

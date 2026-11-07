@@ -96,4 +96,53 @@ class AddonClassLoaderTest {
         loaderB.close();
         loaderC.close();
     }
+
+    @Test
+    @DisplayName("AddonClassLoader isolates host config.yml and prioritizes local resources")
+    void testResourceIsolation() throws Exception {
+        // Parent classloader that contains host config.yml
+        ClassLoader parentWithConfig = getClass().getClassLoader();
+        assertNotNull(parentWithConfig.getResource("config.yml"), "CroppyPlugin test resources should contain config.yml");
+
+        // JAR without config.yml
+        Path emptyJar = tempDir.resolve("empty-addon.jar");
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(emptyJar.toFile()))) {
+            jos.putNextEntry(new JarEntry("dummy.txt"));
+            jos.write("content".getBytes());
+            jos.closeEntry();
+        }
+
+        AddonClassLoader loaderWithoutConfig = new AddonClassLoader(
+                new URL[]{emptyJar.toUri().toURL()},
+                parentWithConfig,
+                createDesc("empty-addon", List.of())
+        );
+
+        // Must NOT leak parent's config.yml
+        assertNull(loaderWithoutConfig.getResource("config.yml"));
+        assertNull(loaderWithoutConfig.getResourceAsStream("config.yml"));
+
+        // JAR with its own config.yml
+        Path customJar = tempDir.resolve("custom-addon.jar");
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(customJar.toFile()))) {
+            jos.putNextEntry(new JarEntry("config.yml"));
+            jos.write("custom_addon_property: true\n".getBytes());
+            jos.closeEntry();
+        }
+
+        AddonClassLoader loaderWithConfig = new AddonClassLoader(
+                new URL[]{customJar.toUri().toURL()},
+                parentWithConfig,
+                createDesc("custom-addon", List.of())
+        );
+
+        // Must resolve its own local config.yml
+        URL localUrl = loaderWithConfig.getResource("config.yml");
+        assertNotNull(localUrl);
+        String content = new String(loaderWithConfig.getResourceAsStream("config.yml").readAllBytes());
+        assertTrue(content.contains("custom_addon_property: true"));
+
+        loaderWithoutConfig.close();
+        loaderWithConfig.close();
+    }
 }

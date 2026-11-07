@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.5.9"
+    releaseDate: "2026-11-07"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added Addon Configuration System (AddonConfig) supporting SnakeYAML pure core engine, Bukkit comment-preserving Paper adapter, default config extraction, child-first classloader resource isolation, and Path Ownership Gate collision prevention."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.5.8"
     releaseDate: "2026-11-06"
-    reference: "main"
+    reference: "41ec6ad"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added companion resource pack compiler pipeline, embedded HTTP server with SHA-1 verification, join auto-dispatch, in-game management commands (/croppy pack), and automated JAR addon resource discovery."
     minecraft:

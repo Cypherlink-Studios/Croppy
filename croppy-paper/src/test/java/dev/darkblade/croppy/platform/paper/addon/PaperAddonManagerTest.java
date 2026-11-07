@@ -14,8 +14,7 @@ import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class PaperAddonManagerTest {
 
@@ -23,8 +22,8 @@ class PaperAddonManagerTest {
     Path tempDir;
 
     @Test
-    @DisplayName("PaperAddonManager automatically discovers and loads YAML resources from a JAR addon")
-    void testLoadJarAddonResources() throws IOException {
+    @DisplayName("PaperAddonManager automatically discovers and loads YAML resources from a JAR addon with config")
+    void testLoadJarAddonResourcesAndConfig() throws IOException {
         Path addonsDir = tempDir.resolve("addons");
         Files.createDirectories(addonsDir);
 
@@ -48,6 +47,61 @@ class PaperAddonManagerTest {
         assertTrue(core.getSpeciesRegistry().get(Key.of("mock_addon", "star_berry")).isPresent());
         assertTrue(core.getItemRegistry().get(Key.of("mock_addon", "star_fruit")).isPresent());
         assertTrue(core.getRecipeRegistry().get(Key.of("mock_addon", "star_juice")).isPresent());
+
+        // Test configuration extraction and reading
+        context.saveDefaultConfig();
+        Path expectedConfigFile = addonsDir.resolve("mock-addon").resolve("config.yml");
+        assertTrue(Files.exists(expectedConfigFile));
+        assertEquals(85.0, context.getConfig().getDouble("test.heat"));
+
+        manager.unloadAddon("mock-addon");
+    }
+
+    @Test
+    @DisplayName("Reject JAR addon initialization when its data folder collides with an existing directory addon")
+    void testCollisionRejectionInPaperAddonManager() throws IOException {
+        Path addonsDir = tempDir.resolve("addons_collision");
+        Files.createDirectories(addonsDir);
+
+        // 1. Create a directory addon named 'frost' with id 'winter'
+        Path frostDir = addonsDir.resolve("frost");
+        Files.createDirectories(frostDir);
+        String dirManifest = """
+                id: "winter"
+                name: "Winter Addon"
+                version: "1.0.0"
+                namespace: "winter"
+                """;
+        Files.writeString(frostDir.resolve("addon.yml"), dirManifest, StandardCharsets.UTF_8);
+
+        // 2. Create a JAR addon named 'frost.jar' with id 'frost' (which wants data folder 'frost')
+        Path frostJar = addonsDir.resolve("frost.jar");
+        try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(frostJar.toFile()))) {
+            String jarManifest = """
+                    id: "frost"
+                    name: "Frost Addon"
+                    version: "1.0.0"
+                    namespace: "frost"
+                    """;
+            zos.putNextEntry(new ZipEntry("addon.yml"));
+            zos.write(jarManifest.getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+
+        CroppyCore core = new CroppyCore();
+        core.initialize();
+
+        PaperAddonManager manager = new PaperAddonManager(null, core, addonsDir, null);
+        manager.discoverAddons();
+
+        assertEquals(2, manager.getDiscoveredAddons().size());
+
+        // Directory addon 'winter' loads successfully with its root as dataFolder
+        assertTrue(manager.loadAddon("winter"));
+        assertEquals(frostDir, manager.getDataFolder("winter").orElseThrow());
+
+        // JAR addon 'frost' must fail to load because 'frost' dataFolder is occupied by 'winter'
+        assertFalse(manager.loadAddon("frost"));
     }
 
     private void createTestAddonJar(Path jarFile) throws IOException {
@@ -61,6 +115,15 @@ class PaperAddonManagerTest {
                     """;
             zos.putNextEntry(new ZipEntry("addon.yml"));
             zos.write(manifest.getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+
+            // config.yml
+            String configYaml = """
+                    test:
+                      heat: 85.0
+                    """;
+            zos.putNextEntry(new ZipEntry("config.yml"));
+            zos.write(configYaml.getBytes(StandardCharsets.UTF_8));
             zos.closeEntry();
 
             // crops/star_berry.yml

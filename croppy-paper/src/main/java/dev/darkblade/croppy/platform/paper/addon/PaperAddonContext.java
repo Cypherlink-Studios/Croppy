@@ -38,10 +38,13 @@ public class PaperAddonContext implements AddonContext {
 
     private final AddonDescription description;
     private final Path dataFolder;
+    private final Path addonSourcePath;
+    private ClassLoader addonClassLoader;
     private final Logger logger;
     private final Plugin hostPlugin;
     private final CroppyCore core;
     private final ExecutorService managedExecutor;
+    private dev.darkblade.croppy.api.addon.AddonConfig config;
 
     // Tracked resources for leak-proof cleanup
     private final Set<Listener> registeredListeners = ConcurrentHashMap.newKeySet();
@@ -58,8 +61,20 @@ public class PaperAddonContext implements AddonContext {
                              Logger logger,
                              Plugin hostPlugin,
                              CroppyCore core) {
+        this(description, dataFolder, null, null, logger, hostPlugin, core);
+    }
+
+    public PaperAddonContext(AddonDescription description,
+                             Path dataFolder,
+                             Path addonSourcePath,
+                             ClassLoader addonClassLoader,
+                             Logger logger,
+                             Plugin hostPlugin,
+                             CroppyCore core) {
         this.description = Objects.requireNonNull(description, "description cannot be null");
         this.dataFolder = Objects.requireNonNull(dataFolder, "dataFolder cannot be null");
+        this.addonSourcePath = addonSourcePath;
+        this.addonClassLoader = addonClassLoader;
         this.logger = logger != null ? logger : Logger.getLogger("Croppy-" + description.id());
         this.hostPlugin = hostPlugin;
         this.core = core;
@@ -68,6 +83,10 @@ public class PaperAddonContext implements AddonContext {
             t.setDaemon(true);
             return t;
         });
+    }
+
+    public void setAddonClassLoader(ClassLoader addonClassLoader) {
+        this.addonClassLoader = addonClassLoader;
     }
 
     @Override
@@ -147,7 +166,98 @@ public class PaperAddonContext implements AddonContext {
         if (hostPlugin != null && adapterType.isInstance(hostPlugin)) {
             return Optional.of((T) hostPlugin);
         }
+        if (config instanceof PaperAddonConfig paperConfig) {
+            if (adapterType.isInstance(paperConfig.getConfigurationSection())) {
+                return Optional.of((T) paperConfig.getConfigurationSection());
+            }
+        }
         return Optional.empty();
+    }
+
+    @Override
+    public synchronized dev.darkblade.croppy.api.addon.AddonConfig getConfig() {
+        if (config == null) {
+            Path configFile = dataFolder.resolve("config.yml");
+            try {
+                this.config = new PaperAddonConfig(configFile, logger);
+            } catch (Throwable t) {
+                // Fallback to pure core YamlAddonConfig if Bukkit runtime is absent in tests
+                this.config = new dev.darkblade.croppy.core.addon.YamlAddonConfig(configFile);
+            }
+        }
+        return config;
+    }
+
+    @Override
+    public synchronized void reloadConfig() {
+        if (config != null) {
+            config.reload();
+        } else {
+            getConfig();
+        }
+    }
+
+    @Override
+    public synchronized void saveConfig() {
+        if (config != null) {
+            config.save();
+        }
+    }
+
+    @Override
+    public synchronized void saveDefaultConfig() {
+        Path targetFile = dataFolder.resolve("config.yml");
+        if (java.nio.file.Files.exists(targetFile)) {
+            return;
+        }
+
+        java.io.InputStream in = null;
+
+        // 1. Check direct addon source archive/directory first
+        if (addonSourcePath != null) {
+            if (java.nio.file.Files.isRegularFile(addonSourcePath)
+                    && (addonSourcePath.toString().endsWith(".jar") || addonSourcePath.toString().endsWith(".zip"))) {
+                try (java.util.jar.JarFile jar = new java.util.jar.JarFile(addonSourcePath.toFile())) {
+                    java.util.jar.JarEntry entry = jar.getJarEntry("config.yml");
+                    if (entry != null) {
+                        byte[] bytes = jar.getInputStream(entry).readAllBytes();
+                        in = new java.io.ByteArrayInputStream(bytes);
+                    }
+                } catch (java.io.IOException e) {
+                    logger.log(Level.WARNING, "Failed to read config.yml from JAR " + addonSourcePath, e);
+                }
+            } else if (java.nio.file.Files.isDirectory(addonSourcePath) && !addonSourcePath.equals(dataFolder)) {
+                Path src = addonSourcePath.resolve("config.yml");
+                if (java.nio.file.Files.exists(src)) {
+                    try {
+                        byte[] bytes = java.nio.file.Files.readAllBytes(src);
+                        in = new java.io.ByteArrayInputStream(bytes);
+                    } catch (java.io.IOException e) {
+                        logger.log(Level.WARNING, "Failed to read config.yml from " + src, e);
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback to addon class loader (which enforces child-first and isolates host config.yml)
+        if (in == null && addonClassLoader != null) {
+            in = addonClassLoader.getResourceAsStream("config.yml");
+        }
+
+        if (in != null) {
+            try (java.io.InputStream stream = in) {
+                if (targetFile.getParent() != null && !java.nio.file.Files.exists(targetFile.getParent())) {
+                    java.nio.file.Files.createDirectories(targetFile.getParent());
+                }
+                java.nio.file.Files.copy(stream, targetFile);
+                logger.info("Extracted default config.yml for addon '" + description.id() + "' to " + targetFile);
+                if (config != null) {
+                    config.reload();
+                }
+            } catch (java.io.IOException e) {
+                logger.log(Level.SEVERE, "Failed to extract default config.yml for addon '" + description.id() + "'", e);
+            }
+        }
     }
 
     /**

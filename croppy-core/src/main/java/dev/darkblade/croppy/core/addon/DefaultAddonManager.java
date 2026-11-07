@@ -35,6 +35,7 @@ public class DefaultAddonManager implements AddonManager, Service {
     protected final Map<String, AddonDescription> discoveredAddons = new ConcurrentHashMap<>();
     protected final Map<String, AddonState> addonStates = new ConcurrentHashMap<>();
     protected final Map<String, Path> addonPaths = new ConcurrentHashMap<>();
+    protected final Map<String, Path> dataFolders = new ConcurrentHashMap<>();
 
     public DefaultAddonManager(Path addonsDirectory, Logger logger) {
         this.addonsDirectory = Objects.requireNonNull(addonsDirectory, "addonsDirectory cannot be null");
@@ -93,13 +94,34 @@ public class DefaultAddonManager implements AddonManager, Service {
         }
     }
 
-    public void registerDiscovered(AddonDescription description, Path path) {
+    public boolean registerDiscovered(AddonDescription description, Path path) {
         Objects.requireNonNull(description, "description cannot be null");
         Objects.requireNonNull(path, "path cannot be null");
         String id = description.id();
+
+        // 1. Duplicate ID validation
+        if (discoveredAddons.containsKey(id)) {
+            Path existing = addonPaths.get(id);
+            logger.severe("CRITICAL: Duplicate addon id '" + id + "' detected! Conflict between ["
+                    + existing + "] and [" + path + "]. Registration rejected.");
+            return false;
+        }
+
         discoveredAddons.put(id, description);
         addonPaths.put(id, path);
         addonStates.putIfAbsent(id, AddonState.ON_DISK);
+
+        // 2. Data folder binding & naming convention validation
+        if (Files.isDirectory(path)) {
+            if (!path.getFileName().toString().equalsIgnoreCase(id)) {
+                logger.warning("Directory addon '" + id + "' is located in folder '" + path.getFileName()
+                        + "'. It is strongly recommended that directory names match the addon manifest id.");
+            }
+            dataFolders.put(id, path);
+        } else {
+            dataFolders.put(id, addonsDirectory.resolve(id));
+        }
+        return true;
     }
 
     @Override
@@ -111,6 +133,19 @@ public class DefaultAddonManager implements AddonManager, Service {
     public Optional<Path> getAddonPath(String addonId) {
         if (addonId == null) return Optional.empty();
         return Optional.ofNullable(addonPaths.get(addonId));
+    }
+
+    public Optional<Path> getDataFolder(String addonId) {
+        if (addonId == null) return Optional.empty();
+        return Optional.ofNullable(dataFolders.get(addonId));
+    }
+
+    public Map<String, Path> getAddonPaths() {
+        return Collections.unmodifiableMap(addonPaths);
+    }
+
+    public Map<String, Path> getDataFolders() {
+        return Collections.unmodifiableMap(dataFolders);
     }
 
     @Override
@@ -130,6 +165,21 @@ public class DefaultAddonManager implements AddonManager, Service {
         if (desc == null) return false;
         AddonState current = getState(addonId);
         if (current != AddonState.ON_DISK) return false;
+
+        // Path Ownership Gate: verify data folder does not collide with another addon's root directory
+        Path dataFolder = dataFolders.get(addonId);
+        Path addonPath = addonPaths.get(addonId);
+        if (dataFolder != null && addonPath != null && !Files.isDirectory(addonPath)) {
+            for (Map.Entry<String, Path> entry : addonPaths.entrySet()) {
+                if (!entry.getKey().equals(addonId) && Files.isDirectory(entry.getValue())) {
+                    if (entry.getValue().toAbsolutePath().normalize().equals(dataFolder.toAbsolutePath().normalize())) {
+                        logger.severe("CRITICAL: Path collision detected! JAR addon '" + addonId + "' data folder ["
+                                + dataFolder + "] is already occupied by directory addon '" + entry.getKey() + "'. Halting load.");
+                        return false;
+                    }
+                }
+            }
+        }
 
         addonStates.put(addonId, AddonState.LOADED);
         return true;
