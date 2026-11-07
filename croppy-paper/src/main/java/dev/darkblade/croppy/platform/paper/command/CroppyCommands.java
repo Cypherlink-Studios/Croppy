@@ -75,9 +75,14 @@ public class CroppyCommands {
     private RecipeKnowledgeStorage recipeStorage;
     private CompendiumMenuController compendiumController;
     private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
+    private dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService;
 
     public void setAddonManager(dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager) {
         this.addonManager = addonManager;
+    }
+
+    public void setResourcePackService(dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService) {
+        this.resourcePackService = resourcePackService;
     }
 
     public CroppyCommands(
@@ -711,6 +716,8 @@ public class CroppyCommands {
                 sender.sendMessage(miniMessage.deserialize("<gray>Registered Species:</gray> <white>" + ctx.getRegisteredSpecies().size() + "</white>"));
                 sender.sendMessage(miniMessage.deserialize("<gray>Registered Items:</gray> <white>" + ctx.getRegisteredItems().size() + "</white>"));
                 sender.sendMessage(miniMessage.deserialize("<gray>Registered Recipes:</gray> <white>" + ctx.getRegisteredRecipes().size() + "</white>"));
+                sender.sendMessage(miniMessage.deserialize("<gray>Registered Stations:</gray> <white>" + ctx.getRegisteredStations().size() + "</white>"));
+                sender.sendMessage(miniMessage.deserialize("<gray>Registered Processes:</gray> <white>" + ctx.getRegisteredProcesses().size() + "</white>"));
                 sender.sendMessage(miniMessage.deserialize("<gray>Active Listeners:</gray> <white>" + ctx.getRegisteredListeners().size() + "</white>"));
             });
         }
@@ -808,6 +815,84 @@ public class CroppyCommands {
             sender.sendMessage(miniMessage.deserialize("<yellow>Addon '" + addonId + "' unloaded completely.</yellow>"));
         } else {
             sender.sendMessage(miniMessage.deserialize("<red>Failed to unload addon '" + addonId + "'.</red>"));
+        }
+    }
+
+    @Suggestions("online_players")
+    public List<String> suggestOnlinePlayers(CommandContext<Source> context, CommandInput input) {
+        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+    }
+
+    @Command("croppy pack build")
+    @Permission("croppy.admin.pack")
+    public void buildPack(Source source) {
+        CommandSender sender = source.source();
+        if (resourcePackService == null) {
+            sender.sendMessage(miniMessage.deserialize("<red>Resource pack service is not initialized.</red>"));
+            return;
+        }
+
+        sendPrefixed(sender, MessageKey.of("command.pack.building"));
+
+        resourcePackService.buildPackAsync().whenComplete((result, throwable) -> {
+            if (throwable != null) {
+                sendPrefixed(sender, MessageKey.of("command.pack.build-failed"),
+                        "error", throwable.getMessage() != null ? throwable.getMessage() : "Unknown error");
+            } else {
+                double sizeMb = result.sizeBytes() / (1024.0 * 1024.0);
+                sendRaw(sender, MessageKey.of("command.pack.build-success"),
+                        "duration", String.valueOf(result.durationMs()),
+                        "size", String.format(Locale.US, "%.2f", sizeMb),
+                        "count", String.valueOf(result.assetCount()),
+                        "hash", result.sha1Hex());
+            }
+        });
+    }
+
+    @Command("croppy pack send [targetPlayer]")
+    @Permission("croppy.admin.pack")
+    public void sendPack(
+            Source source,
+            @Argument(value = "targetPlayer", suggestions = "online_players") @Nullable String targetPlayer
+    ) {
+        CommandSender sender = source.source();
+        if (resourcePackService == null) {
+            sender.sendMessage(miniMessage.deserialize("<red>Resource pack service is not initialized.</red>"));
+            return;
+        }
+
+        if (resourcePackService.getActivePack().isEmpty()) {
+            sendPrefixed(sender, MessageKey.of("command.pack.no-pack"));
+            return;
+        }
+
+        if (resourcePackService.resolvePublicUrl() == null) {
+            sendPrefixed(sender, MessageKey.of("command.pack.no-url"));
+            return;
+        }
+
+        if (targetPlayer == null || targetPlayer.isBlank()) {
+            if (sender instanceof Player player) {
+                boolean sent = resourcePackService.sendPack(player.getUniqueId());
+                if (sent) {
+                    sendPrefixed(sender, MessageKey.of("command.pack.sent"), "player", player.getName());
+                }
+            } else {
+                int count = resourcePackService.sendPackToAll();
+                sendPrefixed(sender, MessageKey.of("command.pack.sent-all"), "count", count);
+            }
+            return;
+        }
+
+        Player target = Bukkit.getPlayerExact(targetPlayer);
+        if (target == null || !target.isOnline()) {
+            sendPrefixed(sender, MessageKey.of("general.player-not-found"), "player", targetPlayer);
+            return;
+        }
+
+        boolean sent = resourcePackService.sendPack(target.getUniqueId());
+        if (sent) {
+            sendPrefixed(sender, MessageKey.of("command.pack.sent"), "player", target.getName());
         }
     }
 }

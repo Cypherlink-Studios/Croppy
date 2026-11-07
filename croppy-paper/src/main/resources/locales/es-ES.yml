@@ -8,6 +8,14 @@ general:
   reload-success: "<green>Configuración, ítems, estaciones y catálogos de traducción recargados con éxito.</green>"
   reload-failed: "<red>Error al recargar la configuración: <error></red>"
 command:
+  pack:
+    building: "<gray>Compilando paquete de recursos desde los addons detectados...</gray>"
+    build-success: "<green>¡Paquete de recursos compilado en <yellow><duration>ms</yellow>!</green><newline><dark_gray>├─ <gold>Tamaño:</gold> <yellow><size> MB</yellow><newline><dark_gray>├─ <gold>Assets:</gold> <yellow><count></yellow> archivos<newline><dark_gray>└─ <gold>SHA-1:</gold> <yellow><hash></yellow>"
+    build-failed: "<red>Error al compilar el paquete de recursos: <error></red>"
+    sent: "<green>Paquete de recursos enviado a <yellow><player></yellow>.</green>"
+    sent-all: "<green>Paquete de recursos enviado a <yellow><count></yellow> jugadores conectados.</green>"
+    no-pack: "<red>No hay un paquete de recursos compilado disponible. Ejecuta <yellow>/croppy pack build</yellow> primero.</red>"
+    no-url: "<red>No se pudo determinar una URL pública para la entrega del paquete de recursos.</red>"
   player-only: "<red>Solo los jugadores pueden ejecutar comandos con objetivo.</red>"
   give:
     sender-required: "<red>Debes especificar un jugador destinatario con --target <player> desde la consola.</red>"

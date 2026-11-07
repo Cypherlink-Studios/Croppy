@@ -57,3 +57,26 @@ integrations:
   vault:
     # Enables currency operations and transaction validations via Vault
     enabled: true
+
+# ==============================================================================
+# Companion Resource Pack & Delivery Pipeline
+# ==============================================================================
+resource-pack:
+  embedded-server:
+    # Whether to host the unified companion resource pack via an embedded HTTP server
+    enabled: true
+    # Listening network interface (0.0.0.0 binds to all available interfaces)
+    host: "0.0.0.0"
+    # HTTP server listening port
+    port: 8085
+    # Optional public URL override (e.g., "http://play.myserver.com:8085/pack/croppy-unified-pack.zip").
+    # If left blank, Croppy automatically discovers the host address and port.
+    public-url: ""
+
+  delivery:
+    # Automatically prompt players to download the resource pack upon joining the server
+    auto-send-on-join: true
+    # Whether the resource pack is mandatory to play (if true, declining kicks the player)
+    required: false
+    # MiniMessage formatted prompt shown in the client's resource pack confirmation screen
+    prompt: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Please download the 3D companion pack to see custom crops and stations.</gray>"

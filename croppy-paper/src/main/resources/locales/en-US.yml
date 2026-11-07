@@ -37,6 +37,14 @@ command:
     stage-updated: "<green>Updated crop stage to <yellow><stage></yellow>.</green>"
     progress-updated: "<green>Updated crop progress to <yellow><progress>%</yellow>.</green>"
     invalid-stage: "<red>Invalid stage index: <stage>. Maximum stage is <max>.</red>"
+  pack:
+    building: "<gray>Compiling companion resource pack from discovered addon assets...</gray>"
+    build-success: "<green>Resource pack compiled in <yellow><duration>ms</yellow>!</green><newline><dark_gray>├─ <gold>Size:</gold> <yellow><size> MB</yellow><newline><dark_gray>├─ <gold>Assets:</gold> <yellow><count></yellow> files<newline><dark_gray>└─ <gold>SHA-1:</gold> <yellow><hash></yellow>"
+    build-failed: "<red>Failed to compile resource pack: <error></red>"
+    sent: "<green>Dispatched resource pack to <yellow><player></yellow>.</green>"
+    sent-all: "<green>Dispatched resource pack to <yellow><count></yellow> online players.</green>"
+    no-pack: "<red>No compiled resource pack is available. Run <yellow>/croppy pack build</yellow> first.</red>"
+    no-url: "<red>Unable to resolve a public URL for resource pack delivery.</red>"
 
 inspector:
   title: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Crop Inspection"

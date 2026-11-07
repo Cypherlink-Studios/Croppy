@@ -116,7 +116,7 @@ Croppy (Root)
 
 ### 1. Installation
 1. Install `packetevents-spigot.jar` into your server's `plugins/` directory.
-2. Download the latest `Croppy-paper-0.5.7.jar` from [Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it in `plugins/`.
+2. Download the latest `Croppy-paper-0.5.8.jar` from [Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it in `plugins/`.
 3. Provide the **Croppy Companion Resource Pack** (`resourcepack/`) to your players via `server.properties` or server resource pack hosting.
 4. Start your server.
 
@@ -151,6 +151,12 @@ Croppy (Root)
 /croppy fertilize <fertilizer_key>
 /croppy setstage <stage_index>
 /croppy setprogress <progress_percent>
+
+# Addon and Resource Pack Pipeline controls
+/croppy addon list
+/croppy addon info <addon_id>
+/croppy pack build
+/croppy pack send [player]
 
 # Reload configuration and localization catalogs
 /croppy reload

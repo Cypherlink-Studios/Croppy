@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.7"
+  - version: "0.5.8"
     releaseDate: "2026-11-06"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added companion resource pack compiler pipeline, embedded HTTP server with SHA-1 verification, join auto-dispatch, in-game management commands (/croppy pack), and automated JAR addon resource discovery."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.7"
+    releaseDate: "2026-11-06"
+    reference: "cad7e5d"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added decoupled Addon System supporting declarative content packs and Java code addons with DAG ClassLoader graphs, safe hot-swapping (/croppy addon), and companion resource pack asset merging."
     minecraft:

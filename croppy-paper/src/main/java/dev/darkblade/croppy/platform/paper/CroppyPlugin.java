@@ -121,9 +121,14 @@ public class CroppyPlugin extends JavaPlugin {
 
     // Addon System
     private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
+    private dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService;
 
     public dev.darkblade.croppy.platform.paper.addon.PaperAddonManager getAddonManager() {
         return addonManager;
+    }
+
+    public dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService getResourcePackService() {
+        return resourcePackService;
     }
 
     @Override
@@ -183,6 +188,7 @@ public class CroppyPlugin extends JavaPlugin {
             loadActiveChunkCrops();
             loadActiveChunkStations();
             setupAddonSystem();
+            setupResourcePackPipeline();
             setupCommands();
             registerListeners();
             getLogger().info("Croppy enabled successfully!");
@@ -205,6 +211,11 @@ public class CroppyPlugin extends JavaPlugin {
                 new dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger(resourcePackDir, getLogger());
         this.addonManager = new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(this, this.core, addonsDir, merger);
         this.addonManager.enableAll();
+    }
+
+    private void setupResourcePackPipeline() {
+        this.resourcePackService = new dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService(this, this.pluginConfig);
+        this.resourcePackService.start();
     }
 
     private void loadActiveChunkCrops() {
@@ -641,6 +652,7 @@ public class CroppyPlugin extends JavaPlugin {
                 this.recipeStorage,
                 this.compendiumController);
         commands.setAddonManager(this.addonManager);
+        commands.setResourcePackService(this.resourcePackService);
         annotationParser.parse(commands);
         getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
     }
@@ -710,6 +722,15 @@ public class CroppyPlugin extends JavaPlugin {
                 getLogger().log(Level.WARNING, "Error disabling addons during shutdown", t);
             }
             this.addonManager = null;
+        }
+
+        if (this.resourcePackService != null) {
+            try {
+                this.resourcePackService.shutdown();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error stopping resource pack service during shutdown", t);
+            }
+            this.resourcePackService = null;
         }
 
         if (this.growthTicker != null) {
