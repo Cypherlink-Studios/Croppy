@@ -90,6 +90,11 @@ public final class AddonDecommissioner {
             for (Key key : context.getRegisteredStations()) {
                 core.getStationRegistry().unregister(key);
             }
+            if (core.getMenuRegistry() != null) {
+                for (Key key : context.getRegisteredMenus()) {
+                    core.getMenuRegistry().unregister(key);
+                }
+            }
         }
 
         // Phase 5: ClassLoader Severing (Unload only)

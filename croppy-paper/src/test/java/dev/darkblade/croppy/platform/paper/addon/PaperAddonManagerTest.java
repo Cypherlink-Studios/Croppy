@@ -43,10 +43,12 @@ class PaperAddonManagerTest {
         assertEquals(1, context.getRegisteredSpecies().size());
         assertEquals(1, context.getRegisteredItems().size());
         assertEquals(1, context.getRegisteredRecipes().size());
+        assertEquals(1, context.getRegisteredMenus().size());
 
         assertTrue(core.getSpeciesRegistry().get(Key.of("mock_addon", "star_berry")).isPresent());
         assertTrue(core.getItemRegistry().get(Key.of("mock_addon", "star_fruit")).isPresent());
         assertTrue(core.getRecipeRegistry().get(Key.of("mock_addon", "star_juice")).isPresent());
+        assertTrue(core.getMenuRegistry().get(Key.of("mock_addon", "custom_menu")).isPresent());
 
         // Test configuration extraction and reading
         context.saveDefaultConfig();
@@ -102,6 +104,87 @@ class PaperAddonManagerTest {
 
         // JAR addon 'frost' must fail to load because 'frost' dataFolder is occupied by 'winter'
         assertFalse(manager.loadAddon("frost"));
+    }
+
+    @Test
+    @DisplayName("PaperAddonManager loads menus from unpacked directory addon and purges them on disable")
+    void testLoadDirectoryAddonMenus() throws IOException {
+        Path addonsDir = tempDir.resolve("addons_dir");
+        Files.createDirectories(addonsDir);
+
+        Path dirAddon = addonsDir.resolve("dir-addon");
+        Files.createDirectories(dirAddon.resolve("menus"));
+
+        String manifest = """
+                id: "dir-addon"
+                name: "Directory Addon"
+                version: "1.0.0"
+                namespace: "dir_addon"
+                """;
+        Files.writeString(dirAddon.resolve("addon.yml"), manifest, StandardCharsets.UTF_8);
+
+        String menuYaml = """
+                id: "dir_addon:station_menu"
+                title: "<green>Station GUI</green>"
+                rows: 1
+                pattern:
+                  - "XXXXXXXXX"
+                elements:
+                  'X':
+                    type: DECORATION
+                    item:
+                      material: "minecraft:stone"
+                      name: "Border"
+                """;
+        Files.writeString(dirAddon.resolve("menus/station_menu.yml"), menuYaml, StandardCharsets.UTF_8);
+
+        CroppyCore core = new CroppyCore();
+        core.initialize();
+
+        PaperAddonManager manager = new PaperAddonManager(null, core, addonsDir, null);
+        manager.discoverAddons();
+
+        assertTrue(manager.enableAddon("dir-addon"));
+
+        PaperAddonContext context = manager.getContext("dir-addon").orElseThrow();
+        assertEquals(1, context.getRegisteredMenus().size());
+        assertTrue(core.getMenuRegistry().get(Key.of("dir_addon", "station_menu")).isPresent());
+
+        // When disabled, menus must be purged from registry
+        assertTrue(manager.disableAddon("dir-addon"));
+        assertFalse(core.getMenuRegistry().contains(Key.of("dir_addon", "station_menu")));
+    }
+
+    @Test
+    @DisplayName("Verify croppy_coffee addon station menus parse and validate successfully")
+    void testCroppyCoffeeStationMenus() {
+        Path coffeeResources = Path.of("..", "Croppy-addons", "addons", "coffee", "src", "main", "resources", "menus");
+        if (!Files.exists(coffeeResources)) {
+            coffeeResources = Path.of("C:\\Users\\antua\\OneDrive\\Documentos\\Programming\\JAVA\\PLUGINS\\Croppy-addons\\addons\\coffee\\src\\main\\resources\\menus");
+        }
+        if (Files.exists(coffeeResources)) {
+            dev.darkblade.croppy.core.menu.YamlMenuLoader loader = new dev.darkblade.croppy.core.menu.YamlMenuLoader();
+            dev.darkblade.croppy.core.menu.DefaultMenuRegistry registry = new dev.darkblade.croppy.core.menu.DefaultMenuRegistry();
+            int loaded = loader.loadAll(coffeeResources, registry, null);
+            assertEquals(3, loaded);
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_grinder")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_roaster")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "espresso_machine")));
+
+            var grinder = registry.get(Key.of("croppy_coffee", "coffee_grinder")).orElseThrow();
+            assertEquals(1, grinder.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.INPUT).size());
+            assertEquals(1, grinder.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.OUTPUT).size());
+            assertEquals(1, grinder.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.STATUS).size());
+            assertEquals(1, grinder.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.ACTION).size());
+
+            var roaster = registry.get(Key.of("croppy_coffee", "coffee_roaster")).orElseThrow();
+            assertEquals(2, roaster.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.INPUT).size());
+            assertEquals(2, roaster.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.OUTPUT).size());
+
+            var espresso = registry.get(Key.of("croppy_coffee", "espresso_machine")).orElseThrow();
+            assertEquals(3, espresso.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.INPUT).size());
+            assertEquals(1, espresso.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.OUTPUT).size());
+        }
     }
 
     private void createTestAddonJar(Path jarFile) throws IOException {
@@ -170,6 +253,24 @@ class PaperAddonManagerTest {
                     """;
             zos.putNextEntry(new ZipEntry("recipes/star_juice.yml"));
             zos.write(recipeYaml.getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+
+            // menus/custom_menu.yml
+            String menuYaml = """
+                    id: "mock_addon:custom_menu"
+                    title: "<gold>Mock Menu</gold>"
+                    rows: 1
+                    pattern:
+                      - "#########"
+                    elements:
+                      '#':
+                        type: DECORATION
+                        item:
+                          material: "minecraft:gray_stained_glass_pane"
+                          name: " "
+                    """;
+            zos.putNextEntry(new ZipEntry("menus/custom_menu.yml"));
+            zos.write(menuYaml.getBytes(StandardCharsets.UTF_8));
             zos.closeEntry();
         }
     }

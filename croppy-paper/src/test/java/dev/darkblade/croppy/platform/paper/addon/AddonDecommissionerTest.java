@@ -5,6 +5,7 @@ import dev.darkblade.croppy.api.addon.CroppyAddon;
 import dev.darkblade.croppy.api.growth.GrowthModifier;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.menu.MenuDefinition;
 import dev.darkblade.croppy.api.species.CropRequirements;
 import dev.darkblade.croppy.api.species.RotationMode;
 import dev.darkblade.croppy.api.species.SpatialFootprint;
@@ -60,6 +61,18 @@ class AddonDecommissionerTest {
         core.getSpeciesRegistry().register(species);
         context.trackSpecies(speciesKey);
 
+        Key menuKey = Key.of("test_addon", "custom_menu");
+        MenuDefinition menu = new MenuDefinition(
+                menuKey,
+                "Custom Menu",
+                1,
+                List.of("123456789"),
+                Map.of(),
+                Map.of()
+        );
+        core.getMenuRegistry().register(menu);
+        context.trackMenu(menuKey);
+
         GrowthModifier modifier = ctx -> 1.5;
         core.getGrowthEngine().addModifier(modifier);
         context.trackGrowthModifier(modifier);
@@ -89,6 +102,7 @@ class AddonDecommissionerTest {
         // Phase 4 verification
         assertFalse(core.getItemRegistry().contains(itemKey));
         assertFalse(core.getSpeciesRegistry().contains(speciesKey));
+        assertFalse(core.getMenuRegistry().contains(menuKey));
 
         // Phase 5 verification: classloader closed
         assertTrue(classLoader.getDependencyLoaders().isEmpty());

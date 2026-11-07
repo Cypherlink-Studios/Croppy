@@ -7,6 +7,7 @@ import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.core.addon.AddonGraphValidator;
 import dev.darkblade.croppy.core.addon.DefaultAddonManager;
 import dev.darkblade.croppy.core.item.YamlItemLoader;
+import dev.darkblade.croppy.core.menu.YamlMenuLoader;
 import dev.darkblade.croppy.core.process.YamlProcessLoader;
 import dev.darkblade.croppy.core.recipe.YamlRecipeLoader;
 import dev.darkblade.croppy.core.species.YamlSpeciesLoader;
@@ -293,6 +294,25 @@ public class PaperAddonManager extends DefaultAddonManager {
                 logger.log(Level.WARNING, "Error scanning addon processes directory: " + processesDir, e);
             }
         }
+
+        // 6. Load menus
+        Path menusDir = root.resolve("menus");
+        if (Files.exists(menusDir) && Files.isDirectory(menusDir)) {
+            YamlMenuLoader menuLoader = new YamlMenuLoader();
+            try (Stream<Path> stream = Files.walk(menusDir)) {
+                for (Path file : (Iterable<Path>) stream.filter(p -> p.toString().endsWith(".yml") || p.toString().endsWith(".yaml"))::iterator) {
+                    try (InputStream in = Files.newInputStream(file)) {
+                        dev.darkblade.croppy.api.menu.MenuDefinition menu = menuLoader.load(in, file.getFileName().toString());
+                        core.getMenuRegistry().register(menu);
+                        context.trackMenu(menu.getKey());
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Failed to load menu from " + file, e);
+                    }
+                }
+            } catch (IOException e) {
+                logger.log(Level.WARNING, "Error scanning addon menus directory: " + menusDir, e);
+            }
+        }
     }
 
     private void loadJarContent(PaperAddonContext context, Path jarPath) {
@@ -301,6 +321,7 @@ public class PaperAddonManager extends DefaultAddonManager {
         YamlRecipeLoader recipeLoader = new YamlRecipeLoader();
         YamlStationLoader stationLoader = new YamlStationLoader();
         YamlProcessLoader processLoader = new YamlProcessLoader();
+        YamlMenuLoader menuLoader = new YamlMenuLoader();
 
         try (JarFile jar = new JarFile(jarPath.toFile())) {
             Enumeration<JarEntry> entries = jar.entries();
@@ -361,6 +382,16 @@ public class PaperAddonManager extends DefaultAddonManager {
                         context.trackProcess(process.key());
                     } catch (Exception e) {
                         logger.log(Level.WARNING, "Failed to load process from " + name + " in " + jarPath.getFileName(), e);
+                    }
+                }
+                // 6. Menus
+                else if (name.startsWith("menus/")) {
+                    try (InputStream in = jar.getInputStream(entry)) {
+                        dev.darkblade.croppy.api.menu.MenuDefinition menu = menuLoader.load(in, name);
+                        core.getMenuRegistry().register(menu);
+                        context.trackMenu(menu.getKey());
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Failed to load menu from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
             }

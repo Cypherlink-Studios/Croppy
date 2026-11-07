@@ -54,6 +54,7 @@ public class PaperAddonContext implements AddonContext {
     private final Set<Key> registeredRecipes = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredProcesses = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredStations = ConcurrentHashMap.newKeySet();
+    private final Set<Key> registeredMenus = ConcurrentHashMap.newKeySet();
     private final Set<GrowthModifier> registeredGrowthModifiers = ConcurrentHashMap.newKeySet();
 
     public PaperAddonContext(AddonDescription description,
@@ -299,6 +300,10 @@ public class PaperAddonContext implements AddonContext {
         if (key != null) registeredStations.add(key);
     }
 
+    public void trackMenu(Key key) {
+        if (key != null) registeredMenus.add(key);
+    }
+
     public void trackGrowthModifier(GrowthModifier modifier) {
         if (modifier != null) registeredGrowthModifiers.add(modifier);
     }
@@ -329,6 +334,10 @@ public class PaperAddonContext implements AddonContext {
 
     public Set<Key> getRegisteredStations() {
         return Collections.unmodifiableSet(registeredStations);
+    }
+
+    public Set<Key> getRegisteredMenus() {
+        return Collections.unmodifiableSet(registeredMenus);
     }
 
     public Set<GrowthModifier> getRegisteredGrowthModifiers() {

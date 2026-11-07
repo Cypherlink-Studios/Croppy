@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.9"
+  - version: "0.5.10"
     releaseDate: "2026-11-07"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added declarative menu discovery (menus/*.yml) for directory and JAR addons, tracked MenuDefinition keys in PaperAddonContext, and leak-proof unregistration in AddonDecommissioner Phase 4."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.9"
+    releaseDate: "2026-11-07"
+    reference: "9a61324"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added Addon Configuration System (AddonConfig) supporting SnakeYAML pure core engine, Bukkit comment-preserving Paper adapter, default config extraction, child-first classloader resource isolation, and Path Ownership Gate collision prevention."
     minecraft:

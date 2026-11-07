@@ -41,14 +41,17 @@ class PaperAddonContextTest {
         Key speciesKey = Key.of("test_addon", "magic_crop");
         Key itemKey = Key.of("test_addon", "magic_seed");
         Key recipeKey = Key.of("test_addon", "magic_stew");
+        Key menuKey = Key.of("test_addon", "magic_menu");
 
         context.trackSpecies(speciesKey);
         context.trackItem(itemKey);
         context.trackRecipe(recipeKey);
+        context.trackMenu(menuKey);
 
         assertTrue(context.getRegisteredSpecies().contains(speciesKey));
         assertTrue(context.getRegisteredItems().contains(itemKey));
         assertTrue(context.getRegisteredRecipes().contains(recipeKey));
+        assertTrue(context.getRegisteredMenus().contains(menuKey));
 
         GrowthModifier modifier = ctx -> 2.0;
         context.trackGrowthModifier(modifier);
