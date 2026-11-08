@@ -9,6 +9,7 @@ import dev.darkblade.croppy.core.species.RotationCalculator;
 import dev.darkblade.croppy.platform.paper.event.CropPlantEvent;
 import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
 import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -33,12 +34,18 @@ public class CropPlantListener implements Listener {
     private final FertilizerService fertilizerService;
     private final PaperDisplaySynchronizer displaySynchronizer;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+    private final PaperMessageService messageService;
 
-    public CropPlantListener(CroppyCore core, FertilizerService fertilizerService, PaperDisplaySynchronizer displaySynchronizer, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort) {
+    public CropPlantListener(CroppyCore core, FertilizerService fertilizerService, PaperDisplaySynchronizer displaySynchronizer, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort, PaperMessageService messageService) {
         this.core = core;
         this.fertilizerService = fertilizerService;
         this.displaySynchronizer = displaySynchronizer;
         this.protectionPort = protectionPort;
+        this.messageService = messageService;
+    }
+
+    public CropPlantListener(CroppyCore core, FertilizerService fertilizerService, PaperDisplaySynchronizer displaySynchronizer, dev.darkblade.croppy.api.protection.ProtectionPort protectionPort) {
+        this(core, fertilizerService, displaySynchronizer, protectionPort, null);
     }
 
     public CropPlantListener(CroppyCore core, FertilizerService fertilizerService, PaperDisplaySynchronizer displaySynchronizer) {
@@ -139,8 +146,12 @@ public class CropPlantListener implements Listener {
             if (core.getCropManager().isOccupied(occPos)) {
                 event.setCancelled(true);
                 if (event.getPlayer() != null) {
-                    event.getPlayer().sendActionBar(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                            .deserialize("<red>Not enough space to plant this crop!</red>"));
+                    if (messageService != null) {
+                        messageService.sendActionBar(event.getPlayer(), "crop.plant.not-enough-space");
+                    } else {
+                        event.getPlayer().sendActionBar(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                                .deserialize("<red>Not enough space to plant this crop.</red>"));
+                    }
                 }
                 return;
             }
@@ -151,8 +162,12 @@ public class CropPlantListener implements Listener {
                     if (upperBlock != null && !isAir(upperBlock.getType()) && !upperBlock.isPassable()) {
                         event.setCancelled(true);
                         if (event.getPlayer() != null) {
-                            event.getPlayer().sendActionBar(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                                    .deserialize("<red>Not enough vertical space for this crop!</red>"));
+                            if (messageService != null) {
+                                messageService.sendActionBar(event.getPlayer(), "crop.plant.not-enough-vertical-space");
+                            } else {
+                                event.getPlayer().sendActionBar(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                                        .deserialize("<red>Not enough vertical space for this crop.</red>"));
+                            }
                         }
                         return;
                     }

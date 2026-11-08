@@ -3,7 +3,9 @@ package dev.darkblade.croppy.platform.paper.watering;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
+import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -26,6 +28,7 @@ import java.util.Optional;
 public class WateringCanService {
 
     private final ItemFactory itemFactory;
+    private final PaperMessageService messageService;
     private final NamespacedKey tierKey;
     private final NamespacedKey waterLevelKey;
     private final NamespacedKey waterUsesKey;
@@ -33,8 +36,9 @@ public class WateringCanService {
     private final NamespacedKey categoryKey;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    public WateringCanService(Plugin plugin, ItemFactory itemFactory) {
+    public WateringCanService(Plugin plugin, ItemFactory itemFactory, PaperMessageService messageService) {
         this.itemFactory = itemFactory;
+        this.messageService = messageService;
         String namespace = "croppy";
         this.tierKey = new NamespacedKey(namespace, "watering_can_tier");
         this.waterLevelKey = new NamespacedKey(namespace, "water_level");
@@ -43,8 +47,12 @@ public class WateringCanService {
         this.categoryKey = new NamespacedKey(namespace, "category");
     }
 
+    public WateringCanService(Plugin plugin, ItemFactory itemFactory) {
+        this(plugin, itemFactory, null);
+    }
+
     public WateringCanService(Plugin plugin) {
-        this(plugin, null);
+        this(plugin, null, null);
     }
 
     public ItemStack createWateringCan(WateringCanTier tier) {
@@ -198,13 +206,23 @@ public class WateringCanService {
         String bar = "█".repeat(filledBars) + "░".repeat(Math.max(0, 10 - filledBars));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(miniMessage.deserialize("<gray>Área: <white>" + tier.aoeWidth() + "x" + tier.aoeLength() + "</white></gray>")
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(miniMessage.deserialize("<gray>Agua: <aqua>[" + bar + "] " + currentLevel + "/" + max + "</aqua></gray>")
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.empty());
-        lore.add(miniMessage.deserialize("<dark_gray>Click derecho en agua para recargar</dark_gray>")
-                .decoration(TextDecoration.ITALIC, false));
+        if (messageService != null) {
+            lore.add(messageService.render((Audience) null, "watering.lore.area", "width", tier.aoeWidth(), "length", tier.aoeLength())
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(messageService.render((Audience) null, "watering.lore.water-bar", "bar", bar, "current", currentLevel, "max", max)
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.empty());
+            lore.add(messageService.render((Audience) null, "watering.lore.refill-hint")
+                    .decoration(TextDecoration.ITALIC, false));
+        } else {
+            lore.add(miniMessage.deserialize("<gray>Area: <white>" + tier.aoeWidth() + "x" + tier.aoeLength() + "</white></gray>")
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(miniMessage.deserialize("<gray>Water: <aqua>[" + bar + "] " + currentLevel + "/" + max + "</aqua></gray>")
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.empty());
+            lore.add(miniMessage.deserialize("<dark_gray>Right-click water source to refill</dark_gray>")
+                    .decoration(TextDecoration.ITALIC, false));
+        }
 
         meta.lore(lore);
     }

@@ -17,6 +17,8 @@ import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.core.menu.MenuExpressionEvaluator;
 import dev.darkblade.croppy.core.process.ProcessEngine;
+import dev.darkblade.croppy.platform.paper.CroppyPlugin;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.prompt.ChatPromptService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -52,6 +54,7 @@ public final class PaperMenuListener implements Listener {
     private final MiniMessage miniMessage;
     private ChatPromptService chatPromptService;
     private PaperMenuService menuService;
+    private PaperMessageService messageService;
     private dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler;
 
     public PaperMenuListener(
@@ -69,6 +72,7 @@ public final class PaperMenuListener implements Listener {
         this.chatPromptService = chatPromptService;
         this.menuService = menuService;
         this.miniMessage = MiniMessage.miniMessage();
+        this.messageService = (plugin instanceof CroppyPlugin cp) ? cp.getMessageService() : null;
     }
 
     public PaperMenuListener(Plugin plugin, ProcessEngine processEngine, ItemFactory itemFactory, PaperMenuRenderer renderer) {
@@ -249,11 +253,25 @@ public final class PaperMenuListener implements Listener {
                             Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
                             boolean hasInputs = storageOpt.isPresent() && !storageOpt.get().getInputs().isEmpty();
                             if (!hasInputs) {
-                                player.sendMessage(miniMessage.deserialize("<red>No valid recipe ingredients found in the input slots!</red>"));
+                                if (messageService != null) {
+                                    messageService.sendPrefixedMessage(player, "station.cooking.missing-ingredients");
+                                } else {
+                                    player.sendMessage(miniMessage.deserialize("<red>No valid recipe ingredients found in the input slots.</red>"));
+                                }
                             } else if (temp < 75.0) {
-                                player.sendMessage(miniMessage.deserialize("<red>The cookware is not hot enough! (<gold>" + (int) temp + "°C</gold> / <yellow>75°C required</yellow>).</red>"));
+                                if (messageService != null) {
+                                    messageService.sendPrefixedMessage(player, "station.cooking.not-hot-enough",
+                                            "temp", (int) temp,
+                                            "required", 75);
+                                } else {
+                                    player.sendMessage(miniMessage.deserialize("<red>The cookware is not hot enough! (<gold>" + (int) temp + "°C</gold> / <yellow>75°C required</yellow>).</red>"));
+                                }
                             } else {
-                                player.sendMessage(miniMessage.deserialize("<red>No matching recipe found for the provided ingredients.</red>"));
+                                if (messageService != null) {
+                                    messageService.sendPrefixedMessage(player, "station.cooking.no-recipe-match");
+                                } else {
+                                    player.sendMessage(miniMessage.deserialize("<red>No matching recipe found for the provided ingredients.</red>"));
+                                }
                             }
                         }
                     } else if ("EXPERIMENT".equalsIgnoreCase(target) || "DISCOVER_RECIPE".equalsIgnoreCase(target)) {

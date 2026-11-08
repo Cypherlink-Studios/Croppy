@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.12"
+  - version: "0.5.13"
     releaseDate: "2026-11-08"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Standardized player-facing messages, punctuation, and colors across locales, added interactive MiniMessage click and hover actions, fixed tag leakage in commands and Compendium GUI, and integrated Cloud 2.0 ExceptionController."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.12"
+    releaseDate: "2026-11-08"
+    reference: "ad0a11e"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added declarative interaction discovery (interactions/*.yml and nested paths) for directory and JAR addons, tracked InteractionDefinition keys in PaperAddonContext, and leak-proof unregistration in AddonDecommissioner Phase 4."
     minecraft:

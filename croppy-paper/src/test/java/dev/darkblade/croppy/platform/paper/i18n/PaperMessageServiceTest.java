@@ -4,6 +4,8 @@ import dev.darkblade.croppy.api.i18n.LocaleRef;
 import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.recipe.HintDefinition;
+import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.core.i18n.DefaultMessageCatalog;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -213,5 +215,83 @@ class PaperMessageServiceTest {
         assertEquals("Tomato", PlainTextComponentSerializer.plainText().serialize(tomatoName));
         String mini = MiniMessage.miniMessage().serialize(tomatoName);
         assertEquals("<red>Tomato", mini);
+    }
+
+    @Test
+    void testItemEntryClickAndHoverRenderingWithoutTagLeakage() {
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, Map.of(
+                        "command.list.item-entry", " <dark_gray>•</dark_gray> <click:suggest_command:'/croppy item give {category} {key} 1'><hover:show_text:'<gray>Click to give 1x <white><name></white>'><yellow>{key}</yellow></hover></click> <dark_gray>-</dark_gray> <name>"
+                )
+        ));
+
+        ItemDefinition burntFood = new ItemDefinition(
+                Key.of("croppy", "burnt_food"),
+                "misc",
+                "minecraft:charcoal",
+                0,
+                "<dark_gray>Burnt Food</dark_gray>",
+                List.of(),
+                Map.of()
+        );
+
+        Component itemName = messageService.resolveItemDisplayName(null, burntFood);
+        Component rendered = messageService.renderWithReplacements(
+                LocaleRef.EN_US,
+                MessageKey.of("command.list.item-entry"),
+                PaperMessageService.rawArgs("category", "misc", "key", "croppy:burnt_food"),
+                PaperMessageService.arg("name", itemName)
+        );
+
+        String plain = PlainTextComponentSerializer.plainText().serialize(rendered);
+        // Must NOT leak raw <click> or <dark_gray> tags into plain text
+        assertFalse(plain.contains("<click:"));
+        assertFalse(plain.contains("<dark_gray>"));
+        assertTrue(plain.contains("croppy:burnt_food"));
+        assertTrue(plain.contains("Burnt Food"));
+
+        String serializedMM = MiniMessage.miniMessage().serialize(rendered);
+        assertTrue(serializedMM.contains("<click:suggest_command:'/croppy item give misc croppy:burnt_food 1'>"));
+    }
+
+    @Test
+    void testResolveRecipeDisplayNamePreservesGradients() {
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, Map.of(
+                        "compendium.gui.discovered-title", "<gold><bold><recipe></bold></gold>"
+                )
+        ));
+
+        RecipeDefinition coffeeRecipe = new RecipeDefinition(
+                Key.of("coffee", "roasting_medium"),
+                "<gradient:#e65c00:#f9d423>Medium City Roast</gradient>",
+                Key.of("coffee", "roasting"),
+                Key.of("coffee", "coffee_roaster"),
+                Key.of("coffee", "medium_city_roast"),
+                List.of(),
+                Key.of("coffee", "medium_city_roast"),
+                1,
+                HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        );
+
+        Component recipeName = messageService.resolveRecipeDisplayName(null, coffeeRecipe);
+        assertEquals("Medium City Roast", PlainTextComponentSerializer.plainText().serialize(recipeName));
+
+        Component title = messageService.render(
+                LocaleRef.EN_US,
+                MessageKey.of("compendium.gui.discovered-title"),
+                PaperMessageService.arg("recipe", recipeName)
+        );
+
+        String plainTitle = PlainTextComponentSerializer.plainText().serialize(title);
+        // Must NOT leak raw gradient tag
+        assertFalse(plainTitle.contains("<gradient:"));
+        assertEquals("Medium City Roast", plainTitle);
+
+        String mmTitle = MiniMessage.miniMessage().serialize(title);
+        assertTrue(mmTitle.toLowerCase().contains("gradient:#e65c00:#f9d423"));
     }
 }

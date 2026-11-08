@@ -49,14 +49,25 @@ public final class DiscoveryFeedbackHelper implements DiscoveryFeedbackProvider 
         } catch (Throwable ignored) {}
 
         // 3. Adventure Title
-        Component titleMain = miniMessage.deserialize("<gold><bold>★ NEW RECIPE! ★</bold></gold>");
-        Component subtitle = miniMessage.deserialize("<white>" + recipe.displayName() + "</white>");
+        Component recipeName = (messageService != null)
+                ? messageService.resolveRecipeDisplayName(player, recipe)
+                : miniMessage.deserialize(recipe.displayName());
+        Component titleMain = (messageService != null)
+                ? messageService.render(player, "recipe.fanfare.title")
+                : miniMessage.deserialize("<gold><bold>★ NEW RECIPE! ★</bold></gold>");
+        Component subtitle = (messageService != null)
+                ? messageService.render(player, "recipe.fanfare.subtitle", "recipe", recipeName)
+                : miniMessage.deserialize("<white>" + recipe.displayName() + "</white>");
         Title.Times times = Title.Times.times(Duration.ofMillis(250), Duration.ofMillis(2500), Duration.ofMillis(500));
         player.showTitle(Title.title(titleMain, subtitle, times));
 
         // 4. Chat notification
-        Component chatMsg = miniMessage.deserialize("<green>You discovered <white>" + recipe.displayName() + "</white>! View your cookbook with <yellow>/croppy recipes</yellow>.</green>");
-        player.sendMessage(chatMsg);
+        if (messageService != null) {
+            messageService.sendPrefixedMessage(player, "recipe.discovered", "recipe", recipeName);
+        } else {
+            Component chatMsg = miniMessage.deserialize("<green>You discovered <white>" + recipe.displayName() + "</white>! View your cookbook with <yellow>/croppy recipes</yellow>.</green>");
+            player.sendMessage(chatMsg);
+        }
     }
 
     @Override
@@ -69,7 +80,13 @@ public final class DiscoveryFeedbackHelper implements DiscoveryFeedbackProvider 
             player.spawnParticle(Particle.ENCHANT, loc.clone().add(0, 1.2, 0), 10, 0.3, 0.3, 0.3, 0.05);
         } catch (Throwable ignored) {}
 
-        Component msg = miniMessage.deserialize("<aqua><bold>Culinary Clue:</bold></aqua> <gray>" + (hint != null ? hint : "You noticed something curious...") + "</gray>");
-        player.sendMessage(msg);
+        if (messageService != null) {
+            Component clueTitle = messageService.render(player, "compendium.gui.clue-title");
+            Component clueText = messageService.render(player, "compendium.gui.clue-hint", "hint", (hint != null ? hint : "You noticed something curious..."));
+            player.sendMessage(clueTitle.append(Component.space()).append(clueText));
+        } else {
+            Component msg = miniMessage.deserialize("<aqua><bold>Culinary Clue:</bold></aqua> <gray>" + (hint != null ? hint : "You noticed something curious...") + "</gray>");
+            player.sendMessage(msg);
+        }
     }
 }

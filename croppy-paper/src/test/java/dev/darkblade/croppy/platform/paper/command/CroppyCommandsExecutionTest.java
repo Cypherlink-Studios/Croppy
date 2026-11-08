@@ -211,7 +211,7 @@ class CroppyCommandsExecutionTest {
         );
 
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy recipe list").join());
-        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Croppy Registered Recipes")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Registered Recipes")));
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("croppy:tomato_soup")));
     }
 
@@ -295,7 +295,7 @@ class CroppyCommandsExecutionTest {
         );
 
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon list").join());
-        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Croppy Addons (1)")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Discovered Addons")));
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("orchard")));
 
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon status orchard").join());

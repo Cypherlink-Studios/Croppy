@@ -147,15 +147,15 @@ public class CroppyCommands {
 
     private void sendPrefixed(CommandSender sender, MessageKey key, Object... args) {
         if (messageService != null) {
-            messageService.sendPrefixedMessage(sender, key, PaperMessageService.args(args));
+            messageService.sendPrefixedMessage(sender, key, PaperMessageService.rawArgs(args), PaperMessageService.args(args));
         } else {
-            sender.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <red>" + key.key() + "</red>"));
+            sender.sendMessage(miniMessage.deserialize("<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray><red>" + key.key() + "</red>"));
         }
     }
 
     private void sendRaw(CommandSender sender, MessageKey key, Object... args) {
         if (messageService != null) {
-            messageService.sendMessage(sender, key, PaperMessageService.args(args));
+            messageService.sendMessage(sender, key, PaperMessageService.rawArgs(args), PaperMessageService.args(args));
         } else {
             sender.sendMessage(miniMessage.deserialize(key.key()));
         }
@@ -300,7 +300,13 @@ public class CroppyCommands {
             }
             sendRaw(sender, MessageKey.of("command.list.category-header"), "category", category, "count", items.size());
             for (ItemDefinition def : items) {
-                sender.sendMessage(miniMessage.deserialize(" <dark_gray>•</dark_gray> <yellow>" + def.key().asString() + "</yellow> - " + def.displayName()));
+                Component itemName = (messageService != null)
+                        ? messageService.resolveItemDisplayName(sender, def)
+                        : miniMessage.deserialize(def.displayName());
+                sendRaw(sender, MessageKey.of("command.list.item-entry"),
+                        "category", category,
+                        "key", def.key().asString(),
+                        "name", itemName);
             }
         } else {
             Collection<ItemDefinition> all = itemRegistry.values();
@@ -309,7 +315,13 @@ public class CroppyCommands {
                 Collection<ItemDefinition> inCat = itemRegistry.getByCategory(cat);
                 sender.sendMessage(miniMessage.deserialize("<aqua>[" + cat + "]</aqua> <gray>(" + inCat.size() + "):</gray>"));
                 for (ItemDefinition def : inCat) {
-                    sender.sendMessage(miniMessage.deserialize("   <dark_gray>•</dark_gray> <yellow>" + def.key().asString() + "</yellow> - " + def.displayName()));
+                    Component itemName = (messageService != null)
+                            ? messageService.resolveItemDisplayName(sender, def)
+                            : miniMessage.deserialize(def.displayName());
+                    sendRaw(sender, MessageKey.of("command.list.category-item-entry"),
+                            "category", cat,
+                            "key", def.key().asString(),
+                            "name", itemName);
                 }
             }
         }
@@ -597,10 +609,19 @@ public class CroppyCommands {
                 discoveryEngine.getKnowledge(target.getUniqueId(), recipe.key())
                         .ifPresent(k -> recipeStorage.saveKnowledge(target.getUniqueId(), k));
             }
-            sendPrefixed(sender, MessageKey.of("recipe.admin_give_success"), "player", target.getName(), "recipe", recipe.displayName());
-            target.sendMessage(miniMessage.deserialize("<green>An administrator unlocked recipe <white>" + recipe.displayName() + "</white> for you!</green>"));
+            Component recipeName = (messageService != null)
+                    ? messageService.resolveRecipeDisplayName(sender, recipe)
+                    : miniMessage.deserialize(recipe.displayName());
+            sendPrefixed(sender, MessageKey.of("recipe.admin_give_success"), "player", target.getName(), "recipe", recipeName);
+            Component targetRecipeName = (messageService != null)
+                    ? messageService.resolveRecipeDisplayName(target, recipe)
+                    : miniMessage.deserialize(recipe.displayName());
+            sendPrefixed(target, MessageKey.of("command.recipe.unlocked_by_admin"), "recipe", targetRecipeName);
         } else {
-            sendPrefixed(sender, MessageKey.of("recipe.already_known"), "player", target.getName(), "recipe", recipe.displayName());
+            Component recipeName = (messageService != null)
+                    ? messageService.resolveRecipeDisplayName(sender, recipe)
+                    : miniMessage.deserialize(recipe.displayName());
+            sendPrefixed(sender, MessageKey.of("recipe.already_known"), "player", target.getName(), "recipe", recipeName);
         }
     }
 
@@ -636,9 +657,16 @@ public class CroppyCommands {
             return;
         }
 
-        sender.sendMessage(miniMessage.deserialize("<gold><bold>--- Croppy Registered Recipes (" + recipeRegistry.size() + ") ---</bold></gold>"));
+        sendRaw(sender, MessageKey.of("command.recipe.header"), "count", recipeRegistry.size());
         for (RecipeDefinition r : recipeRegistry.values()) {
-            sender.sendMessage(miniMessage.deserialize(" <yellow>•</yellow> <white>" + r.key().asString() + "</white> <gray>(" + r.displayName() + ")</gray> <dark_gray>[" + r.categoryKey().value() + " @ " + r.stationKey().value() + "]</dark_gray>"));
+            Component recipeName = (messageService != null)
+                    ? messageService.resolveRecipeDisplayName(sender, r)
+                    : miniMessage.deserialize(r.displayName());
+            sendRaw(sender, MessageKey.of("command.recipe.entry"),
+                    "key", r.key().asString(),
+                    "recipe", recipeName,
+                    "category", r.categoryKey().value(),
+                    "station", r.stationKey().value());
         }
     }
 
@@ -660,11 +688,11 @@ public class CroppyCommands {
     public void listAddons(Source source) {
         CommandSender sender = source.source();
         if (addonManager == null || addonManager.getDiscoveredAddons().isEmpty()) {
-            sender.sendMessage(miniMessage.deserialize("<gray>No addons discovered in <white>plugins/Croppy/addons/</white>.</gray>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.no-addons"));
             return;
         }
 
-        sender.sendMessage(miniMessage.deserialize("<gold><bold>--- Croppy Addons (" + addonManager.getDiscoveredAddons().size() + ") ---</bold></gold>"));
+        sendRaw(sender, MessageKey.of("command.addon.header"), "count", addonManager.getDiscoveredAddons().size());
         for (dev.darkblade.croppy.api.addon.AddonDescription addon : addonManager.getDiscoveredAddons()) {
             dev.darkblade.croppy.api.addon.AddonState state = addonManager.getState(addon.id());
             String stateColor = switch (state) {
@@ -673,7 +701,12 @@ public class CroppyCommands {
                 case ON_DISK -> "<gray>ON_DISK</gray>";
             };
             String type = addon.isCodeAddon() ? "Java" : "Content Pack";
-            sender.sendMessage(miniMessage.deserialize(" <yellow>•</yellow> <white>" + addon.id() + "</white> <gray>v" + addon.version() + "</gray> <dark_gray>[" + type + "]</dark_gray> - " + stateColor));
+            sendRaw(sender, MessageKey.of("command.addon.entry"),
+                    "id", addon.id(),
+                    "name", addon.name(),
+                    "version", addon.version(),
+                    "type", type,
+                    "status", miniMessage.deserialize(stateColor));
         }
     }
 
@@ -688,7 +721,7 @@ public class CroppyCommands {
 
         Optional<dev.darkblade.croppy.api.addon.AddonDescription> descOpt = addonManager.getAddon(addonId);
         if (descOpt.isEmpty()) {
-            sender.sendMessage(miniMessage.deserialize("<red>Addon '" + addonId + "' not found.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.not-found"), "addon", addonId);
             return;
         }
 
@@ -700,25 +733,23 @@ public class CroppyCommands {
             case ON_DISK -> "<gray>ON_DISK</gray>";
         };
 
-        sender.sendMessage(miniMessage.deserialize("<gold><bold>=== Addon: " + desc.name() + " (" + desc.id() + ") ===</bold></gold>"));
-        sender.sendMessage(miniMessage.deserialize("<gray>Version:</gray> <white>" + desc.version() + "</white>"));
-        sender.sendMessage(miniMessage.deserialize("<gray>Namespace:</gray> <aqua>" + desc.namespace() + "</aqua>"));
-        sender.sendMessage(miniMessage.deserialize("<gray>Type:</gray> <white>" + (desc.isCodeAddon() ? "Java Code Addon" : "Declarative Content Pack") + "</white>"));
-        sender.sendMessage(miniMessage.deserialize("<gray>State:</gray> " + stateColor));
+        sendRaw(sender, MessageKey.of("command.addon.info-header"), "name", desc.name(), "id", desc.id());
+        sendRaw(sender, MessageKey.of("command.addon.info-version"), "version", desc.version());
+        sendRaw(sender, MessageKey.of("command.addon.info-namespace"), "namespace", desc.namespace());
+        sendRaw(sender, MessageKey.of("command.addon.info-type"), "type", desc.isCodeAddon() ? "Java Code Addon" : "Declarative Content Pack");
+        sendRaw(sender, MessageKey.of("command.addon.info-state"), "status", miniMessage.deserialize(stateColor));
         if (!desc.authors().isEmpty()) {
-            sender.sendMessage(miniMessage.deserialize("<gray>Authors:</gray> <white>" + String.join(", ", desc.authors()) + "</white>"));
+            sendRaw(sender, MessageKey.of("command.addon.info-authors"), "authors", String.join(", ", desc.authors()));
         }
         if (!desc.dependencies().isEmpty()) {
-            sender.sendMessage(miniMessage.deserialize("<gray>Dependencies:</gray> <yellow>" + String.join(", ", desc.dependencies()) + "</yellow>"));
+            sendRaw(sender, MessageKey.of("command.addon.info-dependencies"), "dependencies", String.join(", ", desc.dependencies()));
         }
         if (state == dev.darkblade.croppy.api.addon.AddonState.ENABLED) {
             addonManager.getContext(addonId).ifPresent(ctx -> {
-                sender.sendMessage(miniMessage.deserialize("<gray>Registered Species:</gray> <white>" + ctx.getRegisteredSpecies().size() + "</white>"));
-                sender.sendMessage(miniMessage.deserialize("<gray>Registered Items:</gray> <white>" + ctx.getRegisteredItems().size() + "</white>"));
-                sender.sendMessage(miniMessage.deserialize("<gray>Registered Recipes:</gray> <white>" + ctx.getRegisteredRecipes().size() + "</white>"));
-                sender.sendMessage(miniMessage.deserialize("<gray>Registered Stations:</gray> <white>" + ctx.getRegisteredStations().size() + "</white>"));
-                sender.sendMessage(miniMessage.deserialize("<gray>Registered Processes:</gray> <white>" + ctx.getRegisteredProcesses().size() + "</white>"));
-                sender.sendMessage(miniMessage.deserialize("<gray>Active Listeners:</gray> <white>" + ctx.getRegisteredListeners().size() + "</white>"));
+                sendRaw(sender, MessageKey.of("command.addon.info-processes"), "count", ctx.getRegisteredProcesses().size());
+                sendRaw(sender, MessageKey.of("command.addon.info-listeners"), "count", ctx.getRegisteredListeners().size());
+                sendRaw(sender, MessageKey.of("command.addon.info-menus"), "count", ctx.getRegisteredMenus().size());
+                sendRaw(sender, MessageKey.of("command.addon.info-interactions"), "count", ctx.getRegisteredInteractions().size());
             });
         }
     }
@@ -738,14 +769,14 @@ public class CroppyCommands {
             for (dev.darkblade.croppy.api.addon.AddonDescription desc : addonManager.getDiscoveredAddons()) {
                 if (addonManager.loadAddon(desc.id())) count++;
             }
-            sender.sendMessage(miniMessage.deserialize("<green>Successfully loaded " + count + " addons into memory.</green>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.load-all-success"), "count", count);
             return;
         }
 
         if (addonManager.loadAddon(addonId)) {
-            sender.sendMessage(miniMessage.deserialize("<green>Addon '" + addonId + "' loaded into memory successfully.</green>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.load-success"), "addon", addonId);
         } else {
-            sender.sendMessage(miniMessage.deserialize("<red>Failed to load addon '" + addonId + "'. Check logs for details.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.load-failed"), "addon", addonId);
         }
     }
 
@@ -760,14 +791,14 @@ public class CroppyCommands {
 
         if ("all".equalsIgnoreCase(addonId)) {
             addonManager.enableAll();
-            sender.sendMessage(miniMessage.deserialize("<green>Enabled all discovered addons.</green>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.enable-all-success"));
             return;
         }
 
         if (addonManager.enableAddon(addonId)) {
-            sender.sendMessage(miniMessage.deserialize("<green>Addon '" + addonId + "' enabled successfully.</green>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.enable-success"), "addon", addonId);
         } else {
-            sender.sendMessage(miniMessage.deserialize("<red>Failed to enable addon '" + addonId + "'. Check logs for details.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.enable-failed"), "addon", addonId);
         }
     }
 
@@ -782,14 +813,14 @@ public class CroppyCommands {
 
         if ("all".equalsIgnoreCase(addonId)) {
             addonManager.disableAll();
-            sender.sendMessage(miniMessage.deserialize("<yellow>Disabled all active addons.</yellow>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.disable-all-success"));
             return;
         }
 
         if (addonManager.disableAddon(addonId)) {
-            sender.sendMessage(miniMessage.deserialize("<yellow>Addon '" + addonId + "' disabled successfully.</yellow>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.disable-success"), "addon", addonId);
         } else {
-            sender.sendMessage(miniMessage.deserialize("<red>Failed to disable addon '" + addonId + "'. It may not be enabled.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.disable-failed"), "addon", addonId);
         }
     }
 
@@ -807,14 +838,14 @@ public class CroppyCommands {
             for (dev.darkblade.croppy.api.addon.AddonDescription desc : addonManager.getDiscoveredAddons()) {
                 if (addonManager.unloadAddon(desc.id())) count++;
             }
-            sender.sendMessage(miniMessage.deserialize("<yellow>Unloaded " + count + " addons completely.</yellow>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.unload-all-success"), "count", count);
             return;
         }
 
         if (addonManager.unloadAddon(addonId)) {
-            sender.sendMessage(miniMessage.deserialize("<yellow>Addon '" + addonId + "' unloaded completely.</yellow>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.unload-success"), "addon", addonId);
         } else {
-            sender.sendMessage(miniMessage.deserialize("<red>Failed to unload addon '" + addonId + "'.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.addon.unload-failed"), "addon", addonId);
         }
     }
 
@@ -828,7 +859,7 @@ public class CroppyCommands {
     public void buildPack(Source source) {
         CommandSender sender = source.source();
         if (resourcePackService == null) {
-            sender.sendMessage(miniMessage.deserialize("<red>Resource pack service is not initialized.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.pack.service-unavailable"));
             return;
         }
 
@@ -857,7 +888,7 @@ public class CroppyCommands {
     ) {
         CommandSender sender = source.source();
         if (resourcePackService == null) {
-            sender.sendMessage(miniMessage.deserialize("<red>Resource pack service is not initialized.</red>"));
+            sendPrefixed(sender, MessageKey.of("command.pack.service-unavailable"));
             return;
         }
 

@@ -10,6 +10,7 @@ import dev.darkblade.croppy.api.recipe.RecipeCategory;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.station.StoredItem;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -29,7 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Controller orchestrating the culinary compendium cookbook interface,
- * handling pagination, category filtering, and state-aware recipe card rendering.
+ * handling pagination, category filtering, and state-aware recipe card
+ * rendering.
  */
 public class CompendiumMenuController {
 
@@ -42,27 +44,40 @@ public class CompendiumMenuController {
     private final RecipeDiscoveryEngine discoveryEngine;
     private final PaperMenuRenderer renderer;
     private final ItemFactory itemFactory;
+    private final PaperMessageService messageService;
 
     private final Map<UUID, CompendiumSession> sessions = new ConcurrentHashMap<>();
 
-    public record CompendiumSession(int page, Key categoryKey) {}
+    public record CompendiumSession(int page, Key categoryKey) {
+    }
 
     public CompendiumMenuController(
             MenuRegistry menuRegistry,
             RecipeRegistry recipeRegistry,
             RecipeDiscoveryEngine discoveryEngine,
             PaperMenuRenderer renderer,
-            ItemFactory itemFactory
-    ) {
+            ItemFactory itemFactory,
+            PaperMessageService messageService) {
         this.menuRegistry = Objects.requireNonNull(menuRegistry, "menuRegistry cannot be null");
         this.recipeRegistry = Objects.requireNonNull(recipeRegistry, "recipeRegistry cannot be null");
         this.discoveryEngine = Objects.requireNonNull(discoveryEngine, "discoveryEngine cannot be null");
         this.renderer = Objects.requireNonNull(renderer, "renderer cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
+        this.messageService = messageService;
+    }
+
+    public CompendiumMenuController(
+            MenuRegistry menuRegistry,
+            RecipeRegistry recipeRegistry,
+            RecipeDiscoveryEngine discoveryEngine,
+            PaperMenuRenderer renderer,
+            ItemFactory itemFactory) {
+        this(menuRegistry, recipeRegistry, discoveryEngine, renderer, itemFactory, null);
     }
 
     /**
-     * Opens or refreshes the recipe compendium for a player with the given category and page.
+     * Opens or refreshes the recipe compendium for a player with the given category
+     * and page.
      *
      * @param player      player viewing the compendium
      * @param categoryKey category filter (or ALL)
@@ -74,7 +89,12 @@ public class CompendiumMenuController {
 
         Optional<MenuDefinition> menuOpt = menuRegistry.get(MENU_KEY);
         if (menuOpt.isEmpty()) {
-            player.sendMessage(miniMessage.deserialize("<red>Recipe compendium menu configuration is missing.</red>"));
+            if (messageService != null) {
+                messageService.sendPrefixedMessage(player, "compendium.missing-config");
+            } else {
+                player.sendMessage(
+                        miniMessage.deserialize("<red>Recipe compendium menu configuration is missing.</red>"));
+            }
             return;
         }
 
@@ -91,7 +111,12 @@ public class CompendiumMenuController {
         }
 
         if (recipeSlotIndexes.isEmpty()) {
-            player.sendMessage(miniMessage.deserialize("<red>No recipe display slots ('R') found in compendium menu layout.</red>"));
+            if (messageService != null) {
+                messageService.sendPrefixedMessage(player, "compendium.no-slots");
+            } else {
+                player.sendMessage(
+                        miniMessage.deserialize("<red>No recipe display slots found in compendium menu layout.</red>"));
+            }
             return;
         }
 
@@ -130,12 +155,14 @@ public class CompendiumMenuController {
     }
 
     public void nextPage(Player player) {
-        CompendiumSession session = sessions.getOrDefault(player.getUniqueId(), new CompendiumSession(1, RecipeCategory.ALL.getKey()));
+        CompendiumSession session = sessions.getOrDefault(player.getUniqueId(),
+                new CompendiumSession(1, RecipeCategory.ALL.getKey()));
         openCompendium(player, session.categoryKey(), session.page() + 1);
     }
 
     public void prevPage(Player player) {
-        CompendiumSession session = sessions.getOrDefault(player.getUniqueId(), new CompendiumSession(1, RecipeCategory.ALL.getKey()));
+        CompendiumSession session = sessions.getOrDefault(player.getUniqueId(),
+                new CompendiumSession(1, RecipeCategory.ALL.getKey()));
         openCompendium(player, session.categoryKey(), Math.max(1, session.page() - 1));
     }
 
@@ -155,13 +182,14 @@ public class CompendiumMenuController {
     }
 
     /**
-     * Renders an item card representing a recipe based on the player's knowledge state.
+     * Renders an item card representing a recipe based on the player's knowledge
+     * state.
      */
     public ItemStack renderRecipeCard(Player player, RecipeDefinition recipe, KnowledgeState state) {
         return switch (state) {
             case DISCOVERED -> renderDiscoveredCard(player, recipe);
-            case HINTED -> renderHintedCard(recipe);
-            case UNKNOWN -> renderUnknownCard(recipe);
+            case HINTED -> renderHintedCard(player, recipe);
+            case UNKNOWN -> renderUnknownCard(player, recipe);
         };
     }
 
@@ -179,15 +207,28 @@ public class CompendiumMenuController {
             return stack;
         }
 
-        Component name = miniMessage.deserialize("<gold><bold>" + recipe.displayName() + "</bold></gold>")
-                .decoration(TextDecoration.ITALIC, false);
+        Component recipeName = (messageService != null)
+                ? messageService.resolveRecipeDisplayName(player, recipe)
+                : miniMessage.deserialize(recipe.displayName());
+        Component name = (messageService != null)
+                ? messageService.render(player, "compendium.gui.discovered-title", "recipe", recipeName)
+                        .decoration(TextDecoration.ITALIC, false)
+                : miniMessage.deserialize("<gold><bold>" + recipe.displayName() + "</bold></gold>")
+                        .decoration(TextDecoration.ITALIC, false);
         meta.displayName(name);
 
         List<Component> lore = new ArrayList<>();
-        lore.add(miniMessage.deserialize("<gray>Category: <yellow>" + recipe.categoryKey().value() + "</yellow></gray>"));
-        lore.add(miniMessage.deserialize("<gray>Station: <aqua>" + recipe.stationKey().value() + "</aqua></gray>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.category", "category", recipe.categoryKey().value())
+                : miniMessage
+                        .deserialize("<gray>Category: <yellow>" + recipe.categoryKey().value() + "</yellow></gray>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.station", "station", recipe.stationKey().value())
+                : miniMessage.deserialize("<gray>Station: <aqua>" + recipe.stationKey().value() + "</aqua></gray>"));
         lore.add(Component.empty());
-        lore.add(miniMessage.deserialize("<yellow>Required Ingredients:</yellow>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.required-ingredients")
+                : miniMessage.deserialize("<yellow>Required Ingredients:</yellow>"));
 
         for (StoredItem input : recipe.inputRequirements()) {
             int available = countPlayerItem(player, input.itemKey());
@@ -195,43 +236,70 @@ public class CompendiumMenuController {
             String prefix = satisfied ? "<green>✔ " : "<red>✖ ";
             String color = satisfied ? "<green>" : "<red>";
             String closeColor = satisfied ? "</green>" : "</red>";
-            String line = prefix + color + input.amount() + "x " + input.itemKey().value() + " (" + available + "/" + input.amount() + ")" + closeColor;
+            String line = prefix + color + input.amount() + "x " + input.itemKey().value() + " (" + available + "/"
+                    + input.amount() + ")" + closeColor;
             lore.add(miniMessage.deserialize(line));
         }
 
         lore.add(Component.empty());
-        lore.add(miniMessage.deserialize("<dark_green>Status: Discovered</dark_green>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.status-discovered")
+                : miniMessage.deserialize("<dark_green>Status: Discovered</dark_green>"));
 
         meta.lore(lore);
         stack.setItemMeta(meta);
         return stack;
     }
 
-    private ItemStack renderHintedCard(RecipeDefinition recipe) {
-        Material material = recipe.hint().hideResultItem() ? Material.KNOWLEDGE_BOOK : resolveMaterial(recipe.resultItemKey());
+    public ItemStack renderHintedCard(RecipeDefinition recipe) {
+        return renderHintedCard(null, recipe);
+    }
+
+    public ItemStack renderHintedCard(Player player, RecipeDefinition recipe) {
+        Material material = recipe.hint().hideResultItem() ? Material.KNOWLEDGE_BOOK
+                : resolveMaterial(recipe.resultItemKey());
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) {
             return stack;
         }
 
-        Component name = miniMessage.deserialize("<gold>★ " + recipe.displayName() + " <italic><gray>(Hinted)</gray></italic></gold>")
-                .decoration(TextDecoration.ITALIC, false);
+        Component recipeName = (messageService != null)
+                ? messageService.resolveRecipeDisplayName(player, recipe)
+                : miniMessage.deserialize(recipe.displayName());
+        Component name = (messageService != null)
+                ? messageService.render(player, "compendium.gui.hinted-title", "recipe", recipeName)
+                        .decoration(TextDecoration.ITALIC, false)
+                : miniMessage
+                        .deserialize(
+                                "<gold>★ " + recipe.displayName() + " <italic><gray>(Hinted)</gray></italic></gold>")
+                        .decoration(TextDecoration.ITALIC, false);
         meta.displayName(name);
 
         List<Component> lore = new ArrayList<>();
-        lore.add(miniMessage.deserialize("<gray>Category: <yellow>" + recipe.categoryKey().value() + "</yellow></gray>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.category", "category", recipe.categoryKey().value())
+                : miniMessage
+                        .deserialize("<gray>Category: <yellow>" + recipe.categoryKey().value() + "</yellow></gray>"));
         lore.add(Component.empty());
-        lore.add(miniMessage.deserialize("<aqua><bold>Culinary Clue:</bold></aqua>"));
-        lore.add(miniMessage.deserialize("<gray>" + recipe.hint().description() + "</gray>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.clue-title")
+                : miniMessage.deserialize("<aqua><bold>Culinary Clue:</bold></aqua>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.clue-hint", "hint", recipe.hint().description())
+                : miniMessage.deserialize("<gray>" + recipe.hint().description() + "</gray>"));
 
         if (!recipe.hint().revealedIngredientKeys().isEmpty()) {
             lore.add(Component.empty());
-            lore.add(miniMessage.deserialize("<yellow>Known Components:</yellow>"));
+            lore.add((messageService != null)
+                    ? messageService.render(player, "compendium.gui.clue-components")
+                    : miniMessage.deserialize("<yellow>Known Components:</yellow>"));
             for (Key rev : recipe.hint().revealedIngredientKeys()) {
                 lore.add(miniMessage.deserialize("<aqua>• " + rev.value() + "</aqua>"));
             }
-            lore.add(miniMessage.deserialize("<dark_gray>• ??? (Secret ingredients)</dark_gray>"));
+            lore.add((messageService != null)
+                    ? messageService.render(player, "compendium.gui.secret-ingredient")
+                    : miniMessage.deserialize("<dark_gray>• ??? (Secret ingredients)</dark_gray>"));
         }
 
         meta.lore(lore);
@@ -239,19 +307,32 @@ public class CompendiumMenuController {
         return stack;
     }
 
-    private ItemStack renderUnknownCard(RecipeDefinition recipe) {
+    public ItemStack renderUnknownCard(RecipeDefinition recipe) {
+        return renderUnknownCard(null, recipe);
+    }
+
+    public ItemStack renderUnknownCard(Player player, RecipeDefinition recipe) {
         ItemStack stack = new ItemStack(Material.GRAY_DYE);
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) {
             return stack;
         }
 
-        meta.displayName(miniMessage.deserialize("<gray><italic>??? Unknown Recipe</italic></gray>"));
+        Component name = (messageService != null)
+                ? messageService.render(player, "compendium.gui.unknown-title")
+                : miniMessage.deserialize("<gray><italic>??? Unknown Recipe</italic></gray>");
+        meta.displayName(name);
         List<Component> lore = new ArrayList<>();
-        lore.add(miniMessage.deserialize("<dark_gray>Category: " + recipe.categoryKey().value() + "</dark_gray>"));
-        lore.add(miniMessage.deserialize("<dark_gray>Station: " + recipe.stationKey().value() + "</dark_gray>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.category", "category", recipe.categoryKey().value())
+                : miniMessage.deserialize("<dark_gray>Category: " + recipe.categoryKey().value() + "</dark_gray>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.station", "station", recipe.stationKey().value())
+                : miniMessage.deserialize("<dark_gray>Station: " + recipe.stationKey().value() + "</dark_gray>"));
         lore.add(Component.empty());
-        lore.add(miniMessage.deserialize("<gray>Experiment in crafting stations to discover this dish!</gray>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.unknown-experiment")
+                : miniMessage.deserialize("<gray>Experiment in crafting stations to discover this dish!</gray>"));
 
         meta.lore(lore);
         stack.setItemMeta(meta);

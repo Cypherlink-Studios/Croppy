@@ -6,45 +6,87 @@ general:
   prefix: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>"
   no-permission: "<red>You do not have permission to execute this command.</red>"
   player-not-found: "<red>Player <player> was not found online.</red>"
-  reload-success: "<green>Configuration, items, stations, and localization catalogs reloaded successfully.</green>"
-  reload-failed: "<red>Failed to reload configuration: <error></red>"
+  reload-success: "<green>Configuration, items, stations, and localization catalogs reloaded successfully!</green>"
+  reload-failed: "<red>Failed to reload configuration: <error>.</red>"
 
 command:
   player-only: "<red>Only players can execute targeting commands.</red>"
+  invalid-syntax: "<red>Invalid command syntax. Correct usage: <yellow><usage></yellow>.</red>"
   give:
     sender-required: "<red>You must specify a recipient player with --target <player> from the console.</red>"
     registry-not-initialized: "<red>Item registry is not initialized.</red>"
-    item-not-found: "<red>Item not found in registry: <item></red>"
-    received: "<green>You received <yellow><amount>x</yellow> <item>.</green>"
-    given: "<green>Delivered <yellow><amount>x</yellow> <item> to <player>.</green>"
-    fertilizer-not-found: "<red>Fertilizer item not found: <item></red>"
+    item-not-found: "<red>Item not found in registry: <item>.</red>"
+    received: "<green>You received <yellow><amount>x</yellow> <item>!</green>"
+    given: "<green>Delivered <yellow><amount>x</yellow> <item> to <player>!</green>"
+    fertilizer-not-found: "<red>Fertilizer item not found: <item>.</red>"
   list:
-    empty-category: "<yellow>No items registered in category: <category></yellow>"
+    empty-category: "<yellow>No items registered in category: <category>.</yellow>"
     category-header: "<gold><bold>=== Items in Category: <category> (<count>) ===</bold></gold>"
     all-header: "<gold><bold>=== Registered Items (<count>) ===</bold></gold>"
+    item-entry: " <dark_gray>•</dark_gray> <click:suggest_command:'/croppy item give {category} {key} 1'><hover:show_text:'<gray>Click to give 1x <white><name></white>'><yellow>{key}</yellow></hover></click> <dark_gray>-</dark_gray> <name>"
+    category-item-entry: "   <dark_gray>•</dark_gray> <click:suggest_command:'/croppy item give {category} {key} 1'><hover:show_text:'<gray>Click to give 1x <white><name></white>'><yellow>{key}</yellow></hover></click> <dark_gray>-</dark_gray> <name>"
     species-not-found: "<red>Species <species> was not found in the registry.</red>"
     species-header: "<gold><bold>=== Registered Species (<count>) ===</bold></gold>"
+    species-entry: " <dark_gray>•</dark_gray> <yellow><key></yellow> <dark_gray>-</dark_gray> <white><name></white>"
   inspect:
-    console-needs-coords: "<red>Console must specify coordinates: /croppy inspect <x> <y> <z></red>"
+    console-needs-coords: "<red>Console must specify coordinates: /croppy inspect <x> <y> <z>.</red>"
     no-crop-found: "<red>No active crop found at the targeted location.</red>"
-    tool-given: "<green>You have received the <gradient:#70e000:#38b000>Crop Inspector</gradient> tool.</green>"
+    tool-given: "<green>You have received the <gradient:#70e000:#38b000>Crop Inspector</gradient> tool!</green>"
   water:
     success: "<aqua>Crop successfully watered for today!</aqua>"
   fertilize:
     success: "<green>Fertilizer <yellow><fertilizer></yellow> applied to the crop!</green>"
   state:
     species-not-found: "<red>Species not found for this crop.</red>"
-    stage-updated: "<green>Updated crop stage to <yellow><stage></yellow>.</green>"
-    progress-updated: "<green>Updated crop progress to <yellow><progress>%</yellow>.</green>"
+    stage-updated: "<green>Updated crop stage to <yellow><stage></yellow>!</green>"
+    progress-updated: "<green>Updated crop progress to <yellow><progress>%</yellow>!</green>"
     invalid-stage: "<red>Invalid stage index: <stage>. Maximum stage is <max>.</red>"
   pack:
+    service-unavailable: "<red>Resource pack service is not initialized.</red>"
     building: "<gray>Compiling companion resource pack from discovered addon assets...</gray>"
     build-success: "<green>Resource pack compiled in <yellow><duration>ms</yellow>!</green><newline><dark_gray>├─ <gold>Size:</gold> <yellow><size> MB</yellow><newline><dark_gray>├─ <gold>Assets:</gold> <yellow><count></yellow> files<newline><dark_gray>└─ <gold>SHA-1:</gold> <yellow><hash></yellow>"
-    build-failed: "<red>Failed to compile resource pack: <error></red>"
-    sent: "<green>Dispatched resource pack to <yellow><player></yellow>.</green>"
-    sent-all: "<green>Dispatched resource pack to <yellow><count></yellow> online players.</green>"
-    no-pack: "<red>No compiled resource pack is available. Run <yellow>/croppy pack build</yellow> first.</red>"
+    build-failed: "<red>Failed to compile resource pack: <error>.</red>"
+    sent: "<green>Dispatched resource pack to <yellow><player></yellow>!</green>"
+    sent-all: "<green>Dispatched resource pack to <yellow><count></yellow> online players!</green>"
+    no-pack: "<red>No compiled resource pack is available. Run <click:run_command:'/croppy pack build'><hover:show_text:'<gray>Click to compile resource pack'><yellow>/croppy pack build</yellow></hover></click> first.</red>"
     no-url: "<red>Unable to resolve a public URL for resource pack delivery.</red>"
+  addon:
+    no-addons: "<gray>No addons discovered in <white>plugins/Croppy/addons/</white>.</gray>"
+    header: "<gold><bold>=== Discovered Addons (<count>) ===</bold></gold>"
+    entry: " <dark_gray>•</dark_gray> <click:run_command:'/croppy addon status {id}'><hover:show_text:'<gray>Click to view info for <yellow><name></yellow>'><yellow>{id}</yellow></hover></click> <gray>v<version></gray> <dark_gray>[<type>]</dark_gray> - <status>"
+    not-found: "<red>Addon '<addon>' was not found.</red>"
+    info-header: "<gold><bold>=== Addon: <name> (<id>) ===</bold></gold>"
+    info-version: "<gray>Version:</gray> <white><version></white>"
+    info-namespace: "<gray>Namespace:</gray> <aqua><namespace></aqua>"
+    info-type: "<gray>Type:</gray> <white><type></white>"
+    info-state: "<gray>State:</gray> <status>"
+    info-authors: "<gray>Authors:</gray> <white><authors></white>"
+    info-dependencies: "<gray>Dependencies:</gray> <yellow><dependencies></yellow>"
+    info-processes: "<gray>Registered Processes:</gray> <white><count></white>"
+    info-listeners: "<gray>Active Listeners:</gray> <white><count></white>"
+    info-menus: "<gray>Registered Menus:</gray> <white><count></white>"
+    info-interactions: "<gray>Registered Interactions:</gray> <white><count></white>"
+    load-all-success: "<green>Successfully loaded <yellow><count></yellow> addons into memory!</green>"
+    load-success: "<green>Addon '<yellow><addon></yellow>' loaded into memory successfully!</green>"
+    load-failed: "<red>Failed to load addon '<addon>'. Check logs for details.</red>"
+    enable-all-success: "<green>Enabled all discovered addons!</green>"
+    enable-success: "<green>Addon '<yellow><addon></yellow>' enabled successfully!</green>"
+    enable-failed: "<red>Failed to enable addon '<addon>'. Check logs for details.</red>"
+    disable-all-success: "<yellow>Disabled all active addons.</yellow>"
+    disable-success: "<yellow>Addon '<white><addon></white>' disabled successfully.</yellow>"
+    disable-failed: "<red>Failed to disable addon '<addon>'. It may not be enabled.</red>"
+    unload-all-success: "<yellow>Unloaded <white><count></white> addons completely.</yellow>"
+    unload-success: "<yellow>Addon '<white><addon></white>' unloaded completely.</yellow>"
+    unload-failed: "<red>Failed to unload addon '<addon>'.</red>"
+  recipe:
+    header: "<gold><bold>=== Registered Recipes (<count>) ===</bold></gold>"
+    entry: " <dark_gray>•</dark_gray> <click:suggest_command:'/croppy recipe give @s {key}'><hover:show_text:'<gray>Click to grant <white><recipe></white>'><yellow>{key}</yellow></hover></click> <gray>(<recipe>)</gray> <dark_gray>[<category> @ <station>]</dark_gray>"
+    unlocked_by_admin: "<green>An administrator unlocked recipe <white><recipe></white> for you!</green>"
+
+crop:
+  plant:
+    not-enough-space: "<red>Not enough space to plant this crop.</red>"
+    not-enough-vertical-space: "<red>Not enough vertical space for this crop.</red>"
 
 inspector:
   title: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Crop Inspection"
@@ -58,6 +100,7 @@ inspector:
   water: "<dark_gray>├─ <gold>Water Level: <color><level>/8</color> <gray>(Min: <min>)</gray>"
   status: "<dark_gray>└─ <gold>Status: <status>"
   none: "<gray>None</gray>"
+  missing-species: "<red>Error: Crop exists but species '<species>' is not registered.</red>"
   states:
     mature: "<aqua><bold>Mature</bold></aqua>"
     unloaded: "<red>Unloaded Chunk</red>"
@@ -74,6 +117,10 @@ inspector:
 watering:
   refilled: "<aqua>Watering can refilled!</aqua>"
   empty: "<red>The watering can is empty! Refill it with water.</red>"
+  lore:
+    area: "<gray>Area: <white><width>x<length></white></gray>"
+    water-bar: "<gray>Water: <aqua>[<bar>] <current>/<max></aqua></gray>"
+    refill-hint: "<dark_gray>Right-click water source to refill</dark_gray>"
 
 fertilizer:
   already-applied: "<red>This crop already has a fertilizer applied!</red>"
@@ -86,14 +133,35 @@ station:
   output-ready: "<green>Output Ready</green>"
   empty-feedback: "<name> <dark_gray>•</dark_gray> <status> <dark_gray>•</dark_gray> <gradient:#ffaa00:{color}><temperature>°C</gradient>"
   empty-feedback-no-thermal: "<name> <dark_gray>•</dark_gray> <status>"
+  cooking:
+    missing-ingredients: "<red>No valid recipe ingredients found in the input slots.</red>"
+    not-hot-enough: "<red>The cookware is not hot enough! (<gold><temp>°C</gold> / <yellow><required>°C required</yellow>).</red>"
+    no-recipe-match: "<red>No matching recipe found for the provided ingredients.</red>"
+
+compendium:
+  missing-config: "<red>Recipe compendium menu configuration is missing.</red>"
+  no-slots: "<red>No recipe display slots found in compendium menu layout.</red>"
+  gui:
+    category: "<gray>Category: <yellow><category></yellow></gray>"
+    station: "<gray>Station: <aqua><station></aqua></gray>"
+    required-ingredients: "<yellow>Required Ingredients:</yellow>"
+    status-discovered: "<dark_green>Status: Discovered</dark_green>"
+    clue-title: "<aqua><bold>Culinary Clue:</bold></aqua>"
+    clue-hint: "<gray><hint></gray>"
+    clue-components: "<yellow>Known Components:</yellow>"
+    secret-ingredient: "<dark_gray>• ??? (Secret ingredients)</dark_gray>"
+    unknown-title: "<gray><italic>??? Unknown Recipe</italic></gray>"
+    unknown-experiment: "<gray>Experiment in crafting stations to discover this dish!</gray>"
+    hinted-title: "<gold>★ <recipe> <italic><gray>(Hinted)</gray></italic></gold>"
+    discovered-title: "<gold><bold><recipe></bold></gold>"
 
 prompt:
-  temperature-prompt: "<gold>[Croppy]</gold> <yellow>Enter target temperature (</yellow><white><min>°C - <max>°C</white><yellow>) in chat, or type </yellow><red>'cancel'</red><yellow>:</yellow>"
-  temperature-timeout: "<gold>[Croppy]</gold> <gray>Temperature selection timed out.</gray>"
-  temperature-cancelled: "<gold>[Croppy]</gold> <gray>Temperature selection cancelled.</gray>"
-  temperature-bounds: "<gold>[Croppy]</gold> <red>Temperature must be between <min>°C and <max>°C.</red>"
-  temperature-success: "<gold>[Croppy]</gold> <green>Target temperature set to <aqua><val>°C</aqua>!</green>"
-  invalid-number: "<gold>[Croppy]</gold> <red>Invalid number. Type a valid number or 'cancel'.</red>"
+  temperature-prompt: "<yellow>Enter target temperature (</yellow><white><min>°C - <max>°C</white><yellow>) in chat, or type </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Click to cancel'><red>'cancel'</red></hover></click><yellow>:</yellow>"
+  temperature-timeout: "<gray>Temperature selection timed out.</gray>"
+  temperature-cancelled: "<gray>Temperature selection cancelled.</gray>"
+  temperature-bounds: "<red>Temperature must be between <min>°C and <max>°C.</red>"
+  temperature-success: "<green>Target temperature set to <aqua><val>°C</aqua>!</green>"
+  invalid-number: "<red>Invalid number. Type a valid number or 'cancel'.</red>"
 
 recipe:
   compendium_unavailable: "<red>The recipe compendium is currently unavailable.</red>"
@@ -103,4 +171,7 @@ recipe:
   admin_give_success: "<green>Granted knowledge of <white><recipe></white> to <player>!</green>"
   admin_revoke_success: "<green>Revoked knowledge of <white><recipe></white> from <player>.</green>"
   no_recipes: "<gray>No recipes are currently registered in the system.</gray>"
-  discovered: "<green>You discovered <white><recipe></white>! View your cookbook with <yellow>/croppy recipes</yellow>.</green>"
+  discovered: "<green>You discovered <white><recipe></white>! View your cookbook with <click:run_command:'/croppy recipes'><hover:show_text:'<gray>Click to open cookbook'><yellow>/croppy recipes</yellow></hover></click>.</green>"
+  fanfare:
+    title: "<gold><bold>★ NEW RECIPE! ★</bold></gold>"
+    subtitle: "<white><recipe></white>"

@@ -46,7 +46,12 @@ import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.command.CommandSender;
 import org.bukkit.scheduler.BukkitTask;
+import org.incendo.cloud.exception.ArgumentParseException;
+import org.incendo.cloud.exception.InvalidCommandSenderException;
+import org.incendo.cloud.exception.InvalidSyntaxException;
+import org.incendo.cloud.exception.NoPermissionException;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.PaperCommandManager;
@@ -267,7 +272,8 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getRecipeRegistry(),
                 core.getRecipeDiscoveryEngine(),
                 this.menuRenderer,
-                this.itemFactory);
+                this.itemFactory,
+                this.messageService);
     }
 
     private void registerListeners() {
@@ -275,7 +281,7 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getSpeciesRegistry(),
                 this.displaySynchronizer, this.virtualBlockDisplayTracker, core.getStationManager(),
                 this.stationStorage, this.stationViewerTracker, getLogger()), this);
-        pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer, getProtectionPort()), this);
+        pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer, getProtectionPort(), this.messageService), this);
         pm.registerEvents(new CropGrowthListener(core), this);
         pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer, getProtectionPort(), this.itemFactory), this);
         pm.registerEvents(new CropPhysicsListener(core, this.virtualBlockDisplayTracker), this);
@@ -509,7 +515,7 @@ public class CroppyPlugin extends JavaPlugin {
     private void setupFertilizers() {
         this.fertilizerRegistry = new DefaultFertilizerRegistry();
         this.fertilizerService = new FertilizerService(this, this.fertilizerRegistry, this.itemFactory);
-        this.wateringCanService = new WateringCanService(this, this.itemFactory);
+        this.wateringCanService = new WateringCanService(this, this.itemFactory, this.messageService);
         this.dailyTransitionService = new DailyTransitionService(core.getCropManager(), this.fertilizerRegistry);
 
         Path fertDir = getDataFolder().toPath().resolve("items").resolve("fertilizers");
@@ -619,6 +625,33 @@ public class CroppyPlugin extends JavaPlugin {
                 .builder(PaperSimpleSenderMapper.simpleSenderMapper())
                 .executionCoordinator(ExecutionCoordinator.simpleCoordinator())
                 .buildOnEnable(this);
+
+        commandManager.exceptionController().registerHandler(NoPermissionException.class, ctx -> {
+            CommandSender sender = ctx.context().sender().source();
+            this.messageService.sendPrefixedMessage(sender, "general.no-permission");
+        });
+
+        commandManager.exceptionController().registerHandler(InvalidSyntaxException.class, ctx -> {
+            CommandSender sender = ctx.context().sender().source();
+            String syntax = ctx.exception().correctSyntax();
+            String formattedUsage = syntax.startsWith("/") ? syntax : "/" + syntax;
+            this.messageService.sendPrefixedMessage(sender, "command.invalid-syntax", "usage", formattedUsage);
+        });
+
+        commandManager.exceptionController().registerHandler(InvalidCommandSenderException.class, ctx -> {
+            CommandSender sender = ctx.context().sender().source();
+            this.messageService.sendPrefixedMessage(sender, "command.player-only");
+        });
+
+        commandManager.exceptionController().registerHandler(ArgumentParseException.class, ctx -> {
+            CommandSender sender = ctx.context().sender().source();
+            Throwable cause = ctx.exception().getCause();
+            String message = cause != null && cause.getMessage() != null ? cause.getMessage() : ctx.exception().getMessage();
+            if (message == null || message.isBlank()) {
+                message = "Invalid argument.";
+            }
+            this.messageService.sendPrefixedMessage(sender, "command.invalid-syntax", "usage", message);
+        });
 
         if (commandManager.hasBrigadierManager()) {
             commandManager.brigadierManager().registerMapping(

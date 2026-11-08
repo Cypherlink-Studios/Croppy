@@ -107,8 +107,11 @@ public class CropInspectorService {
         CropInstance crop = cropOpt.get();
         Optional<Species> speciesOpt = speciesRegistry.get(crop.getSpeciesKey());
         if (speciesOpt.isEmpty()) {
+            if (messageService != null) {
+                return Optional.of(messageService.render(audience, "inspector.missing-species", "species", crop.getSpeciesKey().asString()));
+            }
             return Optional.of(miniMessage.deserialize(
-                    "<red>Error: Crop exists but species '" + crop.getSpeciesKey().asString() + "' is not registered."
+                    "<red>Error: Crop exists but species '" + crop.getSpeciesKey().asString() + "' is not registered.</red>"
             ));
         }
 

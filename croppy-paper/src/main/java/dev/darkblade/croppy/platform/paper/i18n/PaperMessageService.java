@@ -2,7 +2,9 @@ package dev.darkblade.croppy.platform.paper.i18n;
 
 import dev.darkblade.croppy.api.i18n.LocaleRef;
 import dev.darkblade.croppy.api.i18n.MessageKey;
+import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.core.i18n.DefaultMessageCatalog;
 import net.kyori.adventure.audience.Audience;
@@ -15,7 +17,9 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -41,6 +45,10 @@ public class PaperMessageService {
 
     public DefaultMessageCatalog getCatalog() {
         return catalog;
+    }
+
+    public MiniMessage getMiniMessage() {
+        return miniMessage;
     }
 
     /**
@@ -113,11 +121,34 @@ public class PaperMessageService {
     }
 
     /**
+     * Sends a localized message without any prefix with raw text replacements.
+     */
+    public void sendMessage(Audience audience, MessageKey key, Map<String, String> rawReplacements, TagResolver... resolvers) {
+        if (audience == null) return;
+        audience.sendMessage(renderWithReplacements(audience, key, rawReplacements, resolvers));
+    }
+
+    /**
      * Sends a localized message prepended with the localized prefix.
      */
     public void sendPrefixedMessage(Audience audience, MessageKey key, TagResolver... resolvers) {
         if (audience == null) return;
         Component message = render(audience, key, resolvers);
+        Optional<String> prefixTemplate = catalog.getTemplate(resolveLocale(audience), PREFIX_KEY);
+        if (prefixTemplate.isPresent() && !prefixTemplate.get().isBlank()) {
+            Component prefix = miniMessage.deserialize(prefixTemplate.get());
+            audience.sendMessage(prefix.append(message));
+        } else {
+            audience.sendMessage(message);
+        }
+    }
+
+    /**
+     * Sends a localized message prepended with the localized prefix with raw text replacements.
+     */
+    public void sendPrefixedMessage(Audience audience, MessageKey key, Map<String, String> rawReplacements, TagResolver... resolvers) {
+        if (audience == null) return;
+        Component message = renderWithReplacements(audience, key, rawReplacements, resolvers);
         Optional<String> prefixTemplate = catalog.getTemplate(resolveLocale(audience), PREFIX_KEY);
         if (prefixTemplate.isPresent() && !prefixTemplate.get().isBlank()) {
             Component prefix = miniMessage.deserialize(prefixTemplate.get());
@@ -138,9 +169,37 @@ public class PaperMessageService {
     /**
      * Sends a localized message to a player's action bar with raw text replacements.
      */
-    public void sendActionBarWithReplacements(Player player, MessageKey key, java.util.Map<String, String> rawReplacements, TagResolver... resolvers) {
+    public void sendActionBarWithReplacements(Player player, MessageKey key, Map<String, String> rawReplacements, TagResolver... resolvers) {
         if (player == null) return;
         player.sendActionBar(renderWithReplacements(player, key, rawReplacements, resolvers));
+    }
+
+    /**
+     * Convenience method to render a message key by string name with alternating key-value arguments.
+     */
+    public Component render(Audience audience, String key, Object... args) {
+        return renderWithReplacements(resolveLocale(audience), MessageKey.of(key), rawArgs(args), args(args));
+    }
+
+    /**
+     * Convenience method to send a prefixed message by string name with alternating key-value arguments.
+     */
+    public void sendPrefixedMessage(Audience audience, String key, Object... args) {
+        sendPrefixedMessage(audience, MessageKey.of(key), rawArgs(args), args(args));
+    }
+
+    /**
+     * Convenience method to send an unprefixed message by string name with alternating key-value arguments.
+     */
+    public void sendMessage(Audience audience, String key, Object... args) {
+        sendMessage(audience, MessageKey.of(key), rawArgs(args), args(args));
+    }
+
+    /**
+     * Convenience method to send an action bar message by string name with alternating key-value arguments.
+     */
+    public void sendActionBar(Player player, String key, Object... args) {
+        sendActionBarWithReplacements(player, MessageKey.of(key), rawArgs(args), args(args));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -200,9 +259,44 @@ public class PaperMessageService {
         return miniMessage.deserialize(name);
     }
 
+    /**
+     * Resolves the localized display name for a recipe definition, falling back to definition name.
+     */
+    public Component resolveRecipeDisplayName(Audience audience, RecipeDefinition recipe) {
+        if (recipe == null) {
+            return Component.empty();
+        }
+        LocaleRef locale = resolveLocale(audience);
+        MessageKey overrideKey = MessageKey.of("content.recipe." + recipe.key().asString().replace(':', '.') + ".name");
+        Optional<String> template = catalog.getTemplate(locale, overrideKey);
+        if (template.isPresent()) {
+            return miniMessage.deserialize(template.get());
+        }
+        return miniMessage.deserialize(recipe.displayName());
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Argument Sanitization & Helpers
     // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Extracts raw `{key}` placeholders for string substitutions inside MiniMessage tag attributes.
+     */
+    public static Map<String, String> rawArgs(Object... keyValues) {
+        if (keyValues == null || keyValues.length < 2) {
+            return Map.of();
+        }
+        Map<String, String> map = new HashMap<>();
+        int count = keyValues.length / 2;
+        for (int i = 0; i < count; i++) {
+            String k = String.valueOf(keyValues[i * 2]);
+            Object v = keyValues[i * 2 + 1];
+            if (v instanceof String || v instanceof Number || v instanceof Boolean || v instanceof Key) {
+                map.put("{" + k + "}", String.valueOf(v));
+            }
+        }
+        return map;
+    }
 
     /**
      * Creates a TagResolver that safely injects an unparsed, sanitized value, or preserves rich components, colors, and tags.

@@ -26,6 +26,8 @@ import java.util.function.Consumer;
  */
 public final class ChatPromptService implements Listener {
 
+    private static final String DEFAULT_PREFIX = "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>";
+
     private final Plugin plugin;
     private final PaperMessageService messageService;
     private final MiniMessage miniMessage;
@@ -76,9 +78,9 @@ public final class ChatPromptService implements Listener {
         player.closeInventory();
 
         if (messageService != null) {
-            messageService.sendMessage(player, MessageKey.of("prompt.temperature-prompt"), PaperMessageService.args("min", minAllowed, "max", maxAllowed));
+            messageService.sendPrefixedMessage(player, MessageKey.of("prompt.temperature-prompt"), PaperMessageService.args("min", minAllowed, "max", maxAllowed));
         } else {
-            String promptMsg = "<gold>[Croppy]</gold> <yellow>Enter target temperature (</yellow><white>"
+            String promptMsg = DEFAULT_PREFIX + "<yellow>Enter target temperature (</yellow><white>"
                     + minAllowed + "°C - " + maxAllowed + "°C</white><yellow>) in chat, or type </yellow><red>'cancel'</red><yellow>:</yellow>";
             player.sendMessage(miniMessage.deserialize(promptMsg));
         }
@@ -92,9 +94,9 @@ public final class ChatPromptService implements Listener {
                     Player p = Bukkit.getPlayer(playerId);
                     if (p != null && p.isOnline()) {
                         if (messageService != null) {
-                            messageService.sendMessage(p, MessageKey.of("prompt.temperature-timeout"));
+                            messageService.sendPrefixedMessage(p, MessageKey.of("prompt.temperature-timeout"));
                         } else {
-                            p.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <gray>Temperature selection timed out.</gray>"));
+                            p.sendMessage(miniMessage.deserialize(DEFAULT_PREFIX + "<gray>Temperature selection timed out.</gray>"));
                         }
                         try {
                             p.playSound(p.getLocation(), "block.note_block.bass", 1.0f, 0.8f);
@@ -145,9 +147,9 @@ public final class ChatPromptService implements Listener {
                 session.timeoutTask().cancel();
             }
             if (messageService != null) {
-                messageService.sendMessage(player, MessageKey.of("prompt.temperature-cancelled"));
+                messageService.sendPrefixedMessage(player, MessageKey.of("prompt.temperature-cancelled"));
             } else {
-                player.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <gray>Temperature selection cancelled.</gray>"));
+                player.sendMessage(miniMessage.deserialize(DEFAULT_PREFIX + "<gray>Temperature selection cancelled.</gray>"));
             }
             try {
                 player.playSound(player.getLocation(), "block.note_block.bass", 1.0f, 0.8f);
@@ -162,9 +164,9 @@ public final class ChatPromptService implements Listener {
             double val = Double.parseDouble(trimmed);
             if (val < session.minAllowed() || val > session.maxAllowed()) {
                 if (messageService != null) {
-                    messageService.sendMessage(player, MessageKey.of("prompt.temperature-bounds"), PaperMessageService.args("min", session.minAllowed(), "max", session.maxAllowed()));
+                    messageService.sendPrefixedMessage(player, MessageKey.of("prompt.temperature-bounds"), PaperMessageService.args("min", session.minAllowed(), "max", session.maxAllowed()));
                 } else {
-                    String errorMsg = "<gold>[Croppy]</gold> <red>Temperature must be between "
+                    String errorMsg = DEFAULT_PREFIX + "<red>Temperature must be between "
                             + session.minAllowed() + "°C and " + session.maxAllowed() + "°C.</red>";
                     player.sendMessage(miniMessage.deserialize(errorMsg));
                 }
@@ -177,9 +179,9 @@ public final class ChatPromptService implements Listener {
             }
 
             if (messageService != null) {
-                messageService.sendMessage(player, MessageKey.of("prompt.temperature-success"), PaperMessageService.arg("val", val));
+                messageService.sendPrefixedMessage(player, MessageKey.of("prompt.temperature-success"), PaperMessageService.arg("val", val));
             } else {
-                String successMsg = "<gold>[Croppy]</gold> <green>Target temperature set to <aqua>" + val + "°C</aqua>!</green>";
+                String successMsg = DEFAULT_PREFIX + "<green>Target temperature set to <aqua>" + val + "°C</aqua>!</green>";
                 player.sendMessage(miniMessage.deserialize(successMsg));
             }
             try {
@@ -190,9 +192,9 @@ public final class ChatPromptService implements Listener {
             return true;
         } catch (NumberFormatException e) {
             if (messageService != null) {
-                messageService.sendMessage(player, MessageKey.of("prompt.invalid-number"));
+                messageService.sendPrefixedMessage(player, MessageKey.of("prompt.invalid-number"));
             } else {
-                player.sendMessage(miniMessage.deserialize("<gold>[Croppy]</gold> <red>Invalid number. Type a valid number or 'cancel'.</red>"));
+                player.sendMessage(miniMessage.deserialize(DEFAULT_PREFIX + "<red>Invalid number. Type a valid number or 'cancel'.</red>"));
             }
             return true;
         }
