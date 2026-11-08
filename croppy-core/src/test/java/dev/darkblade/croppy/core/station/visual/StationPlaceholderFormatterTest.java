@@ -62,4 +62,32 @@ class StationPlaceholderFormatterTest {
         assertEquals("5s", StationPlaceholderFormatter.formatRemainingTime(100));
         assertEquals("1m 15s", StationPlaceholderFormatter.formatRemainingTime(1500));
     }
+
+    @Test
+    void testExtendedPlaceholders() {
+        String template = "{phase_name} ({phase_index}/{phase_total}) [{progress_percent}%/{progress_percent_left}% left] Ticks: {progress_ticks}/{progress_ticks_left} Sec: {progress_seconds}s/{progress_seconds_left}s State: {state} Temp: {temperature}";
+
+        String result = StationPlaceholderFormatter.format(
+                template,
+                "Soup",
+                "<red>Soup</red>",
+                0.4f,
+                95.0,
+                "BOIL",
+                "Working",
+                120L, // 6s remaining
+                80L,  // 4s elapsed
+                "Boiling",
+                2,
+                3,
+                "RUNNING"
+        );
+
+        assertTrue(result.contains("Boiling (2/3)"));
+        assertTrue(result.contains("[40%/60% left]"));
+        assertTrue(result.contains("Ticks: 80/120"));
+        assertTrue(result.contains("Sec: 4s/6s"));
+        assertTrue(result.contains("State: RUNNING"));
+        assertTrue(result.contains("Temp: 95.0"));
+    }
 }

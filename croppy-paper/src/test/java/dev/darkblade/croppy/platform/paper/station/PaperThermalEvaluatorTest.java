@@ -107,4 +107,53 @@ class PaperThermalEvaluatorTest {
         assertFalse(fallbackResult.isHeated());
         assertEquals(20.0, fallbackResult.targetTemperature(), 0.001);
     }
+
+    @Test
+    @DisplayName("updateThermalState marks DisplayComponent dirty when temperature changes")
+    void testThermalConvergenceMarksDisplayDirty() {
+        BlockPosition potPos = new BlockPosition("world", 10, 65, 10);
+        StationDefinition potDef = new StationDefinition(
+                Key.of("croppy", "cooking_pot"),
+                "Cooking Pot",
+                "minecraft:player_head",
+                StationInteractionType.HYBRID,
+                6, 2, true, List.of(), Map.of("thermal", "true")
+        );
+        DefaultStationInstance pot = new DefaultStationInstance(potDef.key(), potPos, potDef);
+        dev.darkblade.croppy.core.station.component.DefaultThermalComponent thermal =
+                new dev.darkblade.croppy.core.station.component.DefaultThermalComponent(20.0, 20.0, false);
+        dev.darkblade.croppy.core.station.component.DefaultDisplayComponent display =
+                new dev.darkblade.croppy.core.station.component.DefaultDisplayComponent();
+        display.setDirty(false);
+
+        pot.setComponent(dev.darkblade.croppy.api.station.component.ThermalComponent.class, thermal);
+        pot.setComponent(dev.darkblade.croppy.api.station.component.DisplayComponent.class, display);
+
+        BlockPosition stovePos = new BlockPosition("world", 10, 64, 10);
+        StationDefinition stoveDef = new StationDefinition(
+                Key.of("croppy", "stove"),
+                "Stove",
+                "minecraft:smoker",
+                StationInteractionType.HYBRID,
+                1, 0, true, List.of(), Map.of("heat_source", "true")
+        );
+        DefaultStationInstance stove = new DefaultStationInstance(stoveDef.key(), stovePos, stoveDef);
+        DefaultHeatSourceComponent heatComp = new DefaultHeatSourceComponent(
+                true, 100.0, 100.0, 1000L, 1000L, 20.0, 350.0, 5.0, 2.0, 1.0
+        );
+        stove.setComponent(HeatSourceComponent.class, heatComp);
+
+        PaperThermalEvaluator evaluatorWithStations = new PaperThermalEvaluator(pos -> {
+            if (pos.equals(stovePos)) {
+                return Optional.of(stove);
+            }
+            return Optional.empty();
+        });
+
+        assertFalse(display.isDirty());
+        evaluatorWithStations.updateThermalState(pot, null, 5.0);
+
+        assertTrue(thermal.getTemperature() > 20.0);
+        assertTrue(display.isDirty(), "DisplayComponent must be marked dirty when thermal state converges");
+    }
 }

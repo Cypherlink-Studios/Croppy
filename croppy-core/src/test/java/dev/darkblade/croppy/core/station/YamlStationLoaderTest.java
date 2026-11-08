@@ -213,6 +213,31 @@ class YamlStationLoaderTest {
         assertEquals(8, text.viewDistance());
         assertEquals("<yellow>{recipe_name}</yellow>", text.format());
         assertEquals(dev.darkblade.croppy.api.station.visual.BillboardMode.CENTER, text.billboard());
+        assertFalse(text.hideWhenIdle());
+    }
+
+    @Test
+    void testLoadVisualTextDisplayHideWhenIdle() {
+        String yaml = """
+                id: "croppy:cooking_pot"
+                name: "<gold>Pot</gold>"
+                block: "minecraft:player_head"
+                has_display: true
+                visual:
+                  text_display:
+                    enabled: true
+                    hide_when_idle: true
+                    format: "<gold>{recipe_name}</gold>"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        StationDefinition def = loader.load(in, "cooking_pot.yml");
+
+        assertTrue(def.getVisualDefinition().isPresent());
+        var visual = def.getVisualDefinition().get();
+        assertTrue(visual.getTextDisplay().isPresent());
+        assertTrue(visual.getTextDisplay().get().hideWhenIdle());
+        assertEquals("<gold>{recipe_name}</gold>", visual.getTextDisplay().get().format());
     }
 
     @Test

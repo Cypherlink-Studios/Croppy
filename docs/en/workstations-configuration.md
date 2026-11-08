@@ -61,6 +61,7 @@ visual:
     billboard: "CENTER"
     view_distance: 8
     line_width: 220
+    hide_when_idle: true
     format: |
       <gradient:#ffaa00:#ff5555><bold>{recipe_name}</bold></gradient>
       {progress_bar} <white>{progress_percent}%</white>
@@ -151,6 +152,8 @@ properties:
 | `visual.text_display.enabled` | Boolean | `false` | Enables floating billboard text display. |
 | `visual.text_display.translation` | Float Array | `[0, 1.2, 0]` | Hologram height offset above the workstation. |
 | `visual.text_display.billboard` | Enum | `CENTER` | Rotation behavior: `CENTER` (faces player), `FIXED`, `VERTICAL`, `HORIZONTAL`. |
+| `visual.text_display.line_width` | Integer | `200` | Maximum line width before client-side text wrapping occurs. |
+| `visual.text_display.hide_when_idle` | Boolean | `false` | Dynamically culls the floating text display when cold (<= 25°C), empty, and inactive to eliminate visual clutter. |
 | `visual.text_display.format` | String | — | Multiline MiniMessage template with dynamic placeholders. |
 | `visual.hide_base_block` | Boolean | `false` | Masks the physical base block in the world with client-side barrier packets to prevent visual interference with 3D displays. |
 | `visual.interaction.width` | Float | `0.8` | Bounding box width for the client-side virtual `INTERACTION` entity. |
@@ -164,12 +167,24 @@ The `visual.text_display.format` template supports the following live placeholde
 
 | Placeholder | Replaced Value | Example Output |
 |---|---|---|
-| `{recipe_name}` | Display name of the active recipe | `Tomato Soup` |
+| `{recipe_name}` | Display name of the active recipe (or `Idle` fallback) | `Tomato Soup` |
+| `{recipe_display}` | Formatted recipe display name or default fallback | `<yellow>Tomato Soup</yellow>` |
 | `{progress_bar}` | Visual color-coded progress indicator | `■■■■■□□□□□` |
-| `{progress_percent}` | Numeric cooking completion percentage | `65` |
-| `{temperature_c}` | Surface temperature in Celsius | `115.4` |
-| `{thermal_zone}` | Current thermodynamic classification | `Simmering` (Warm, Medium, Boiling, Scorching) |
-| `{state}` | High-level station status | `COOKING`, `IDLE`, `OVERCOOKING` |
+| `{progress_percent}` | Numeric cooking completion percentage (`0-100`) | `65` |
+| `{progress_percent_left}` | Remaining completion percentage (`100-0`) | `35` |
+| `{progress_seconds}` | Elapsed process time in whole seconds | `12` |
+| `{progress_seconds_left}` | Remaining process countdown in seconds | `8` |
+| `{progress_ticks}` | Elapsed process duration in ticks | `240` |
+| `{progress_ticks_left}` | Remaining process duration in ticks | `160` |
+| `{time_remaining}` | Human-readable remaining countdown string | `8s` / `1m 20s` |
+| `{temperature_c}` | Surface temperature in Celsius with degree symbol | `115.4°C` |
+| `{temperature}` | Plain numeric surface temperature without unit | `115.4` |
+| `{thermal_zone}` | Current thermodynamic classification | `SIMMERING` (NONE, WARM, MEDIUM, BOILING, SCORCHING) |
+| `{phase_name}` | Name of the active sequential process phase | `Searing` |
+| `{phase_index}` | 1-based index of the current process phase | `1` |
+| `{phase_total}` | Total number of phases in the sequential recipe | `3` |
+| `{status_message}` | Contextual diagnostic or error feedback message | `Missing Heat Source` |
+| `{state}` | High-level station status | `COOKING`, `IDLE`, `HEATING`, `PAUSED`, `COMPLETED`, `FAILED`, `OVERCOOKING` |
 
 ---
 

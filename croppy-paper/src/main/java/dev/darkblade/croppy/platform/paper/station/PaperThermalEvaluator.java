@@ -1,8 +1,10 @@
 package dev.darkblade.croppy.platform.paper.station;
 
 import dev.darkblade.croppy.api.station.StationInstance;
+import dev.darkblade.croppy.api.station.component.DisplayComponent;
 import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
+import dev.darkblade.croppy.api.station.component.ThermalZone;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import org.bukkit.Material;
@@ -152,9 +154,6 @@ public final class PaperThermalEvaluator {
      */
     public void updateThermalState(StationInstance station, World world, double step) {
         Objects.requireNonNull(station, "station cannot be null");
-        if (world == null) {
-            return;
-        }
 
         Optional<ThermalComponent> thermalOpt = station.getComponent(ThermalComponent.class);
         if (thermalOpt.isEmpty()) {
@@ -163,12 +162,25 @@ public final class PaperThermalEvaluator {
 
         BlockPosition pos = station.getPosition();
         BlockPosition posBelow = new BlockPosition(pos.worldName(), pos.x(), pos.y() - 1, pos.z());
-        Block blockBelow = world.getBlockAt(pos.x(), pos.y() - 1, pos.z());
+        Block blockBelow = (world != null) ? world.getBlockAt(pos.x(), pos.y() - 1, pos.z()) : null;
         HeatSourceResult result = evaluateHeatSource(posBelow, blockBelow);
 
         ThermalComponent thermal = thermalOpt.get();
+        double oldTemp = thermal.getTemperature();
+        ThermalZone oldZone = thermal.getThermalZone();
+
         thermal.setHeated(result.isHeated());
         thermal.setTargetTemperature(result.targetTemperature());
         thermal.converge(step);
+
+        double newTemp = thermal.getTemperature();
+        ThermalZone newZone = thermal.getThermalZone();
+
+        if (Math.abs(newTemp - oldTemp) >= 0.5 || oldZone != newZone) {
+            station.getComponent(DisplayComponent.class).ifPresent(d -> {
+                d.setThermalZone(newZone.name());
+                d.setDirty(true);
+            });
+        }
     }
 }

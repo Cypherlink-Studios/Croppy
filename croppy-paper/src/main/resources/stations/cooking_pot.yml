@@ -17,6 +17,7 @@ visual:
     interpolation_duration: 3
   text_display:
     enabled: true
+    hide_when_idle: true
     translation: [0.0, 1.35, 0.0]
     billboard: "CENTER"
     view_distance: 8

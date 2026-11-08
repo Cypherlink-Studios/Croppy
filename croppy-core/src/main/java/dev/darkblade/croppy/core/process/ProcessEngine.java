@@ -345,6 +345,7 @@ public final class ProcessEngine implements Service {
                 display.setDisplayedItem(def.defaultResultItem());
             }
             display.setStatusText("<green>Output Ready</green>");
+            display.setProgress(1.0f);
             display.setDirty(true);
         }
     }
@@ -366,6 +367,7 @@ public final class ProcessEngine implements Service {
 
         station.getComponent(DisplayComponent.class).ifPresent(display -> {
             display.setStatusText("<red>Process Failed</red>");
+            display.setProgress(0.0f);
             display.setDirty(true);
         });
     }
@@ -379,6 +381,9 @@ public final class ProcessEngine implements Service {
         DisplayComponent display = displayOpt.get();
         String formatted = displayFormatter.format(phase, def, instance, context);
         display.setStatusText(formatted);
+        long targetTicks = phase.durationTicks() > 0 ? phase.durationTicks() : phase.timeoutTicks();
+        float fraction = targetTicks > 0 ? Math.min(1.0f, (float) instance.getPhaseElapsedTicks() / targetTicks) : 1.0f;
+        display.setProgress(fraction);
         display.setDirty(true);
     }
 
@@ -391,6 +396,9 @@ public final class ProcessEngine implements Service {
         DisplayComponent display = displayOpt.get();
         String formatted = displayFormatter.format(phase, def, instance, context);
         display.setStatusText("<yellow>Paused: </yellow>" + formatted);
+        long targetTicks = phase.durationTicks() > 0 ? phase.durationTicks() : phase.timeoutTicks();
+        float fraction = targetTicks > 0 ? Math.min(1.0f, (float) instance.getPhaseElapsedTicks() / targetTicks) : 0.0f;
+        display.setProgress(fraction);
         display.setDirty(true);
     }
 

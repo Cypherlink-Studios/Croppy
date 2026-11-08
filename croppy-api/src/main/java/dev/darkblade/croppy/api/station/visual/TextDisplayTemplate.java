@@ -12,6 +12,7 @@ package dev.darkblade.croppy.api.station.visual;
  * @param backgroundColor text background ARGB color (0 for default transparent)
  * @param seeThrough      whether text is visible through solid blocks
  * @param textShadow      whether text renders with a drop shadow
+ * @param hideWhenIdle    whether the hologram is dynamically culled when the station is cold, empty, and idle
  */
 public record TextDisplayTemplate(
         boolean enabled,
@@ -22,7 +23,8 @@ public record TextDisplayTemplate(
         int lineWidth,
         int backgroundColor,
         boolean seeThrough,
-        boolean textShadow
+        boolean textShadow,
+        boolean hideWhenIdle
 ) {
 
     public static final String DEFAULT_FORMAT = "<yellow><bold>{recipe_name}</bold></yellow>\n{progress_bar} <white>{progress_percent}%</white>";
@@ -35,7 +37,21 @@ public record TextDisplayTemplate(
         lineWidth = (lineWidth <= 0) ? 200 : lineWidth;
     }
 
+    public TextDisplayTemplate(
+            boolean enabled,
+            String format,
+            DisplayTransform transform,
+            BillboardMode billboard,
+            int viewDistance,
+            int lineWidth,
+            int backgroundColor,
+            boolean seeThrough,
+            boolean textShadow
+    ) {
+        this(enabled, format, transform, billboard, viewDistance, lineWidth, backgroundColor, seeThrough, textShadow, false);
+    }
+
     public static TextDisplayTemplate disabled() {
-        return new TextDisplayTemplate(false, "", DisplayTransform.DEFAULT, BillboardMode.CENTER, 8, 200, 0, false, true);
+        return new TextDisplayTemplate(false, "", DisplayTransform.DEFAULT, BillboardMode.CENTER, 8, 200, 0, false, true, false);
     }
 }

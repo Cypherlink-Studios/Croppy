@@ -94,6 +94,8 @@ class ProcessEngineTest {
         engine.tick(station, 30, EvaluationContext.empty());
         assertEquals(0, pi.getCurrentPhaseIndex());
         assertEquals(30, pi.getPhaseElapsedTicks());
+        DisplayComponent display = station.getComponent(DisplayComponent.class).orElseThrow();
+        assertEquals(0.6f, display.getProgress(), 0.001f);
 
         // Tick 25 ticks (total 55 >= 50, phase 1 advances to phase 2)
         engine.tick(station, 25, EvaluationContext.empty());
@@ -103,6 +105,7 @@ class ProcessEngineTest {
         // Tick 50 ticks (phase 2 finishes, process completes)
         engine.tick(station, 50, EvaluationContext.empty());
         assertEquals(ProcessState.COMPLETED, pi.getState());
+        assertEquals(1.0f, display.getProgress(), 0.001f);
 
         // Verify output produced with quality
         List<StoredItem> outputs = storage.getOutputs();

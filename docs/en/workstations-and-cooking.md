@@ -46,7 +46,7 @@ Unlike traditional plugins that spawn live Armor Stands or Minecraft entities (w
   * Dish Name (`{recipe_name}`)
   * Animated Progress Bar (`{progress_bar}`) & Percentage (`{progress_percent}%`)
   * Current Temperature (`{temperature_c}`) and Active Thermal Zone (`{thermal_zone}`)
-* **Distance Culling**: Virtual displays automatically cull outside their configured view distance (`8-24 blocks`), keeping client FPS silky smooth.
+* **Distance & Idle Culling**: Virtual displays automatically cull outside their configured view distance (`8-24 blocks`). When `hide_when_idle: true` is configured, text holograms automatically despawn completely when stations are cold (<= 25°C), empty, and inactive, eliminating visual clutter in large kitchens while respawning instantaneously upon item insertion or heating.
 
 ---
 

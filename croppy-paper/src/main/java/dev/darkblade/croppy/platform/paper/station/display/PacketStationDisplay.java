@@ -32,6 +32,7 @@ public final class PacketStationDisplay {
     private final UUID interactionUuid;
 
     private final Map<VisualTier, Set<UUID>> tierViewers = new ConcurrentHashMap<>();
+    private volatile net.kyori.adventure.text.Component lastRenderedText;
 
     public PacketStationDisplay(StationInstance station) {
         this.station = Objects.requireNonNull(station, "station cannot be null");
@@ -126,5 +127,14 @@ public final class PacketStationDisplay {
         for (Set<UUID> viewers : tierViewers.values()) {
             viewers.clear();
         }
+        this.lastRenderedText = null;
+    }
+
+    public net.kyori.adventure.text.Component getLastRenderedText() {
+        return lastRenderedText;
+    }
+
+    public void setLastRenderedText(net.kyori.adventure.text.Component lastRenderedText) {
+        this.lastRenderedText = lastRenderedText;
     }
 }

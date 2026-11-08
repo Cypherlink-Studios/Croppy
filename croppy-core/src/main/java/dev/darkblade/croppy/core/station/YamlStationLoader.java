@@ -291,8 +291,9 @@ public final class YamlStationLoader {
         int backgroundColor = getInt(map, "background_color", 0);
         boolean seeThrough = getBoolean(map, "see_through", false);
         boolean textShadow = getBoolean(map, "text_shadow", true);
+        boolean hideWhenIdle = getBoolean(map, "hide_when_idle", false);
 
-        return new TextDisplayTemplate(enabled, format, transform, billboard, viewDistance, lineWidth, backgroundColor, seeThrough, textShadow);
+        return new TextDisplayTemplate(enabled, format, transform, billboard, viewDistance, lineWidth, backgroundColor, seeThrough, textShadow, hideWhenIdle);
     }
 
     private DisplayTransform parseTransform(Map<String, Object> map) {

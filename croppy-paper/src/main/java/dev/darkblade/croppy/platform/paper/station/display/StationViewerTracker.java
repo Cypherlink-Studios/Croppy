@@ -2,11 +2,15 @@ package dev.darkblade.croppy.platform.paper.station.display;
 
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.process.PhaseDefinition;
+import dev.darkblade.croppy.api.process.ProcessDefinition;
 import dev.darkblade.croppy.api.process.ProcessInstance;
+import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.process.ProcessState;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
+import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.station.visual.BillboardMode;
 import dev.darkblade.croppy.api.station.visual.DisplayLayerConfig;
@@ -48,14 +52,20 @@ public class StationViewerTracker {
     private final ItemFactory itemFactory;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final Logger logger;
+    private final ProcessRegistry processRegistry;
 
     private final Map<BlockPosition, PacketStationDisplay> activeDisplays = new ConcurrentHashMap<>();
 
-    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger) {
+    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger, ProcessRegistry processRegistry) {
         this.server = Objects.requireNonNull(server, "server cannot be null");
         this.renderer = Objects.requireNonNull(renderer, "renderer cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.processRegistry = processRegistry;
+    }
+
+    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger) {
+        this(server, renderer, itemFactory, logger, null);
     }
 
     public PacketStationDisplay getOrCreateDisplay(StationInstance station) {
@@ -108,15 +118,62 @@ public class StationViewerTracker {
             temp = thermalOpt.get().getTemperature();
         }
 
+        // Storage info
+        boolean hasInputs = false;
+        boolean hasOutputs = false;
+        Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+        if (storageOpt.isPresent()) {
+            hasInputs = !storageOpt.get().getInputs().isEmpty();
+            hasOutputs = !storageOpt.get().getOutputs().isEmpty();
+        }
+
         // Process info
         float progress = displayComp.getProgress();
         long remainingTicks = -1;
+        long elapsedTicks = -1;
         String recipeName = null;
         String recipeDisplay = null;
-        if (process != null && (process.getState() == ProcessState.RUNNING || process.getState() == ProcessState.AWAITING_INPUT)) {
+        String phaseName = null;
+        int phaseIndex = 1;
+        int phaseTotal = 1;
+        String stateStr = "IDLE";
+
+        boolean hasProcess = process != null;
+        ProcessState pState = hasProcess ? process.getState() : ProcessState.IDLE;
+
+        if (hasProcess && (pState == ProcessState.RUNNING || pState == ProcessState.AWAITING_INPUT)) {
+            stateStr = pState.name();
             recipeName = process.getProcessKey().value();
             recipeDisplay = process.getProcessKey().asString();
-            remainingTicks = process.getPhaseElapsedTicks();
+            elapsedTicks = process.getPhaseElapsedTicks();
+
+            Optional<ProcessDefinition> defOpt = (processRegistry != null)
+                    ? processRegistry.get(process.getProcessKey())
+                    : Optional.empty();
+            if (defOpt.isPresent()) {
+                ProcessDefinition pDef = defOpt.get();
+                recipeDisplay = pDef.displayName();
+                phaseTotal = pDef.phases().size();
+                int idx = process.getCurrentPhaseIndex();
+                phaseIndex = idx + 1;
+                if (idx < pDef.phases().size()) {
+                    PhaseDefinition phaseDef = pDef.phases().get(idx);
+                    phaseName = (phaseDef.properties() != null && phaseDef.properties().containsKey("name"))
+                            ? phaseDef.properties().get("name")
+                            : phaseDef.id();
+                    long targetTicks = phaseDef.durationTicks() > 0 ? phaseDef.durationTicks() : phaseDef.timeoutTicks();
+                    if (targetTicks > 0) {
+                        remainingTicks = Math.max(0, targetTicks - elapsedTicks);
+                    }
+                }
+            }
+        } else if (hasProcess && pState == ProcessState.COMPLETED) {
+            stateStr = "COMPLETED";
+            recipeName = process.getProcessKey().value();
+            recipeDisplay = process.getProcessKey().asString();
+        } else {
+            recipeName = def.displayName();
+            recipeDisplay = def.displayName();
         }
 
         // Displayed Item
@@ -127,17 +184,84 @@ public class StationViewerTracker {
         TextDisplayTemplate textTemplate = visual.getTextDisplay().orElse(null);
         Component textComponent = null;
         if (textTemplate != null && textTemplate.enabled()) {
-            String rawText = StationPlaceholderFormatter.format(
-                    textTemplate.format(),
-                    recipeName,
-                    recipeDisplay,
-                    progress,
-                    temp,
-                    thermalZone,
-                    displayComp.getStatusText(),
-                    remainingTicks
-            );
+            String rawText;
+            String statusText = displayComp.getStatusText();
+
+            if (hasProcess && (pState == ProcessState.RUNNING || pState == ProcessState.AWAITING_INPUT)) {
+                if (textTemplate.format().contains("{status_message}")) {
+                    rawText = StationPlaceholderFormatter.format(
+                            textTemplate.format(),
+                            recipeName,
+                            recipeDisplay,
+                            progress,
+                            temp,
+                            thermalZone,
+                            statusText,
+                            remainingTicks,
+                            elapsedTicks,
+                            phaseName,
+                            phaseIndex,
+                            phaseTotal,
+                            stateStr
+                    );
+                } else if (statusText != null && !statusText.isBlank()) {
+                    rawText = statusText;
+                } else {
+                    rawText = StationPlaceholderFormatter.format(
+                            textTemplate.format(),
+                            recipeName,
+                            recipeDisplay,
+                            progress,
+                            temp,
+                            thermalZone,
+                            statusText,
+                            remainingTicks,
+                            elapsedTicks,
+                            phaseName,
+                            phaseIndex,
+                            phaseTotal,
+                            stateStr
+                    );
+                }
+            } else if (hasProcess && pState == ProcessState.COMPLETED) {
+                if (statusText != null && !statusText.isBlank()) {
+                    rawText = statusText;
+                } else {
+                    rawText = "<green><bold>Cooking Complete!</bold></green>\n<gray>Ready to serve</gray>";
+                }
+            } else {
+                rawText = StationPlaceholderFormatter.format(
+                        textTemplate.format(),
+                        recipeName,
+                        recipeDisplay,
+                        progress,
+                        temp,
+                        thermalZone,
+                        statusText,
+                        remainingTicks,
+                        elapsedTicks,
+                        phaseName,
+                        phaseIndex,
+                        phaseTotal,
+                        stateStr
+                );
+            }
+
             textComponent = miniMessage.deserialize(rawText);
+        }
+
+        // Idle & Visibility Evaluation
+        boolean isCold = temp <= 25.0;
+        boolean isProcessActive = hasProcess && pState != ProcessState.IDLE;
+        boolean isIdle = !isProcessActive && !hasInputs && !hasOutputs && isCold;
+        boolean textDisplayVisible = textTemplate != null
+                && textTemplate.enabled()
+                && (!textTemplate.hideWhenIdle() || !isIdle);
+
+        Component lastRenderedText = display.getLastRenderedText();
+        boolean textChanged = !Objects.equals(lastRenderedText, textComponent);
+        if (textChanged) {
+            display.setLastRenderedText(textComponent);
         }
 
         boolean isHot = temp >= 100.0 || (thermalZone != null && (thermalZone.contains("BOIL") || thermalZone.contains("SEAR")));
@@ -199,17 +323,19 @@ public class StationViewerTracker {
             }
 
             // 3. Text Display Tier
-            if (textTemplate != null && textTemplate.enabled() && textComponent != null) {
+            if (textTemplate != null && textTemplate.enabled()) {
                 boolean inRange = distSq <= ((long) textTemplate.viewDistance() * textTemplate.viewDistance());
                 boolean viewing = display.isViewing(VisualTier.TEXT_DISPLAY, playerId);
-                if (inRange && !viewing) {
-                    display.addViewer(VisualTier.TEXT_DISPLAY, playerId);
-                    renderer.spawnTextDisplay(player, display, textTemplate, textComponent);
-                } else if (!inRange && viewing) {
+                if (inRange && textDisplayVisible && textComponent != null) {
+                    if (!viewing) {
+                        display.addViewer(VisualTier.TEXT_DISPLAY, playerId);
+                        renderer.spawnTextDisplay(player, display, textTemplate, textComponent);
+                    } else if (isDirty || textChanged) {
+                        renderer.updateTextDisplayMetadata(player, display, textTemplate, textComponent);
+                    }
+                } else if (viewing) {
                     display.removeViewer(VisualTier.TEXT_DISPLAY, playerId);
                     renderer.destroyEntities(player, display.getEntityId(VisualTier.TEXT_DISPLAY));
-                } else if (inRange && viewing && isDirty) {
-                    renderer.updateTextDisplayMetadata(player, display, textTemplate, textComponent);
                 }
             }
 

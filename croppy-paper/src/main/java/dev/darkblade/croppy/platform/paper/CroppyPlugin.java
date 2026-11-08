@@ -581,7 +581,7 @@ public class CroppyPlugin extends JavaPlugin {
         this.packetStationRenderer = new dev.darkblade.croppy.platform.paper.station.display.PacketEventsStationRenderer(
                 getLogger());
         this.stationViewerTracker = new dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker(
-                getServer(), this.packetStationRenderer, this.itemFactory, getLogger());
+                getServer(), this.packetStationRenderer, this.itemFactory, getLogger(), core.getProcessRegistry());
 
         this.stationTicker = new dev.darkblade.croppy.platform.paper.station.PaperStationTicker(
                 this,

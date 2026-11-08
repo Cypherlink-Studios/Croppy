@@ -10,6 +10,7 @@ import dev.darkblade.croppy.api.menu.SlotDefinition;
 import dev.darkblade.croppy.api.menu.SlotType;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StoredItem;
+import dev.darkblade.croppy.api.station.component.DisplayComponent;
 import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
@@ -462,6 +463,18 @@ public final class PaperMenuListener implements Listener {
                 storage.addOutput(StoredItem.of(key, outItem.getAmount()));
             }
         }
+
+        station.getComponent(DisplayComponent.class).ifPresent(display -> {
+            if (!storage.getInputs().isEmpty()) {
+                display.setDisplayedItem(storage.getInputs().get(0).itemKey());
+            } else if (!storage.getOutputs().isEmpty()) {
+                display.setDisplayedItem(storage.getOutputs().get(0).itemKey());
+            } else {
+                display.setDisplayedItem(null);
+                display.setStatusText(null);
+            }
+            display.setDirty(true);
+        });
     }
 
     private Key resolveItemKey(ItemStack item) {

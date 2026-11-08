@@ -46,7 +46,7 @@ En lugar de utilizar Armor Stands reales (que saturan el servidor y dejan entida
   * Nombre de la Receta (`{recipe_name}`)
   * Barra de Progreso animada (`{progress_bar}`) y porcentaje (`{progress_percent}%`)
   * Temperatura actual (`{temperature_c}`) y zona térmica activa (`{thermal_zone}`)
-* **Culling por Distancia**: Los displays virtuales desaparecen automáticamente fuera del rango visual configurado (`8-24 bloques`), manteniendo altos los FPS del cliente.
+* **Culling por Distancia e Inactividad**: Los displays virtuales desaparecen automáticamente fuera del rango visual configurado (`8-24 bloques`). Si se activa `hide_when_idle: true`, los hologramas de texto se desvanecen por completo cuando la estación está fría (<= 25°C), vacía e inactiva, evitando ruido visual en cocinas grandes y reapareciendo instantáneamente al calentarse o recibir ingredientes.
 
 ---
 
