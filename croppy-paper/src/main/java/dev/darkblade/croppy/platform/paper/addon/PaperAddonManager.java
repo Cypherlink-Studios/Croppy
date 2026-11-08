@@ -6,6 +6,7 @@ import dev.darkblade.croppy.api.addon.CroppyAddon;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.core.addon.AddonGraphValidator;
 import dev.darkblade.croppy.core.addon.DefaultAddonManager;
+import dev.darkblade.croppy.core.interaction.YamlInteractionLoader;
 import dev.darkblade.croppy.core.item.YamlItemLoader;
 import dev.darkblade.croppy.core.menu.YamlMenuLoader;
 import dev.darkblade.croppy.core.process.YamlProcessLoader;
@@ -313,6 +314,28 @@ public class PaperAddonManager extends DefaultAddonManager {
                 logger.log(Level.WARNING, "Error scanning addon menus directory: " + menusDir, e);
             }
         }
+
+        // 7. Load interactions
+        Path interactionsDir = root.resolve("interactions");
+        if (Files.exists(interactionsDir) && Files.isDirectory(interactionsDir)) {
+            YamlInteractionLoader interactionLoader = new YamlInteractionLoader();
+            try (Stream<Path> stream = Files.walk(interactionsDir)) {
+                for (Path file : (Iterable<Path>) stream.filter(p -> p.toString().endsWith(".yml") || p.toString().endsWith(".yaml"))::iterator) {
+                    try (InputStream in = Files.newInputStream(file)) {
+                        List<dev.darkblade.croppy.api.interaction.InteractionDefinition> interactions =
+                                interactionLoader.loadMultiple(in, file.getFileName().toString());
+                        for (dev.darkblade.croppy.api.interaction.InteractionDefinition interaction : interactions) {
+                            core.getInteractionRegistry().register(interaction);
+                            context.trackInteraction(interaction.key());
+                        }
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Failed to load interaction from " + file, e);
+                    }
+                }
+            } catch (IOException e) {
+                logger.log(Level.WARNING, "Error scanning addon interactions directory: " + interactionsDir, e);
+            }
+        }
     }
 
     private void loadJarContent(PaperAddonContext context, Path jarPath) {
@@ -322,6 +345,7 @@ public class PaperAddonManager extends DefaultAddonManager {
         YamlStationLoader stationLoader = new YamlStationLoader();
         YamlProcessLoader processLoader = new YamlProcessLoader();
         YamlMenuLoader menuLoader = new YamlMenuLoader();
+        YamlInteractionLoader interactionLoader = new YamlInteractionLoader();
 
         try (JarFile jar = new JarFile(jarPath.toFile())) {
             Enumeration<JarEntry> entries = jar.entries();
@@ -392,6 +416,19 @@ public class PaperAddonManager extends DefaultAddonManager {
                         context.trackMenu(menu.getKey());
                     } catch (Exception e) {
                         logger.log(Level.WARNING, "Failed to load menu from " + name + " in " + jarPath.getFileName(), e);
+                    }
+                }
+                // 7. Interactions
+                else if (name.startsWith("interactions/")) {
+                    try (InputStream in = jar.getInputStream(entry)) {
+                        List<dev.darkblade.croppy.api.interaction.InteractionDefinition> interactions =
+                                interactionLoader.loadMultiple(in, name);
+                        for (dev.darkblade.croppy.api.interaction.InteractionDefinition interaction : interactions) {
+                            core.getInteractionRegistry().register(interaction);
+                            context.trackInteraction(interaction.key());
+                        }
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Failed to load interaction from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
             }

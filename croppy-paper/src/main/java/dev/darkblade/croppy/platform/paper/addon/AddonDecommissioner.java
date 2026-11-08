@@ -95,6 +95,11 @@ public final class AddonDecommissioner {
                     core.getMenuRegistry().unregister(key);
                 }
             }
+            if (core.getInteractionRegistry() != null) {
+                for (Key key : context.getRegisteredInteractions()) {
+                    core.getInteractionRegistry().unregister(key);
+                }
+            }
         }
 
         // Phase 5: ClassLoader Severing (Unload only)

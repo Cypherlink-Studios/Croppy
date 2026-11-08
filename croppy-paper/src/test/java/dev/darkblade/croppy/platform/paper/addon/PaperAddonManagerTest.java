@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -44,11 +45,13 @@ class PaperAddonManagerTest {
         assertEquals(1, context.getRegisteredItems().size());
         assertEquals(1, context.getRegisteredRecipes().size());
         assertEquals(1, context.getRegisteredMenus().size());
+        assertEquals(1, context.getRegisteredInteractions().size());
 
         assertTrue(core.getSpeciesRegistry().get(Key.of("mock_addon", "star_berry")).isPresent());
         assertTrue(core.getItemRegistry().get(Key.of("mock_addon", "star_fruit")).isPresent());
         assertTrue(core.getRecipeRegistry().get(Key.of("mock_addon", "star_juice")).isPresent());
         assertTrue(core.getMenuRegistry().get(Key.of("mock_addon", "custom_menu")).isPresent());
+        assertTrue(core.getInteractionRegistry().get(Key.of("mock_addon", "stir_pot")).isPresent());
 
         // Test configuration extraction and reading
         context.saveDefaultConfig();
@@ -107,13 +110,14 @@ class PaperAddonManagerTest {
     }
 
     @Test
-    @DisplayName("PaperAddonManager loads menus from unpacked directory addon and purges them on disable")
+    @DisplayName("PaperAddonManager loads menus and interactions from unpacked directory addon and purges them on disable")
     void testLoadDirectoryAddonMenus() throws IOException {
         Path addonsDir = tempDir.resolve("addons_dir");
         Files.createDirectories(addonsDir);
 
         Path dirAddon = addonsDir.resolve("dir-addon");
         Files.createDirectories(dirAddon.resolve("menus"));
+        Files.createDirectories(dirAddon.resolve("interactions"));
 
         String manifest = """
                 id: "dir-addon"
@@ -138,6 +142,16 @@ class PaperAddonManagerTest {
                 """;
         Files.writeString(dirAddon.resolve("menus/station_menu.yml"), menuYaml, StandardCharsets.UTF_8);
 
+        String interactionYaml = """
+                id: "dir_addon:harvest_grape"
+                crop: "croppy:grapes"
+                trigger: "RIGHT_CLICK"
+                priority: 15
+                actions:
+                  - type: "HARVEST_CROP"
+                """;
+        Files.writeString(dirAddon.resolve("interactions/harvest_grape.yml"), interactionYaml, StandardCharsets.UTF_8);
+
         CroppyCore core = new CroppyCore();
         core.initialize();
 
@@ -148,21 +162,59 @@ class PaperAddonManagerTest {
 
         PaperAddonContext context = manager.getContext("dir-addon").orElseThrow();
         assertEquals(1, context.getRegisteredMenus().size());
+        assertEquals(1, context.getRegisteredInteractions().size());
         assertTrue(core.getMenuRegistry().get(Key.of("dir_addon", "station_menu")).isPresent());
+        assertTrue(core.getInteractionRegistry().get(Key.of("dir_addon", "harvest_grape")).isPresent());
 
-        // When disabled, menus must be purged from registry
+        // When disabled, menus and interactions must be purged from registry
         assertTrue(manager.disableAddon("dir-addon"));
         assertFalse(core.getMenuRegistry().contains(Key.of("dir_addon", "station_menu")));
+        assertFalse(core.getInteractionRegistry().contains(Key.of("dir_addon", "harvest_grape")));
+    }
+
+    @Test
+    @DisplayName("Invalid interaction YAML file is skipped gracefully during addon load")
+    void testInvalidInteractionSkippedGracefully() throws IOException {
+        Path addonsDir = tempDir.resolve("addons_invalid_interaction");
+        Files.createDirectories(addonsDir);
+
+        Path dirAddon = addonsDir.resolve("invalid-addon");
+        Files.createDirectories(dirAddon.resolve("interactions"));
+
+        String manifest = """
+                id: "invalid-addon"
+                name: "Invalid Addon"
+                version: "1.0.0"
+                namespace: "invalid_addon"
+                """;
+        Files.writeString(dirAddon.resolve("addon.yml"), manifest, StandardCharsets.UTF_8);
+
+        // Missing required 'id' and 'trigger'
+        String brokenYaml = """
+                priority: 10
+                actions:
+                  - type: "NONE"
+                """;
+        Files.writeString(dirAddon.resolve("interactions/broken.yml"), brokenYaml, StandardCharsets.UTF_8);
+
+        CroppyCore core = new CroppyCore();
+        core.initialize();
+
+        PaperAddonManager manager = new PaperAddonManager(null, core, addonsDir, null);
+        manager.discoverAddons();
+
+        // Should still enable without throwing uncaught exceptions
+        assertTrue(manager.enableAddon("invalid-addon"));
+        PaperAddonContext context = manager.getContext("invalid-addon").orElseThrow();
+        assertEquals(0, context.getRegisteredInteractions().size());
     }
 
     @Test
     @DisplayName("Verify croppy_coffee addon station menus parse and validate successfully")
     void testCroppyCoffeeStationMenus() {
-        Path coffeeResources = Path.of("..", "Croppy-addons", "addons", "coffee", "src", "main", "resources", "menus");
-        if (!Files.exists(coffeeResources)) {
-            coffeeResources = Path.of("C:\\Users\\antua\\OneDrive\\Documentos\\Programming\\JAVA\\PLUGINS\\Croppy-addons\\addons\\coffee\\src\\main\\resources\\menus");
-        }
-        if (Files.exists(coffeeResources)) {
+        Optional<Path> coffeeResourcesOpt = resolveCoffeeAddonResources("menus");
+        if (coffeeResourcesOpt.isPresent()) {
+            Path coffeeResources = coffeeResourcesOpt.get();
             dev.darkblade.croppy.core.menu.YamlMenuLoader loader = new dev.darkblade.croppy.core.menu.YamlMenuLoader();
             dev.darkblade.croppy.core.menu.DefaultMenuRegistry registry = new dev.darkblade.croppy.core.menu.DefaultMenuRegistry();
             int loaded = loader.loadAll(coffeeResources, registry, null);
@@ -185,6 +237,101 @@ class PaperAddonManagerTest {
             assertEquals(3, espresso.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.INPUT).size());
             assertEquals(1, espresso.getSlotsForType(dev.darkblade.croppy.api.menu.SlotType.OUTPUT).size());
         }
+    }
+
+    @Test
+    @DisplayName("Verify croppy_coffee addon interactions parse and validate successfully")
+    void testCroppyCoffeeInteractions() {
+        Optional<Path> coffeeInteractionsOpt = resolveCoffeeAddonResources("interactions");
+        if (coffeeInteractionsOpt.isPresent()) {
+            Path coffeeInteractions = coffeeInteractionsOpt.get();
+            dev.darkblade.croppy.core.interaction.YamlInteractionLoader loader = new dev.darkblade.croppy.core.interaction.YamlInteractionLoader();
+            dev.darkblade.croppy.core.interaction.DefaultInteractionRegistry registry = new dev.darkblade.croppy.core.interaction.DefaultInteractionRegistry();
+            int loaded = loader.loadAll(coffeeInteractions, registry, null);
+            assertTrue(loaded >= 15, "Expected at least 15 interactions, got: " + loaded);
+
+            // Grinder interactions
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_grinder_crank")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_grinder_serve")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_grinder_extract")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_grinder_gui")));
+
+            // Roaster interactions
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_roaster_inspect")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_roaster_serve")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_roaster_extract")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_roaster_gui")));
+
+            // Espresso machine interactions
+            assertTrue(registry.contains(Key.of("croppy_coffee", "espresso_machine_inspect")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "espresso_machine_serve")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "espresso_machine_extract")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "espresso_machine_gui")));
+
+            // Crop interactions
+            assertTrue(registry.contains(Key.of("croppy_coffee", "harvest_coffee_cherries")));
+            assertTrue(registry.contains(Key.of("croppy_coffee", "dismantle_coffee_bush")));
+        }
+    }
+
+    @Test
+    @DisplayName("Verify croppy_coffee addon full progression recipes and processes cycle")
+    void testCroppyCoffeeRecipesAndProcessesCycle() {
+        Optional<Path> recipesOpt = resolveCoffeeAddonResources("recipes");
+        Optional<Path> processesOpt = resolveCoffeeAddonResources("processes");
+
+        if (recipesOpt.isPresent() && processesOpt.isPresent()) {
+            Path coffeeRecipesDir = recipesOpt.get();
+            Path coffeeProcessesDir = processesOpt.get();
+
+            dev.darkblade.croppy.core.recipe.YamlRecipeLoader recipeLoader = new dev.darkblade.croppy.core.recipe.YamlRecipeLoader();
+            dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry recipeRegistry = new dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry();
+            int recipesLoaded = recipeLoader.loadAll(coffeeRecipesDir, recipeRegistry, java.util.logging.Logger.getLogger("Test"));
+            assertEquals(13, recipesLoaded);
+
+            dev.darkblade.croppy.core.process.YamlProcessLoader processLoader = new dev.darkblade.croppy.core.process.YamlProcessLoader();
+            dev.darkblade.croppy.core.process.DefaultProcessRegistry processRegistry = new dev.darkblade.croppy.core.process.DefaultProcessRegistry();
+            int processesLoaded = processLoader.loadAll(coffeeProcessesDir, processRegistry, java.util.logging.Logger.getLogger("Test"));
+            assertEquals(11, processesLoaded);
+
+            // Verify every recipe has a corresponding registered process definition
+            for (var recipe : recipeRegistry.values()) {
+                assertTrue(processRegistry.contains(recipe.processKey()),
+                        "Recipe " + recipe.key() + " references missing process: " + recipe.processKey());
+            }
+
+            // Verify the coffee gameplay cycle components
+            assertTrue(recipeRegistry.contains(Key.of("croppy_coffee", "coffee_seed_depulping")));
+            assertTrue(recipeRegistry.contains(Key.of("croppy_coffee", "coffee_sapling_cultivation")));
+            assertTrue(recipeRegistry.contains(Key.of("croppy_coffee", "coffee_grinding_light")));
+            assertTrue(recipeRegistry.contains(Key.of("croppy_coffee", "coffee_grinding_dark")));
+            assertTrue(recipeRegistry.contains(Key.of("croppy_coffee", "coffee_grinding")));
+            assertTrue(recipeRegistry.contains(Key.of("croppy_coffee", "espresso_extraction")));
+            assertTrue(recipeRegistry.contains(Key.of("croppy_coffee", "latte_blending")));
+            assertTrue(recipeRegistry.contains(Key.of("croppy_coffee", "cappuccino_blending")));
+        }
+    }
+
+    private Optional<Path> resolveCoffeeAddonResources(String subdir) {
+        String customBase = System.getProperty("croppy.addons.path", System.getenv("CROPPY_ADDONS_PATH"));
+        if (customBase != null && !customBase.isBlank()) {
+            Path customPath = Path.of(customBase, "addons", "coffee", "src", "main", "resources", subdir);
+            if (Files.exists(customPath)) {
+                return Optional.of(customPath);
+            }
+        }
+
+        Path fromRoot = Path.of("..", "Croppy-addons", "addons", "coffee", "src", "main", "resources", subdir);
+        if (Files.exists(fromRoot)) {
+            return Optional.of(fromRoot);
+        }
+
+        Path fromSubmodule = Path.of("..", "..", "Croppy-addons", "addons", "coffee", "src", "main", "resources", subdir);
+        if (Files.exists(fromSubmodule)) {
+            return Optional.of(fromSubmodule);
+        }
+
+        return Optional.empty();
     }
 
     private void createTestAddonJar(Path jarFile) throws IOException {
@@ -271,6 +418,21 @@ class PaperAddonManagerTest {
                     """;
             zos.putNextEntry(new ZipEntry("menus/custom_menu.yml"));
             zos.write(menuYaml.getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+
+            // interactions/stir_pot.yml
+            String interactionYaml = """
+                    id: "mock_addon:stir_pot"
+                    station: "croppy:cooking_pot"
+                    trigger: "RIGHT_CLICK"
+                    match_item: "mock_addon:star_fruit"
+                    priority: 50
+                    actions:
+                      - type: "ADVANCE_PROGRESS"
+                        ticks: 20
+                    """;
+            zos.putNextEntry(new ZipEntry("interactions/stir_pot.yml"));
+            zos.write(interactionYaml.getBytes(StandardCharsets.UTF_8));
             zos.closeEntry();
         }
     }

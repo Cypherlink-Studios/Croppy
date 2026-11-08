@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.5.12"
+    releaseDate: "2026-11-08"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added declarative interaction discovery (interactions/*.yml and nested paths) for directory and JAR addons, tracked InteractionDefinition keys in PaperAddonContext, and leak-proof unregistration in AddonDecommissioner Phase 4."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.5.11"
     releaseDate: "2026-11-07"
-    reference: "main"
+    reference: "970d6d6"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Fixed and perfected dynamic station text display holograms: connected ProcessEngine progress fraction and remaining time countdown, added visual state machine hierarchy, thermal convergence dirty flagging, packet metadata caching, and hide_when_idle culling."
     minecraft:

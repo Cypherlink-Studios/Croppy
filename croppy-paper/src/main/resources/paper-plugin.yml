@@ -1,5 +1,5 @@
 name: Croppy
-version: "0.5.11"
+version: "0.5.12"
 main: dev.darkblade.croppy.platform.paper.CroppyPlugin
 api-version: "1.21"
 description: Configurable agriculture, ingredients, processing and cooking ecosystem for Minecraft Paper servers.

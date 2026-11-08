@@ -73,6 +73,22 @@ class AddonDecommissionerTest {
         core.getMenuRegistry().register(menu);
         context.trackMenu(menuKey);
 
+        Key interactionKey = Key.of("test_addon", "click_station");
+        dev.darkblade.croppy.api.interaction.InteractionDefinition interaction = new dev.darkblade.croppy.api.interaction.InteractionDefinition(
+                interactionKey,
+                Optional.empty(),
+                Optional.empty(),
+                dev.darkblade.croppy.api.interaction.InteractionTrigger.RIGHT_CLICK,
+                Optional.empty(),
+                Optional.empty(),
+                false,
+                List.of(),
+                List.of(),
+                10
+        );
+        core.getInteractionRegistry().register(interaction);
+        context.trackInteraction(interactionKey);
+
         GrowthModifier modifier = ctx -> 1.5;
         core.getGrowthEngine().addModifier(modifier);
         context.trackGrowthModifier(modifier);
@@ -103,6 +119,7 @@ class AddonDecommissionerTest {
         assertFalse(core.getItemRegistry().contains(itemKey));
         assertFalse(core.getSpeciesRegistry().contains(speciesKey));
         assertFalse(core.getMenuRegistry().contains(menuKey));
+        assertFalse(core.getInteractionRegistry().contains(interactionKey));
 
         // Phase 5 verification: classloader closed
         assertTrue(classLoader.getDependencyLoaders().isEmpty());
