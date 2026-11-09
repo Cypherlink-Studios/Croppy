@@ -10,6 +10,7 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeCategory;
+import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.species.Species;
@@ -38,6 +39,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.Default;
@@ -48,6 +50,7 @@ import org.incendo.cloud.context.CommandContext;
 import org.incendo.cloud.context.CommandInput;
 import org.incendo.cloud.paper.util.sender.Source;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -74,8 +77,15 @@ public class CroppyCommands {
     private RecipeDiscoveryEngine discoveryEngine;
     private RecipeKnowledgeStorage recipeStorage;
     private CompendiumMenuController compendiumController;
+    private RecipeCategoryRegistry recipeCategoryRegistry;
+    private dev.darkblade.croppy.platform.paper.prompt.ChatPromptService chatPromptService;
     private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
     private dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService;
+    private dev.darkblade.croppy.api.update.UpdateService updateService;
+
+    public void setChatPromptService(dev.darkblade.croppy.platform.paper.prompt.ChatPromptService chatPromptService) {
+        this.chatPromptService = chatPromptService;
+    }
 
     public void setAddonManager(dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager) {
         this.addonManager = addonManager;
@@ -83,6 +93,10 @@ public class CroppyCommands {
 
     public void setResourcePackService(dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService) {
         this.resourcePackService = resourcePackService;
+    }
+
+    public void setUpdateService(dev.darkblade.croppy.api.update.UpdateService updateService) {
+        this.updateService = updateService;
     }
 
     public CroppyCommands(
@@ -139,10 +153,21 @@ public class CroppyCommands {
             RecipeKnowledgeStorage recipeStorage,
             CompendiumMenuController compendiumController
     ) {
+        setRecipeServices(recipeRegistry, discoveryEngine, recipeStorage, compendiumController, null);
+    }
+
+    public void setRecipeServices(
+            RecipeRegistry recipeRegistry,
+            RecipeDiscoveryEngine discoveryEngine,
+            RecipeKnowledgeStorage recipeStorage,
+            CompendiumMenuController compendiumController,
+            RecipeCategoryRegistry recipeCategoryRegistry
+    ) {
         this.recipeRegistry = recipeRegistry;
         this.discoveryEngine = discoveryEngine;
         this.recipeStorage = recipeStorage;
         this.compendiumController = compendiumController;
+        this.recipeCategoryRegistry = recipeCategoryRegistry;
     }
 
     private void sendPrefixed(CommandSender sender, MessageKey key, Object... args) {
@@ -216,7 +241,21 @@ public class CroppyCommands {
 
     @Suggestions("compendium_actions")
     public List<String> suggestCompendiumActions(CommandContext<Source> context, CommandInput input) {
-        return List.of("all", "bakery", "soups", "cooking", "beverages", "preserves", "next", "prev");
+        List<String> actions = new ArrayList<>(List.of("all", "next", "prev", "back", "ready", "search", "clear"));
+        if (recipeCategoryRegistry != null) {
+            for (RecipeCategory cat : recipeCategoryRegistry.values()) {
+                Key catKey = cat.getKey();
+                if (!actions.contains(catKey.value())) {
+                    actions.add(catKey.value());
+                }
+                if (!actions.contains(catKey.asString())) {
+                    actions.add(catKey.asString());
+                }
+            }
+        } else {
+            actions.addAll(List.of("bakery", "soups", "cooking", "beverages", "preserves"));
+        }
+        return actions;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -550,10 +589,11 @@ public class CroppyCommands {
         sendPrefixed(player, MessageKey.of("command.state.progress-updated"), "progress", String.format(Locale.ROOT, "%.1f", crop.getProgress()));
     }
 
-    @Command("croppy recipes [action]")
+    @Command("croppy recipes [action] [query]")
     public void openRecipes(
             Source source,
-            @Argument(value = "action", suggestions = "compendium_actions") @Nullable String action
+            @Argument(value = "action", suggestions = "compendium_actions") @Nullable String action,
+            @Argument(value = "query") @Nullable @Greedy String query
     ) {
         CommandSender sender = source.source();
         if (!(sender instanceof Player player)) {
@@ -568,20 +608,88 @@ public class CroppyCommands {
 
         if (action == null || action.isBlank() || "all".equalsIgnoreCase(action)) {
             compendiumController.openCompendium(player, RecipeCategory.ALL.getKey(), 1);
-        } else if ("next".equalsIgnoreCase(action)) {
+            return;
+        }
+
+        if ("next".equalsIgnoreCase(action)) {
             compendiumController.nextPage(player);
-        } else if ("prev".equalsIgnoreCase(action) || "previous".equalsIgnoreCase(action)) {
+            return;
+        }
+
+        if ("prev".equalsIgnoreCase(action) || "previous".equalsIgnoreCase(action)) {
             compendiumController.prevPage(player);
-        } else {
-            Key catKey;
+            return;
+        }
+
+        if ("back".equalsIgnoreCase(action)) {
+            compendiumController.backToCompendium(player);
+            return;
+        }
+
+        if ("clear".equalsIgnoreCase(action)) {
+            compendiumController.clearFilters(player);
+            sendPrefixed(player, MessageKey.of("compendium.filter.ready-off"));
+            return;
+        }
+
+        if ("ready".equalsIgnoreCase(action)) {
+            compendiumController.toggleReadyFilter(player);
+            boolean ready = compendiumController.getSession(player.getUniqueId())
+                    .map(CompendiumMenuController.CompendiumSession::onlyReadyToCook)
+                    .orElse(false);
+            sendPrefixed(player, MessageKey.of(ready ? "compendium.filter.ready-on" : "compendium.filter.ready-off"));
+            return;
+        }
+
+        if ("search".equalsIgnoreCase(action)) {
+            if (query == null || query.isBlank()) {
+                if (chatPromptService != null) {
+                    chatPromptService.startSearchPrompt(
+                            player,
+                            q -> {
+                                if (q == null || q.isBlank()) {
+                                    compendiumController.setSearchQuery(player, null);
+                                    sendPrefixed(player, MessageKey.of("compendium.filter.ready-off"));
+                                } else {
+                                    compendiumController.setSearchQuery(player, q);
+                                    sendPrefixed(player, MessageKey.of("compendium.filter.search"), "query", q);
+                                }
+                            },
+                            () -> compendiumController.backToCompendium(player)
+                    );
+                } else {
+                    compendiumController.setSearchQuery(player, null);
+                    sendPrefixed(player, MessageKey.of("compendium.filter.ready-off"));
+                }
+            } else {
+                String cleanQuery = query.trim();
+                compendiumController.setSearchQuery(player, cleanQuery);
+                sendPrefixed(player, MessageKey.of("compendium.filter.search"), "query", cleanQuery);
+            }
+            return;
+        }
+
+        // Category resolution: match registered categories first
+        Key catKey = null;
+        if (recipeCategoryRegistry != null) {
+            Optional<RecipeCategory> category = recipeCategoryRegistry.values().stream()
+                    .filter(c -> c.getKey().value().equalsIgnoreCase(action) || c.getKey().asString().equalsIgnoreCase(action))
+                    .findFirst();
+            if (category.isPresent()) {
+                catKey = category.get().getKey();
+            }
+        }
+
+        if (catKey == null) {
             try {
                 catKey = Key.parse(action);
             } catch (IllegalArgumentException e) {
                 sendPrefixed(player, MessageKey.of("recipe.unknown_recipe"), "recipe", action);
                 return;
             }
-            compendiumController.setCategory(player, catKey);
         }
+
+        compendiumController.setCategory(player, catKey);
     }
 
     @Command("croppy recipe give <target> <recipe_id>")
@@ -925,5 +1033,80 @@ public class CroppyCommands {
         if (sent) {
             sendPrefixed(sender, MessageKey.of("command.pack.sent"), "player", target.getName());
         }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Plugin Update Administrative Commands
+    // ---------------------------------------------------------------------------------------------
+
+    @Command("croppy update check")
+    @Permission("croppy.admin.update")
+    public void updateCheck(Source source) {
+        CommandSender sender = source.source();
+        if (updateService == null || !updateService.isEnabled()) {
+            sendPrefixed(sender, MessageKey.of("command.update.disabled"));
+            return;
+        }
+
+        sendPrefixed(sender, MessageKey.of("command.update.checking"), "channel", updateService.getChannel().name());
+
+        updateService.checkForUpdatesAsync(true).thenAccept(result -> {
+            if (result.isFailed()) {
+                sendPrefixed(sender, MessageKey.of("command.update.failed"), "error", result.errorMessage().orElse("Unknown error"));
+                return;
+            }
+
+            if (result.updateAvailable()) {
+                sendPrefixed(sender, MessageKey.of("command.update.available"),
+                        "latest", result.latestVersion().map(dev.darkblade.croppy.api.update.SemanticVersion::asString).orElse("?"),
+                        "current", result.currentVersion().asString(),
+                        "channel", updateService.getChannel().name()
+                );
+            } else {
+                sendPrefixed(sender, MessageKey.of("command.update.up-to-date"),
+                        "version", result.currentVersion().asString()
+                );
+            }
+        }).exceptionally(ex -> {
+            String errorMsg = (ex.getCause() != null) ? ex.getCause().getMessage() : ex.getMessage();
+            sendPrefixed(sender, MessageKey.of("command.update.failed"), "error", errorMsg);
+            return null;
+        });
+    }
+
+    @Command("croppy update apply")
+    @Permission("croppy.admin.update")
+    public void updateApply(Source source) {
+        CommandSender sender = source.source();
+        if (updateService == null || !updateService.isEnabled()) {
+            sendPrefixed(sender, MessageKey.of("command.update.disabled"));
+            return;
+        }
+
+        sendPrefixed(sender, MessageKey.of("command.update.verifying"));
+
+        updateService.applyUpdateAsync().thenAccept(result -> {
+            if (result.alreadyUpToDate()) {
+                sendPrefixed(sender, MessageKey.of("command.update.already-latest"),
+                        "version", plugin != null ? plugin.getPluginMeta().getVersion() : "current"
+                );
+                return;
+            }
+
+            if (result.success()) {
+                sendPrefixed(sender, MessageKey.of("command.update.staged-success"),
+                        "version", result.versionStaged().orElse("?"),
+                        "file", result.stagedFileName().orElse("Croppy.jar")
+                );
+            } else {
+                sendPrefixed(sender, MessageKey.of("command.update.failed"),
+                        "error", result.errorMessage().orElse("Unknown error")
+                );
+            }
+        }).exceptionally(ex -> {
+            String errorMsg = (ex.getCause() != null) ? ex.getCause().getMessage() : ex.getMessage();
+            sendPrefixed(sender, MessageKey.of("command.update.failed"), "error", errorMsg);
+            return null;
+        });
     }
 }

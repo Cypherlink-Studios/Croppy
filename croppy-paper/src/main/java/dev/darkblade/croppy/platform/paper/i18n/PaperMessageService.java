@@ -318,6 +318,14 @@ public class PaperMessageService {
     }
 
     /**
+     * Creates a TagResolver that parses a MiniMessage string argument.
+     * Use with caution and only for trusted content.
+     */
+    public static TagResolver parsed(String key, String miniMessageString) {
+        return Placeholder.parsed(key, miniMessageString != null ? miniMessageString : "");
+    }
+
+    /**
      * Creates TagResolvers from alternating key-value pairs with automatic argument sanitization.
      * Example: args("player", "Steve", "amount", 5)
      */

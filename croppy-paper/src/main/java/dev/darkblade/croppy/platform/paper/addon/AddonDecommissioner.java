@@ -100,6 +100,11 @@ public final class AddonDecommissioner {
                     core.getInteractionRegistry().unregister(key);
                 }
             }
+            if (core.getRecipeCategoryRegistry() != null) {
+                for (Key key : context.getRegisteredCategories()) {
+                    core.getRecipeCategoryRegistry().unregister(key);
+                }
+            }
         }
 
         // Phase 5: ClassLoader Severing (Unload only)

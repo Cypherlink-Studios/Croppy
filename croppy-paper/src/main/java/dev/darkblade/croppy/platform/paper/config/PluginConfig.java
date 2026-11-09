@@ -31,6 +31,16 @@ public class PluginConfig {
     private boolean resourcePackRequired = false;
     private String resourcePackPrompt = "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Please download the 3D companion pack to see custom crops and stations.</gray>";
 
+    // Update Checker & Stager
+    private boolean updatesEnabled = true;
+    private boolean updatesCheckOnStartup = true;
+    private dev.darkblade.croppy.api.update.UpdateChannel updatesChannel = dev.darkblade.croppy.api.update.UpdateChannel.STABLE;
+
+    // Culinary Compendium Settings
+    private boolean compendiumShowUnknownRecipes = true;
+    private boolean compendiumEnableDetailView = true;
+    private int compendiumStationProximityDistance = 5;
+
     public void load(FileConfiguration config) {
         if (config == null) {
             return;
@@ -63,6 +73,40 @@ public class PluginConfig {
         this.resourcePackAutoSendOnJoin = config.getBoolean("resource-pack.delivery.auto-send-on-join", true);
         this.resourcePackRequired = config.getBoolean("resource-pack.delivery.required", false);
         this.resourcePackPrompt = config.getString("resource-pack.delivery.prompt", "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Please download the 3D companion pack to see custom crops and stations.</gray>");
+
+        // Updates configuration
+        this.updatesEnabled = config.getBoolean("updates.enabled", true);
+        this.updatesCheckOnStartup = config.getBoolean("updates.check-on-startup", true);
+        this.updatesChannel = dev.darkblade.croppy.api.update.UpdateChannel.fromString(config.getString("updates.channel", "STABLE"));
+
+        // Compendium configuration
+        this.compendiumShowUnknownRecipes = config.getBoolean("compendium.show-unknown-recipes", true);
+        this.compendiumEnableDetailView = config.getBoolean("compendium.enable-detail-view", true);
+        this.compendiumStationProximityDistance = Math.max(1, config.getInt("compendium.station-proximity-distance", 5));
+    }
+
+    public boolean isUpdatesEnabled() {
+        return updatesEnabled;
+    }
+
+    public boolean isUpdatesCheckOnStartup() {
+        return updatesCheckOnStartup;
+    }
+
+    public dev.darkblade.croppy.api.update.UpdateChannel getUpdatesChannel() {
+        return updatesChannel;
+    }
+
+    public boolean isCompendiumShowUnknownRecipes() {
+        return compendiumShowUnknownRecipes;
+    }
+
+    public boolean isCompendiumEnableDetailView() {
+        return compendiumEnableDetailView;
+    }
+
+    public int getCompendiumStationProximityDistance() {
+        return compendiumStationProximityDistance;
     }
 
     public long getGrowthTickInterval() {

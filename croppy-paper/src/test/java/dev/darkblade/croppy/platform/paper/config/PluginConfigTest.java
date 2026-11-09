@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import java.io.StringReader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PluginConfigTest {
 
@@ -116,5 +118,30 @@ class PluginConfigTest {
         assertEquals(1L, config.getGrowthTickInterval());
         assertEquals(0.01, config.getGrowthBaseProgress());
         assertEquals(0, config.getGrowthWaterSearchRadius());
+    }
+
+    @Test
+    @DisplayName("Should correctly load update checker and stager settings")
+    void shouldLoadUpdateSettings() {
+        PluginConfig defaultConfig = new PluginConfig();
+        defaultConfig.load(new YamlConfiguration());
+        assertTrue(defaultConfig.isUpdatesEnabled());
+        assertTrue(defaultConfig.isUpdatesCheckOnStartup());
+        assertEquals(dev.darkblade.croppy.api.update.UpdateChannel.STABLE, defaultConfig.getUpdatesChannel());
+
+        String yaml = """
+                updates:
+                  enabled: false
+                  check-on-startup: false
+                  channel: "BETA"
+                """;
+
+        YamlConfiguration fileConfig = YamlConfiguration.loadConfiguration(new StringReader(yaml));
+        PluginConfig config = new PluginConfig();
+        config.load(fileConfig);
+
+        assertFalse(config.isUpdatesEnabled());
+        assertFalse(config.isUpdatesCheckOnStartup());
+        assertEquals(dev.darkblade.croppy.api.update.UpdateChannel.BETA, config.getUpdatesChannel());
     }
 }

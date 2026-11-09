@@ -42,6 +42,7 @@ class CompendiumMenuControllerTest {
     private UUID playerUuid;
     private Map<Integer, ItemStack> inventorySlots;
     private AtomicBoolean inventoryOpened;
+    private Map<Key, KnowledgeState> playerKnowledge;
 
     private static final sun.misc.Unsafe UNSAFE;
     static {
@@ -65,6 +66,7 @@ class CompendiumMenuControllerTest {
 
         inventorySlots = new HashMap<>();
         inventoryOpened = new AtomicBoolean(false);
+        playerKnowledge = new HashMap<>();
 
         Inventory mockInventory = (Inventory) Proxy.newProxyInstance(
                 Inventory.class.getClassLoader(),
@@ -129,7 +131,8 @@ class CompendiumMenuControllerTest {
                 new Class<?>[]{RecipeDiscoveryEngine.class},
                 (proxy, method, args) -> {
                     if ("getKnowledgeState".equals(method.getName())) {
-                        return KnowledgeState.UNKNOWN;
+                        Key key = (Key) args[1];
+                        return playerKnowledge.getOrDefault(key, KnowledgeState.UNKNOWN);
                     }
                     return null;
                 }
@@ -253,5 +256,178 @@ class CompendiumMenuControllerTest {
         // Should return early and not crash
         assertDoesNotThrow(() -> emptyController.openCompendium(mockPlayer, RecipeCategory.ALL.getKey(), 1));
         assertFalse(inventoryOpened.get());
+    }
+
+    @Test
+    @DisplayName("Search query filters recipes by display name, result item, or ingredients")
+    void testFilterBySearchQuery() {
+        RecipeDefinition bread = new RecipeDefinition(
+                Key.of("croppy", "artisan_bread"),
+                "Artisan Bread",
+                RecipeCategory.BAKERY.getKey(),
+                Key.of("croppy", "oven"),
+                Key.of("croppy", "bake_bread"),
+                List.of(StoredItem.of(Key.of("minecraft", "wheat"), 3)),
+                Key.of("minecraft", "bread"),
+                1,
+                HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        );
+        RecipeDefinition soup = new RecipeDefinition(
+                Key.of("croppy", "tomato_soup"),
+                "Tomato Soup",
+                RecipeCategory.SOUPS.getKey(),
+                Key.of("croppy", "pot"),
+                Key.of("croppy", "simmer_soup"),
+                List.of(StoredItem.of(Key.of("croppy", "tomato"), 2)),
+                Key.of("croppy", "canned_soup"),
+                1,
+                HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        );
+        recipeRegistry.register(bread);
+        recipeRegistry.register(soup);
+
+        // Search by name
+        CompendiumMenuController.CompendiumSession nameSearch = new CompendiumMenuController.CompendiumSession(
+                1, RecipeCategory.ALL.getKey(), "tomato", false, 0
+        );
+        List<RecipeDefinition> filteredByName = controller.getFilteredRecipes(mockPlayer, nameSearch);
+        assertEquals(1, filteredByName.size());
+        assertEquals("Tomato Soup", filteredByName.getFirst().displayName());
+
+        // Search by result item key
+        CompendiumMenuController.CompendiumSession resultSearch = new CompendiumMenuController.CompendiumSession(
+                1, RecipeCategory.ALL.getKey(), "bread", false, 0
+        );
+        List<RecipeDefinition> filteredByResult = controller.getFilteredRecipes(mockPlayer, resultSearch);
+        assertEquals(1, filteredByResult.size());
+        assertEquals("Artisan Bread", filteredByResult.getFirst().displayName());
+
+        // Search by input ingredient key
+        CompendiumMenuController.CompendiumSession inputSearch = new CompendiumMenuController.CompendiumSession(
+                1, RecipeCategory.ALL.getKey(), "wheat", false, 0
+        );
+        List<RecipeDefinition> filteredByInput = controller.getFilteredRecipes(mockPlayer, inputSearch);
+        assertEquals(1, filteredByInput.size());
+        assertEquals("Artisan Bread", filteredByInput.getFirst().displayName());
+    }
+
+    @Test
+    @DisplayName("Ready-to-cook filter displays only recipes with satisfied inventory items")
+    void testFilterByReadyToCook() {
+        RecipeDefinition freeRecipe = new RecipeDefinition(
+                Key.of("croppy", "free_snack"),
+                "Free Snack",
+                RecipeCategory.COOKING.getKey(),
+                Key.of("croppy", "skillet"),
+                Key.of("croppy", "snack_proc"),
+                List.of(), // No inputs needed
+                Key.of("minecraft", "apple"),
+                1,
+                HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        );
+        RecipeDefinition expensiveRecipe = new RecipeDefinition(
+                Key.of("croppy", "expensive_feast"),
+                "Expensive Feast",
+                RecipeCategory.COOKING.getKey(),
+                Key.of("croppy", "skillet"),
+                Key.of("croppy", "feast_proc"),
+                List.of(StoredItem.of(Key.of("minecraft", "diamond"), 5)),
+                Key.of("minecraft", "cake"),
+                1,
+                HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        );
+        recipeRegistry.register(freeRecipe);
+        recipeRegistry.register(expensiveRecipe);
+        playerKnowledge.put(freeRecipe.key(), KnowledgeState.DISCOVERED);
+        playerKnowledge.put(expensiveRecipe.key(), KnowledgeState.DISCOVERED);
+
+        assertTrue(controller.isReadyToCook(mockPlayer, freeRecipe));
+        assertFalse(controller.isReadyToCook(mockPlayer, expensiveRecipe));
+
+        CompendiumMenuController.CompendiumSession readyOnlySession = new CompendiumMenuController.CompendiumSession(
+                1, RecipeCategory.ALL.getKey(), null, true, 0
+        );
+        List<RecipeDefinition> readyRecipes = controller.getFilteredRecipes(mockPlayer, readyOnlySession);
+        assertEquals(1, readyRecipes.size());
+        assertEquals("Free Snack", readyRecipes.getFirst().displayName());
+    }
+
+    @Test
+    @DisplayName("showUnknownRecipes setting toggles visibility of undiscovered recipes")
+    void testFilterByUnknownVisibility() {
+        RecipeDefinition unknownRecipe = new RecipeDefinition(
+                Key.of("croppy", "secret_dish"),
+                "Secret Dish",
+                RecipeCategory.COOKING.getKey(),
+                Key.of("croppy", "skillet"),
+                Key.of("croppy", "secret_proc"),
+                List.of(),
+                Key.of("minecraft", "cookie"),
+                1,
+                HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        );
+        recipeRegistry.register(unknownRecipe);
+
+        CompendiumMenuController.CompendiumSession session = new CompendiumMenuController.CompendiumSession(
+                1, RecipeCategory.ALL.getKey(), null, false, 0
+        );
+
+        controller.setShowUnknownRecipes(true);
+        List<RecipeDefinition> withUnknown = controller.getFilteredRecipes(mockPlayer, session);
+        assertEquals(1, withUnknown.size());
+
+        controller.setShowUnknownRecipes(false);
+        List<RecipeDefinition> withoutUnknown = controller.getFilteredRecipes(mockPlayer, session);
+        assertTrue(withoutUnknown.isEmpty(), "Unknown recipe should be hidden when showUnknownRecipes is false");
+    }
+
+    @Test
+    @DisplayName("CompendiumSession immutable mutators preserve state correctly")
+    void testCompendiumSessionMutators() {
+        CompendiumMenuController.CompendiumSession initial = new CompendiumMenuController.CompendiumSession(
+                2, RecipeCategory.BAKERY.getKey(), "pie", true, 1
+        );
+
+        // withCategory resets page to 1
+        CompendiumMenuController.CompendiumSession catChanged = initial.withCategory(RecipeCategory.SOUPS.getKey());
+        assertEquals(1, catChanged.page());
+        assertEquals(RecipeCategory.SOUPS.getKey(), catChanged.categoryKey());
+        assertEquals("pie", catChanged.searchQuery());
+        assertTrue(catChanged.onlyReadyToCook());
+        assertEquals(1, catChanged.categoryPage());
+
+        // withPage updates page
+        CompendiumMenuController.CompendiumSession pageChanged = initial.withPage(5);
+        assertEquals(5, pageChanged.page());
+        assertEquals(RecipeCategory.BAKERY.getKey(), pageChanged.categoryKey());
+
+        // withSearch resets page to 1
+        CompendiumMenuController.CompendiumSession searchChanged = initial.withSearch("bread");
+        assertEquals(1, searchChanged.page());
+        assertEquals("bread", searchChanged.searchQuery());
+
+        // withReadyToCook resets page to 1
+        CompendiumMenuController.CompendiumSession readyChanged = initial.withReadyToCook(false);
+        assertEquals(1, readyChanged.page());
+        assertFalse(readyChanged.onlyReadyToCook());
+
+        // withCategoryPage updates category page
+        CompendiumMenuController.CompendiumSession catPageChanged = initial.withCategoryPage(2);
+        assertEquals(2, catPageChanged.categoryPage());
     }
 }

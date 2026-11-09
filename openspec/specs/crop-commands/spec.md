@@ -103,7 +103,7 @@ The system SHALL provide `/croppy item list [category]` to display registered it
 - **THEN** the system displays only items registered under the `seeds` category.
 
 ### Requirement: Culinary Recipe Book Player Command
-The system SHALL provide a command `/croppy recipes` allowing players to open their culinary compendium cookbook interface directly.
+The system SHALL provide a command `/croppy recipes [action] [query]` allowing players to open their culinary compendium cookbook interface directly, with support for pagination, dynamic category filters, search queries, and inventory-ready filtering.
 
 #### Scenario: Open recipe compendium via command
 - **WHEN** a player executes `/croppy recipes`
@@ -112,6 +112,18 @@ The system SHALL provide a command `/croppy recipes` allowing players to open th
 #### Scenario: Console execution rejection
 - **WHEN** `/croppy recipes` is executed from the server console
 - **THEN** the system rejects execution indicating that only in-game players can view the recipe book
+
+#### Scenario: Filter compendium by category argument
+- **WHEN** a player executes `/croppy recipes <category_key>`
+- **THEN** the compendium opens filtered to the specified category
+
+#### Scenario: Search compendium by text query
+- **WHEN** a player executes `/croppy recipes search <query>`
+- **THEN** the compendium opens displaying dishes matching the search term
+
+#### Scenario: Filter compendium by ready dishes
+- **WHEN** a player executes `/croppy recipes ready`
+- **THEN** the compendium opens showing only dishes the player has ingredients to cook
 
 ### Requirement: Recipe Knowledge Administrative Commands
 The system SHALL provide administrative commands `/croppy recipe give <player> <recipe_id>` and `/croppy recipe revoke <player> <recipe_id>` to inspect, grant, or revoke recipe knowledge.
@@ -195,3 +207,22 @@ The system SHALL deliver all command execution feedback, success messages, admin
 #### Scenario: Localized recipe unlock notification
 - **WHEN** an administrator unlocks a recipe for a target player via `/croppy recipe give`
 - **THEN** the target player receives a localized notification prepended with `general.prefix` in their client locale.
+
+### Requirement: Plugin Update Administrative Commands
+The system SHALL provide administrative commands under `/croppy update <check | apply>` with Cloud 2.0 dispatch, requiring permission node `croppy.admin.update`.
+
+#### Scenario: Check for updates via command
+- **WHEN** an authorized administrator runs `/croppy update check`
+- **THEN** the system triggers an asynchronous release check and displays real-time version status, target release channel, and a clickable update prompt if a newer version is available.
+
+#### Scenario: Apply available update via command
+- **WHEN** an authorized administrator runs `/croppy update apply` while a newer version exists
+- **THEN** the system asynchronously downloads, validates the SHA-256 checksum, stages the JAR in `plugins/update/`, and outputs localized progress and restart instructions.
+
+#### Scenario: Apply update when already on latest version
+- **WHEN** an administrator runs `/croppy update apply` and the plugin is already at or ahead of the latest remote version
+- **THEN** the system terminates the command immediately with a message stating that no update is required.
+
+#### Scenario: Unauthorized player update command execution
+- **WHEN** a player lacking permission `croppy.admin.update` runs `/croppy update check` or `/croppy update apply`
+- **THEN** the system denies execution with a standard permission error message.

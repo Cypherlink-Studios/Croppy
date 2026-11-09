@@ -5,6 +5,7 @@ import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.menu.MenuRegistry;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
+import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
@@ -53,6 +54,11 @@ public interface AddonContext {
      * @return the global recipe registry
      */
     RecipeRegistry getRecipeRegistry();
+
+    /**
+     * @return the global recipe category registry
+     */
+    RecipeCategoryRegistry getRecipeCategoryRegistry();
 
     /**
      * @return the global process registry

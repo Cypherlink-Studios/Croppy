@@ -82,6 +82,18 @@ command:
     header: "<gold><bold>=== Registered Recipes (<count>) ===</bold></gold>"
     entry: " <dark_gray>•</dark_gray> <click:suggest_command:'/croppy recipe give @s {key}'><hover:show_text:'<gray>Click to grant <white><recipe></white>'><yellow>{key}</yellow></hover></click> <gray>(<recipe>)</gray> <dark_gray>[<category> @ <station>]</dark_gray>"
     unlocked_by_admin: "<green>An administrator unlocked recipe <white><recipe></white> for you!</green>"
+  update:
+    checking: "<gray>Checking for available updates on channel <yellow><channel></yellow>...</gray>"
+    up-to-date: "<green>Croppy is running the latest version (<white>v<version></white>).</green>"
+    available: "<gold>A new version of Croppy is available:</gold> <green>v<latest></green> <gray>(current: v<current>)</gray><newline><dark_gray>├─ <gold>Channel:</gold> <yellow><channel></yellow><newline><dark_gray>└─ <click:run_command:'/croppy update apply'><hover:show_text:'<gray>Click to download and stage update</gray>'><yellow>[Click here to apply: /croppy update apply]</yellow></hover></click>"
+    already-latest: "<yellow>Server is already running the latest version (v<version>). No update needed.</yellow>"
+    disabled: "<red>The update subsystem is disabled in config.yml.</red>"
+    downloading: "<gray>Downloading Croppy <yellow>v<version></yellow>...</gray>"
+    verifying: "<gray>Verifying package integrity (SHA-256)...</gray>"
+    checksum-failed: "<red>Checksum verification failed for update package! Update aborted.</red>"
+    staged-success: "<green>Update <yellow>v<version></yellow> successfully staged to <white>plugins/update/<file></white>!</green><newline><gray>The update will automatically take effect on the next server restart.</gray>"
+    failed: "<red>Update operation failed: <error>.</red>"
+    login-notification: "<gold>A newer version of Croppy is available:</gold> <green>v<latest></green> <gray>(current: v<current>)</gray> <click:run_command:'/croppy update apply'><hover:show_text:'<gray>Click to apply update</gray>'><yellow>[Update Now]</yellow></hover></click>"
 
 crop:
   plant:
@@ -140,10 +152,17 @@ station:
 
 compendium:
   missing-config: "<red>Recipe compendium menu configuration is missing.</red>"
+  missing-detail-config: "<red>Recipe detail menu configuration is missing.</red>"
   no-slots: "<red>No recipe display slots found in compendium menu layout.</red>"
   gui:
     category: "<gray>Category: <yellow><category></yellow></gray>"
     station: "<gray>Station: <aqua><station></aqua></gray>"
+    station-nearby: "<gray>Station: <aqua><station></aqua> <green>(✔ Nearby)</green></gray>"
+    station-away: "<gray>Station: <aqua><station></aqua> <gray>(✖ Not nearby)</gray></gray>"
+    cooking-duration: "<gray>Duration: <yellow><duration></yellow></gray>"
+    yields: "<gray>Yields: <yellow><amount>x</yellow></gray>"
+    click-to-inspect: "<yellow>▶ Click to inspect cooking steps</yellow>"
+    active-filter: "<green>✔ Currently Active Filter</green>"
     required-ingredients: "<yellow>Required Ingredients:</yellow>"
     status-discovered: "<dark_green>Status: Discovered</dark_green>"
     clue-title: "<aqua><bold>Culinary Clue:</bold></aqua>"
@@ -154,6 +173,10 @@ compendium:
     unknown-experiment: "<gray>Experiment in crafting stations to discover this dish!</gray>"
     hinted-title: "<gold>★ <recipe> <italic><gray>(Hinted)</gray></italic></gold>"
     discovered-title: "<gold><bold><recipe></bold></gold>"
+  filter:
+    ready-on: "<green>Filtering: showing dishes ready to cook.</green>"
+    ready-off: "<gray>Filtering: showing all accessible dishes.</gray>"
+    search: "<yellow>Filtering dishes matching: <white><query></white>.</yellow>"
 
 prompt:
   temperature-prompt: "<yellow>Enter target temperature (</yellow><white><min>°C - <max>°C</white><yellow>) in chat, or type </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Click to cancel'><red>'cancel'</red></hover></click><yellow>:</yellow>"
@@ -162,6 +185,9 @@ prompt:
   temperature-bounds: "<red>Temperature must be between <min>°C and <max>°C.</red>"
   temperature-success: "<green>Target temperature set to <aqua><val>°C</aqua>!</green>"
   invalid-number: "<red>Invalid number. Type a valid number or 'cancel'.</red>"
+  search-prompt: "<yellow>Enter recipe search query in chat, or type </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Click to cancel'><red>'cancel'</red></hover></click><yellow> to abort (or </yellow><click:run_command:'/croppy recipes clear'><hover:show_text:'<gray>Click to clear filter'><aqua>'clear'</aqua></hover></click><yellow> to reset):</yellow>"
+  search-timeout: "<gray>Recipe search timed out.</gray>"
+  search-cancelled: "<gray>Recipe search cancelled.</gray>"
 
 recipe:
   compendium_unavailable: "<red>The recipe compendium is currently unavailable.</red>"

@@ -1,5 +1,9 @@
 package dev.darkblade.croppy.platform.paper.menu;
 
+import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
+import dev.darkblade.croppy.api.recipe.KnowledgeState;
+import dev.darkblade.croppy.api.recipe.RecipeRegistry;
+
 import dev.darkblade.croppy.api.expression.EvaluationContext;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.menu.ClickTypeFilter;
@@ -23,7 +27,11 @@ import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.prompt.ChatPromptService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -56,6 +64,10 @@ public final class PaperMenuListener implements Listener {
     private PaperMenuService menuService;
     private PaperMessageService messageService;
     private dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler;
+    private RecipeRegistry recipeRegistry;
+    private RecipeDiscoveryEngine discoveryEngine;
+    private RecipeDetailMenuController recipeDetailController;
+    private CompendiumMenuController compendiumController;
 
     public PaperMenuListener(
             Plugin plugin,
@@ -85,6 +97,22 @@ public final class PaperMenuListener implements Listener {
 
     public void setMenuService(PaperMenuService menuService) {
         this.menuService = menuService;
+    }
+
+    public void setRecipeRegistry(RecipeRegistry recipeRegistry) {
+        this.recipeRegistry = recipeRegistry;
+    }
+
+    public void setDiscoveryEngine(RecipeDiscoveryEngine discoveryEngine) {
+        this.discoveryEngine = discoveryEngine;
+    }
+
+    public void setRecipeDetailController(RecipeDetailMenuController recipeDetailController) {
+        this.recipeDetailController = recipeDetailController;
+    }
+
+    public void setCompendiumController(CompendiumMenuController compendiumController) {
+        this.compendiumController = compendiumController;
     }
 
     public void setExperimentationHandler(dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler) {
@@ -127,6 +155,9 @@ public final class PaperMenuListener implements Listener {
 
             // A. Passive / Indicator / Button slots
             if (type == SlotType.DECORATION || type == SlotType.STATUS) {
+                if (event.getWhoClicked() instanceof Player player) {
+                    handleSpecialMenuClick(player, holder, event.getCurrentItem());
+                }
                 event.setCancelled(true);
                 return;
             }
@@ -208,6 +239,37 @@ public final class PaperMenuListener implements Listener {
                     ? ticker.enrichContext(holder.getContext(), station, player)
                     : holder.getContext().with("player", player);
             processEngine.tryStartProcess(station, ctx);
+        }
+    }
+
+    private void handleSpecialMenuClick(Player player, PaperMenuHolder holder, ItemStack clicked) {
+        if (clicked == null || !clicked.hasItemMeta()) {
+            return;
+        }
+        ItemMeta meta = clicked.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        // 1. Recipe card click in compendium menu -> open detailed inspection
+        if (CompendiumMenuController.MENU_KEY.equals(holder.getMenu().getKey())) {
+            String recKeyStr = pdc.get(CompendiumMenuController.RECIPE_KEY, PersistentDataType.STRING);
+            if (recKeyStr != null && recipeRegistry != null && discoveryEngine != null && recipeDetailController != null) {
+                Key recKey = Key.parse(recKeyStr);
+                recipeRegistry.get(recKey).ifPresent(recipe -> {
+                    KnowledgeState state = discoveryEngine.getKnowledgeState(player.getUniqueId(), recipe.key());
+                    if (state == KnowledgeState.DISCOVERED) {
+                        recipeDetailController.openDetail(player, recipe);
+                    }
+                });
+            }
+            return;
+        }
+
+        // 2. Back button click in recipe detail menu
+        if (RecipeDetailMenuController.DETAIL_MENU_KEY.equals(holder.getMenu().getKey())) {
+            String action = pdc.get(new NamespacedKey("croppy", "action"), PersistentDataType.STRING);
+            if ("compendium_back".equalsIgnoreCase(action) && compendiumController != null) {
+                compendiumController.backToCompendium(player);
+            }
         }
     }
 

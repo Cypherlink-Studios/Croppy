@@ -20,6 +20,10 @@ The system SHALL manage client-side virtual display entities for crafting statio
 - **WHEN** a crafting station is broken by a player or its enclosing chunk is unloaded
 - **THEN** virtual entity destruction packets are sent to all tracking players and the virtual IDs are unmapped
 
+#### Scenario: Resolve station base model item via item registry
+- **WHEN** a station declares an item-based base model visual layer
+- **THEN** the base model item key is resolved against the domain ItemRegistry to construct a configured ItemStack preserving custom item-model metadata
+
 ### Requirement: Multi-Tier Distance Culling and Level of Detail
 The system SHALL organize station visual layers into discrete distance thresholds to provide Level-of-Detail (LoD) culling and prevent visual clutter, rendering process item displays when items are stored in inputs or when a recipe is progressing, and culling text displays when idle if configured.
 

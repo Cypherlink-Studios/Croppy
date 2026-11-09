@@ -301,4 +301,121 @@ class CroppyCommandsExecutionTest {
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon status orchard").join());
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Addon: Orchard Addon")));
     }
+
+    @Test
+    @DisplayName("Verify /croppy update check and /croppy update apply dispatch cleanly with mock UpdateService")
+    void testUpdateCommandsExecution() {
+        CropInspectorService inspector = new CropInspectorService(
+                new CropManager(),
+                new DefaultSpeciesRegistry(),
+                pos -> null
+        );
+
+        CroppyCommands commands = new CroppyCommands(
+                null,
+                inspector,
+                new PluginConfig(),
+                null,
+                null,
+                new DefaultFertilizerRegistry(),
+                null,
+                new DefaultItemRegistry()
+        );
+
+        dev.darkblade.croppy.api.update.UpdateService mockUpdateService = new dev.darkblade.croppy.api.update.UpdateService() {
+            @Override
+            public java.util.concurrent.CompletableFuture<dev.darkblade.croppy.api.update.UpdateCheckResult> checkForUpdatesAsync(boolean forceCheck) {
+                return java.util.concurrent.CompletableFuture.completedFuture(
+                        dev.darkblade.croppy.api.update.UpdateCheckResult.available(
+                                dev.darkblade.croppy.api.update.SemanticVersion.of(0, 5, 13),
+                                dev.darkblade.croppy.api.update.SemanticVersion.of(0, 5, 14),
+                                "v0.5.14",
+                                "https://github.com/Cypherlink-Studios/Croppy",
+                                "http://example.com/Croppy-0.5.14.jar",
+                                "http://example.com/checksums.txt",
+                                "2026-11-08T00:00:00Z"
+                        )
+                );
+            }
+
+            @Override
+            public java.util.concurrent.CompletableFuture<dev.darkblade.croppy.api.update.UpdateApplyResult> applyUpdateAsync() {
+                return java.util.concurrent.CompletableFuture.completedFuture(
+                        dev.darkblade.croppy.api.update.UpdateApplyResult.success("Croppy.jar", "0.5.14", "Staged")
+                );
+            }
+
+            @Override
+            public java.util.Optional<dev.darkblade.croppy.api.update.UpdateCheckResult> getCachedResult() {
+                return java.util.Optional.empty();
+            }
+
+            @Override
+            public dev.darkblade.croppy.api.update.UpdateChannel getChannel() {
+                return dev.darkblade.croppy.api.update.UpdateChannel.STABLE;
+            }
+
+            @Override
+            public boolean isEnabled() {
+                return true;
+            }
+        };
+
+        commands.setUpdateService(mockUpdateService);
+
+        CommandManager<Source> commandManager = new CommandManager<>(
+                ExecutionCoordinator.simpleCoordinator(),
+                CommandRegistrationHandler.nullCommandRegistrationHandler()
+        ) {
+            @Override
+            public boolean hasPermission(Source sender, String permission) {
+                return true;
+            }
+        };
+
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(org.bukkit.entity.Player.class),
+                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success((org.bukkit.entity.Player) null)
+        );
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(Key.class),
+                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+
+        AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);
+        parser.parse(commands);
+
+        List<String> receivedMessages = new ArrayList<>();
+        CommandSender mockSender = (CommandSender) Proxy.newProxyInstance(
+                CommandSender.class.getClassLoader(),
+                new Class<?>[]{CommandSender.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("sendMessage") && args != null && args.length > 0) {
+                        if (args[0] instanceof Component component) {
+                            receivedMessages.add(PlainTextComponentSerializer.plainText().serialize(component));
+                        } else if (args[0] != null) {
+                            receivedMessages.add(args[0].toString());
+                        }
+                    }
+                    return null;
+                }
+        );
+
+        Source mockSource = (Source) Proxy.newProxyInstance(
+                Source.class.getClassLoader(),
+                new Class<?>[]{Source.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("source")) {
+                        return mockSender;
+                    }
+                    return null;
+                }
+        );
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy update check").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("0.5.14")));
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy update apply").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("plugins/update/Croppy.jar") || m.contains("Staged") || m.contains("staged")));
+    }
 }

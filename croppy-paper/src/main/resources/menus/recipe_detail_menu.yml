@@ -1,0 +1,97 @@
+id: "croppy:recipe_detail_menu"
+title: "<dark_green><bold>Recipe Details</bold></dark_green>"
+rows: 6
+pattern:
+  - "< X X X R X X X S"
+  - "X I I I I I I I X"
+  - "X X X X X X X X X"
+  - "X 1 2 3 4 5 6 7 X"
+  - "X X X X X X X X X"
+  - "X X X X ? X X X X"
+
+elements:
+  'X':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_stained_glass_pane"
+      name: " "
+
+  '<':
+    type: ACTION
+    item:
+      material: "minecraft:arrow"
+      name: "<yellow><bold>Back to Compendium</bold></yellow>"
+      lore:
+        - "<gray>Click to return to your recipe collection.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes back"
+
+  'R':
+    type: DECORATION
+    item:
+      material: "minecraft:cooked_beef"
+      name: "<gold><bold>{recipe.name}</bold></gold>"
+
+  'S':
+    type: DECORATION
+    item:
+      material: "minecraft:crafting_table"
+      name: "<aqua><bold>Station: {station.name}</bold></aqua>"
+
+  'I':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_dye"
+      name: " "
+
+  '1':
+    type: DECORATION
+    item:
+      material: "minecraft:clock"
+      name: "<gray>Phase 1</gray>"
+
+  '2':
+    type: DECORATION
+    item:
+      material: "minecraft:clock"
+      name: "<gray>Phase 2</gray>"
+
+  '3':
+    type: DECORATION
+    item:
+      material: "minecraft:clock"
+      name: "<gray>Phase 3</gray>"
+
+  '4':
+    type: DECORATION
+    item:
+      material: "minecraft:clock"
+      name: "<gray>Phase 4</gray>"
+
+  '5':
+    type: DECORATION
+    item:
+      material: "minecraft:clock"
+      name: "<gray>Phase 5</gray>"
+
+  '6':
+    type: DECORATION
+    item:
+      material: "minecraft:clock"
+      name: "<gray>Phase 6</gray>"
+
+  '7':
+    type: DECORATION
+    item:
+      material: "minecraft:clock"
+      name: "<gray>Phase 7</gray>"
+
+  '?':
+    type: DECORATION
+    item:
+      material: "minecraft:knowledge_book"
+      name: "<gold><bold>Preparation Overview</bold></gold>"
+      lore:
+        - "<gray>Follow cooking phases in sequential order.</gray>"
+        - "<dark_gray>Maintain workstation temperatures to prevent spoiling.</dark_gray>"

@@ -38,14 +38,15 @@ public final class PaperMenuTicker implements Runnable {
                 continue;
             }
 
-            // If station is present, enrich context and refresh
-            if (holder.getStation().isPresent()) {
-                StationInstance station = holder.getStation().get();
-                EvaluationContext enriched = enrichContext(holder.getContext(), station, player);
-                holder.setContext(enriched);
-                renderer.populateOutputContents(holder);
+            // Non-station menus (like Compendium and RecipeDetail) are static catalogs managed by controllers.
+            if (holder.getStation().isEmpty()) {
+                continue;
             }
 
+            StationInstance station = holder.getStation().get();
+            EvaluationContext enriched = enrichContext(holder.getContext(), station, player);
+            holder.setContext(enriched);
+            renderer.populateOutputContents(holder);
             renderer.refreshDynamicSlots(holder);
         }
     }

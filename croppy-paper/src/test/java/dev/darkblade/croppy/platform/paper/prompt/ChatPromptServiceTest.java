@@ -119,4 +119,58 @@ class ChatPromptServiceTest {
         assertNull(capturedTemp.get());
         assertTrue(service.hasActivePrompt(playerId));
     }
+
+    @Test
+    @DisplayName("Search prompt successfully captures search query and triggers callback")
+    void testSuccessfulSearchPromptInput() {
+        ChatPromptService service = new ChatPromptService(createMockPlugin());
+        UUID playerId = UUID.randomUUID();
+        Player player = createMockPlayer(playerId);
+
+        AtomicReference<String> capturedQuery = new AtomicReference<>();
+        service.startSearchPrompt(player, capturedQuery::set, () -> {});
+
+        assertTrue(service.hasActivePrompt(playerId));
+
+        boolean handled = service.processInput(player, "fried egg");
+        assertTrue(handled);
+        assertEquals("fried egg", capturedQuery.get());
+        assertFalse(service.hasActivePrompt(playerId));
+    }
+
+    @Test
+    @DisplayName("Search prompt reset with clear keyword passes null query")
+    void testClearSearchPromptInput() {
+        ChatPromptService service = new ChatPromptService(createMockPlugin());
+        UUID playerId = UUID.randomUUID();
+        Player player = createMockPlayer(playerId);
+
+        AtomicReference<String> capturedQuery = new AtomicReference<>("initial");
+        service.startSearchPrompt(player, capturedQuery::set, () -> {});
+
+        assertTrue(service.hasActivePrompt(playerId));
+
+        boolean handled = service.processInput(player, "clear");
+        assertTrue(handled);
+        assertNull(capturedQuery.get());
+        assertFalse(service.hasActivePrompt(playerId));
+    }
+
+    @Test
+    @DisplayName("Search prompt cancel aborts and triggers cancel callback")
+    void testCancelSearchPromptInput() {
+        ChatPromptService service = new ChatPromptService(createMockPlugin());
+        UUID playerId = UUID.randomUUID();
+        Player player = createMockPlayer(playerId);
+
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        service.startSearchPrompt(player, q -> {}, () -> cancelled.set(true));
+
+        assertTrue(service.hasActivePrompt(playerId));
+
+        boolean handled = service.processInput(player, "cancel");
+        assertTrue(handled);
+        assertTrue(cancelled.get());
+        assertFalse(service.hasActivePrompt(playerId));
+    }
 }

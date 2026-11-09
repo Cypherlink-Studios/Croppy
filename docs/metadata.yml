@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.13"
+  - version: "0.5.14"
     releaseDate: "2026-11-08"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Enhanced Culinary Compendium with recipe detail inspection views, dynamic category registry, interactive search prompt via ChatPromptService, and fixed MiniMessage formatting and ticker slot overwrites."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.13"
+    releaseDate: "2026-11-08"
+    reference: "4ad952a"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Standardized player-facing messages, punctuation, and colors across locales, added interactive MiniMessage click and hover actions, fixed tag leakage in commands and Compendium GUI, and integrated Cloud 2.0 ExceptionController."
     minecraft:

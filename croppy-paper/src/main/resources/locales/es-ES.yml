@@ -82,6 +82,18 @@ command:
     header: "<gold><bold>=== Recetas Registradas (<count>) ===</bold></gold>"
     entry: " <dark_gray>•</dark_gray> <click:suggest_command:'/croppy recipe give @s {key}'><hover:show_text:'<gray>Clic para otorgar <white><recipe></white>'><yellow>{key}</yellow></hover></click> <gray>(<recipe>)</gray> <dark_gray>[<category> @ <station>]</dark_gray>"
     unlocked_by_admin: "<green>¡Un administrador ha desbloqueado la receta <white><recipe></white> para ti!</green>"
+  update:
+    checking: "<gray>Buscando actualizaciones disponibles en el canal <yellow><channel></yellow>...</gray>"
+    up-to-date: "<green>Croppy está ejecutando la versión más reciente (<white>v<version></white>).</green>"
+    available: "<gold>¡Una nueva versión de Croppy está disponible!:</gold> <green>v<latest></green> <gray>(actual: v<current>)</gray><newline><dark_gray>├─ <gold>Canal:</gold> <yellow><channel></yellow><newline><dark_gray>└─ <click:run_command:'/croppy update apply'><hover:show_text:'<gray>Clic para descargar y preparar la actualización</gray>'><yellow>[Clic aquí para actualizar: /croppy update apply]</yellow></hover></click>"
+    already-latest: "<yellow>El servidor ya ejecuta la versión más reciente (v<version>). No se requiere actualización.</yellow>"
+    disabled: "<red>El subsistema de actualizaciones está deshabilitado en config.yml.</red>"
+    downloading: "<gray>Descargando Croppy <yellow>v<version></yellow>...</gray>"
+    verifying: "<gray>Verificando integridad del paquete (SHA-256)...</gray>"
+    checksum-failed: "<red>¡Falló la verificación de checksum para el paquete de actualización! Operación abortada.</red>"
+    staged-success: "<green>¡Actualización <yellow>v<version></yellow> preparada exitosamente en <white>plugins/update/<file></white>!</green><newline><gray>La actualización se aplicará automáticamente en el próximo reinicio del servidor.</gray>"
+    failed: "<red>Error en la operación de actualización: <error>.</red>"
+    login-notification: "<gold>Hay una nueva versión de Croppy disponible:</gold> <green>v<latest></green> <gray>(actual: v<current>)</gray> <click:run_command:'/croppy update apply'><hover:show_text:'<gray>Clic para actualizar</gray>'><yellow>[Actualizar ahora]</yellow></hover></click>"
 
 crop:
   plant:
@@ -140,10 +152,17 @@ station:
 
 compendium:
   missing-config: "<red>La configuración del menú del compendio de recetas no está disponible.</red>"
+  missing-detail-config: "<red>La configuración del menú de detalles de receta no está disponible.</red>"
   no-slots: "<red>No se encontraron ranuras de visualización de recetas en el diseño del compendio.</red>"
   gui:
     category: "<gray>Categoría: <yellow><category></yellow></gray>"
     station: "<gray>Estación: <aqua><station></aqua></gray>"
+    station-nearby: "<gray>Estación: <aqua><station></aqua> <green>(✔ Cerca)</green></gray>"
+    station-away: "<gray>Estación: <aqua><station></aqua> <gray>(✖ No detectada cerca)</gray></gray>"
+    cooking-duration: "<gray>Duración: <yellow><duration></yellow></gray>"
+    yields: "<gray>Produce: <yellow><amount>x</yellow></gray>"
+    click-to-inspect: "<yellow>▶ Clic para inspeccionar pasos de cocción</yellow>"
+    active-filter: "<green>✔ Filtro actualmente activo</green>"
     required-ingredients: "<yellow>Ingredientes Requeridos:</yellow>"
     status-discovered: "<dark_green>Estado: Descubierta</dark_green>"
     clue-title: "<aqua><bold>Pista Culinaria:</bold></aqua>"
@@ -154,6 +173,10 @@ compendium:
     unknown-experiment: "<gray>¡Experimenta en las estaciones de cocina para descubrir este plato!</gray>"
     hinted-title: "<gold>★ <recipe> <italic><gray>(Con pista)</gray></italic></gold>"
     discovered-title: "<gold><bold><recipe></bold></gold>"
+  filter:
+    ready-on: "<green>Filtro: mostrando platos listos para cocinar.</green>"
+    ready-off: "<gray>Filtro: mostrando todos los platos accesibles.</gray>"
+    search: "<yellow>Filtrando platos que coinciden con: <white><query></white>.</yellow>"
 
 prompt:
   temperature-prompt: "<yellow>Introduce la temperatura objetivo (</yellow><white><min>°C - <max>°C</white><yellow>) en el chat, o escribe </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Clic para cancelar'><red>'cancel'</red></hover></click><yellow>:</yellow>"
@@ -162,6 +185,9 @@ prompt:
   temperature-bounds: "<red>La temperatura debe estar entre <min>°C y <max>°C.</red>"
   temperature-success: "<green>¡Temperatura objetivo ajustada a <aqua><val>°C</aqua>!</green>"
   invalid-number: "<red>Número inválido. Escribe un número válido o 'cancel'.</red>"
+  search-prompt: "<yellow>Introduce tu búsqueda de recetas en el chat, o escribe </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Clic para cancelar'><red>'cancel'</red></hover></click><yellow> para cancelar (o </yellow><click:run_command:'/croppy recipes clear'><hover:show_text:'<gray>Clic para reiniciar filtro'><aqua>'clear'</aqua></hover></click><yellow> para restablecer):</yellow>"
+  search-timeout: "<gray>La búsqueda de recetas ha expirado.</gray>"
+  search-cancelled: "<gray>Búsqueda de recetas cancelada.</gray>"
 
 recipe:
   compendium_unavailable: "<red>El compendio de recetas no está disponible en este momento.</red>"

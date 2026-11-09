@@ -7,7 +7,7 @@ pattern:
   - "X R R R R R R R X"
   - "X R R R R R R R X"
   - "X R R R R R R R X"
-  - "X < X X ? X X > X"
+  - "X < X F ? Q X > X"
 
 elements:
   'X':
@@ -117,3 +117,26 @@ elements:
         - "<gray>Category: <yellow>{category}</yellow></gray>"
         - "<gray>Page: <aqua>{page}</aqua> / <aqua>{max_page}</aqua></gray>"
         - "<dark_gray>Experiment in stations to learn new dishes.</dark_gray>"
+
+  'F':
+    type: ACTION
+    item:
+      material: "minecraft:cauldron"
+      name: "<green><bold>Ready to Cook</bold></green>"
+      lore:
+        - "<gray>Click to toggle filter: show only recipes</gray>"
+        - "<gray>you have the ingredients to craft now.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes ready"
+
+  'Q':
+    type: ACTION
+    item:
+      material: "minecraft:compass"
+      name: "<aqua><bold>Search Recipes</bold></aqua>"
+      lore:
+        - "<gray>Click to search recipes by name or ingredient.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy recipes search"

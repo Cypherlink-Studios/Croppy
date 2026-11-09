@@ -80,3 +80,32 @@ resource-pack:
     required: false
     # MiniMessage formatted prompt shown in the client's resource pack confirmation screen
     prompt: "<gradient:#70e000:#38b000><bold>Croppy</bold></gradient> <dark_gray>» <gray>Please download the 3D companion pack to see custom crops and stations.</gray>"
+
+# ==============================================================================
+# Automatic Update Checker & Stager
+# ==============================================================================
+updates:
+  # Enables the update checking and staging subsystem
+  enabled: true
+
+  # Asynchronously checks for updates during server boot and logs results to console
+  check-on-startup: true
+
+  # Release channel to track:
+  # - "STABLE": Only official production releases
+  # - "BETA": Includes experimental tags (-alpha, -beta, -rc)
+  channel: "STABLE"
+
+# ==============================================================================
+# Culinary Compendium (Cookbook) Configuration
+# ==============================================================================
+compendium:
+  # Whether undiscovered recipes without hints appear in the compendium as "???" placeholders
+  show-unknown-recipes: true
+
+  # Whether clicking a discovered recipe opens the step-by-step cooking inspection menu
+  enable-detail-view: true
+
+  # Maximum horizontal/vertical distance in blocks to consider a player near a compatible station
+  station-proximity-distance: 5
+

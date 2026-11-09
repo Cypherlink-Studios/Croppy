@@ -109,6 +109,7 @@ public class CroppyPlugin extends JavaPlugin {
     // Recipe & Discovery services
     private dev.darkblade.croppy.api.storage.RecipeKnowledgeStorage recipeStorage;
     private dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController compendiumController;
+    private dev.darkblade.croppy.platform.paper.menu.RecipeDetailMenuController recipeDetailController;
     private dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler;
     private dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackHelper feedbackHelper;
 
@@ -127,6 +128,7 @@ public class CroppyPlugin extends JavaPlugin {
     // Addon System
     private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
     private dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService;
+    private dev.darkblade.croppy.platform.paper.update.PaperUpdateService updateService;
 
     public dev.darkblade.croppy.platform.paper.addon.PaperAddonManager getAddonManager() {
         return addonManager;
@@ -134,6 +136,10 @@ public class CroppyPlugin extends JavaPlugin {
 
     public dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService getResourcePackService() {
         return resourcePackService;
+    }
+
+    public dev.darkblade.croppy.api.update.UpdateService getUpdateService() {
+        return updateService;
     }
 
     @Override
@@ -145,12 +151,10 @@ public class CroppyPlugin extends JavaPlugin {
         this.integrationManager = new dev.darkblade.croppy.integration.common.IntegrationManager(getLogger());
 
         // Register WorldGuard integration early in onLoad for custom flag registration
-        dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wg =
-                new dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration(
-                        getLogger(),
-                        this.pluginConfig.isWorldGuardEnabled(),
-                        this.pluginConfig.isWorldGuardUseCustomFlags()
-                );
+        dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wg = new dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration(
+                getLogger(),
+                this.pluginConfig.isWorldGuardEnabled(),
+                this.pluginConfig.isWorldGuardUseCustomFlags());
         this.integrationManager.register(wg);
         this.integrationManager.onLoad();
     }
@@ -194,6 +198,7 @@ public class CroppyPlugin extends JavaPlugin {
             loadActiveChunkStations();
             setupAddonSystem();
             setupResourcePackPipeline();
+            setupUpdateSubsystem();
             setupCommands();
             registerListeners();
             getLogger().info("Croppy enabled successfully!");
@@ -212,15 +217,66 @@ public class CroppyPlugin extends JavaPlugin {
             }
         }
         Path resourcePackDir = getDataFolder().toPath().resolve("resourcepack");
-        dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger merger =
-                new dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger(resourcePackDir, getLogger());
-        this.addonManager = new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(this, this.core, addonsDir, merger);
+        dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger merger = new dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger(
+                resourcePackDir, getLogger());
+        this.addonManager = new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(this, this.core, addonsDir,
+                merger);
         this.addonManager.enableAll();
     }
 
     private void setupResourcePackPipeline() {
-        this.resourcePackService = new dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService(this, this.pluginConfig);
+        this.resourcePackService = new dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService(this,
+                this.pluginConfig);
         this.resourcePackService.start();
+    }
+
+    private void setupUpdateSubsystem() {
+        dev.darkblade.croppy.api.update.SemanticVersion currentVersion;
+        try {
+            currentVersion = dev.darkblade.croppy.api.update.SemanticVersion.parse(getPluginMeta().getVersion());
+        } catch (Exception e) {
+            currentVersion = dev.darkblade.croppy.api.update.SemanticVersion.of(0, 0, 0);
+        }
+
+        java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(10))
+                .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+                .build();
+
+        dev.darkblade.croppy.platform.paper.update.GitHubReleaseClient releaseClient = new dev.darkblade.croppy.platform.paper.update.GitHubReleaseClient(
+                httpClient, currentVersion);
+
+        java.nio.file.Path updateDir = getDataFolder().getParentFile().toPath().resolve("update");
+        java.util.function.Supplier<String> jarNameSupplier = () -> {
+            try {
+                return new java.io.File(CroppyPlugin.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+                        .getName();
+            } catch (Exception e) {
+                return "Croppy.jar";
+            }
+        };
+
+        this.updateService = new dev.darkblade.croppy.platform.paper.update.PaperUpdateService(
+                releaseClient,
+                updateDir,
+                jarNameSupplier,
+                this.pluginConfig.getUpdatesChannel(),
+                this.pluginConfig.isUpdatesEnabled(),
+                getLogger());
+
+        if (this.pluginConfig.isUpdatesEnabled() && this.pluginConfig.isUpdatesCheckOnStartup()) {
+            this.updateService.checkForUpdatesAsync(false).thenAccept(result -> {
+                if (result.updateAvailable()) {
+                    getLogger().warning("A new update for Croppy is available: v"
+                            + result.latestVersion().map(dev.darkblade.croppy.api.update.SemanticVersion::asString)
+                                    .orElse("?")
+                            + " (current: v" + result.currentVersion().asString() + ") ["
+                            + this.pluginConfig.getUpdatesChannel() + "]");
+                    getLogger().warning(
+                            "Run '/croppy update apply' to download and stage the update for the next server restart.");
+                }
+            });
+        }
     }
 
     private void loadActiveChunkCrops() {
@@ -230,14 +286,16 @@ public class CroppyPlugin extends JavaPlugin {
                 Collection<CropInstance> crops = storage.loadChunk(world.getName(), chunk.getX(), chunk.getZ());
                 for (CropInstance crop : crops) {
                     if (!core.getCropManager().hasCrop(crop.getPosition())) {
-                        dev.darkblade.croppy.api.species.Species species = core.getSpeciesRegistry().get(crop.getSpeciesKey()).orElse(null);
+                        dev.darkblade.croppy.api.species.Species species = core.getSpeciesRegistry()
+                                .get(crop.getSpeciesKey()).orElse(null);
                         int height = (species != null) ? species.getHeight() : 1;
                         core.getCropManager().registerCrop(crop, height);
                         loadedCount++;
 
                         if (species != null && this.displaySynchronizer != null && !species.getStages().isEmpty()) {
                             int stageIdx = Math.min(crop.getStageIndex(), species.getStages().size() - 1);
-                            this.displaySynchronizer.synchronizeDisplay(crop, species, species.getStages().get(stageIdx));
+                            this.displaySynchronizer.synchronizeDisplay(crop, species,
+                                    species.getStages().get(stageIdx));
                         }
                     }
                 }
@@ -273,7 +331,26 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getRecipeDiscoveryEngine(),
                 this.menuRenderer,
                 this.itemFactory,
-                this.messageService);
+                this.messageService,
+                core.getRecipeCategoryRegistry(),
+                core.getProcessRegistry(),
+                core.getStationRegistry(),
+                core.getStationManager(),
+                this.pluginConfig.isCompendiumShowUnknownRecipes(),
+                this.pluginConfig.getCompendiumStationProximityDistance());
+        this.recipeDetailController = new dev.darkblade.croppy.platform.paper.menu.RecipeDetailMenuController(
+                core.getMenuRegistry(),
+                core.getProcessRegistry(),
+                core.getStationRegistry(),
+                this.itemFactory,
+                this.menuRenderer,
+                this.messageService,
+                this.compendiumController,
+                this.pluginConfig.getCompendiumStationProximityDistance());
+        this.menuListener.setRecipeRegistry(core.getRecipeRegistry());
+        this.menuListener.setDiscoveryEngine(core.getRecipeDiscoveryEngine());
+        this.menuListener.setRecipeDetailController(this.recipeDetailController);
+        this.menuListener.setCompendiumController(this.compendiumController);
     }
 
     private void registerListeners() {
@@ -281,15 +358,21 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getSpeciesRegistry(),
                 this.displaySynchronizer, this.virtualBlockDisplayTracker, core.getStationManager(),
                 this.stationStorage, this.stationViewerTracker, getLogger()), this);
-        pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer, getProtectionPort(), this.messageService), this);
+        pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer,
+                getProtectionPort(), this.messageService), this);
         pm.registerEvents(new CropGrowthListener(core), this);
-        pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer, getProtectionPort(), this.itemFactory), this);
+        pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer, getProtectionPort(), this.itemFactory),
+                this);
         pm.registerEvents(new CropPhysicsListener(core, this.virtualBlockDisplayTracker), this);
         pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
-        pm.registerEvents(new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService, getProtectionPort()),
+        pm.registerEvents(
+                new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService,
+                        getProtectionPort()),
                 this);
         pm.registerEvents(new TimeSkipListener(this.dailyTransitionService), this);
-        pm.registerEvents(new FertilizerListener(this.fertilizerService, core.getCropManager(), this.messageService, getProtectionPort()),
+        pm.registerEvents(
+                new FertilizerListener(this.fertilizerService, core.getCropManager(), this.messageService,
+                        getProtectionPort()),
                 this);
 
         // Station & Process listeners
@@ -308,12 +391,14 @@ public class CroppyPlugin extends JavaPlugin {
                 this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
 
         this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
-                this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer, getProtectionPort(), this.itemFactory);
+                this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer, getProtectionPort(),
+                this.itemFactory);
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.virtualInteractionListener);
 
         this.stationVirtualInteractionListener = new dev.darkblade.croppy.platform.paper.station.listener.StationVirtualInteractionPacketListener(
-                this, this.stationViewerTracker, this.stationBlockListener, this.stationInteractListener, getLogger(), getProtectionPort());
+                this, this.stationViewerTracker, this.stationBlockListener, this.stationInteractListener, getLogger(),
+                getProtectionPort());
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.stationVirtualInteractionListener);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.BukkitRecipeDiscoveryListener(
@@ -325,6 +410,10 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.RecipeBookItemListener(
                 this.itemFactory,
                 this.compendiumController), this);
+        if (this.updateService != null) {
+            pm.registerEvents(new dev.darkblade.croppy.platform.paper.update.listener.UpdateNotificationListener(
+                    this.updateService, this.messageService), this);
+        }
 
         getLogger().info(
                 "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
@@ -340,6 +429,7 @@ public class CroppyPlugin extends JavaPlugin {
         }
         saveResourceIfNotExists("menus/default_station.yml");
         saveResourceIfNotExists("menus/recipes_menu.yml");
+        saveResourceIfNotExists("menus/recipe_detail_menu.yml");
         saveResourceIfNotExists("menus/stations/cooking_pot.yml");
         saveResourceIfNotExists("menus/stations/skillet.yml");
         saveResourceIfNotExists("menus/stations/stove_menu.yml");
@@ -566,14 +656,16 @@ public class CroppyPlugin extends JavaPlugin {
             return false;
         });
 
-        this.growthTicker = new PaperGrowthTicker(this, core, this.environmentProvider, this.dailyTransitionService, this.virtualBlockDisplayTracker);
+        this.growthTicker = new PaperGrowthTicker(this, core, this.environmentProvider, this.dailyTransitionService,
+                this.virtualBlockDisplayTracker);
         this.growthTicker.start(tickInterval);
 
         // Schedule periodic rain hydration task (every 5 seconds / 100 ticks)
         this.rainTask = getServer().getScheduler().runTaskTimer(this,
                 new RainHydrationTask(getServer(), core.getCropManager()), 100L, 100L);
 
-        // Schedule periodic 3D display viewer proximity tracking (every 1 second / 20 ticks)
+        // Schedule periodic 3D display viewer proximity tracking (every 1 second / 20
+        // ticks)
         this.displayTrackerTask = getServer().getScheduler().runTaskTimer(this, () -> {
             try {
                 if (this.virtualBlockDisplayTracker != null) {
@@ -646,7 +738,8 @@ public class CroppyPlugin extends JavaPlugin {
         commandManager.exceptionController().registerHandler(ArgumentParseException.class, ctx -> {
             CommandSender sender = ctx.context().sender().source();
             Throwable cause = ctx.exception().getCause();
-            String message = cause != null && cause.getMessage() != null ? cause.getMessage() : ctx.exception().getMessage();
+            String message = cause != null && cause.getMessage() != null ? cause.getMessage()
+                    : ctx.exception().getMessage();
             if (message == null || message.isBlank()) {
                 message = "Invalid argument.";
             }
@@ -683,9 +776,12 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getRecipeRegistry(),
                 core.getRecipeDiscoveryEngine(),
                 this.recipeStorage,
-                this.compendiumController);
+                this.compendiumController,
+                core.getRecipeCategoryRegistry());
+        commands.setChatPromptService(this.chatPromptService);
         commands.setAddonManager(this.addonManager);
         commands.setResourcePackService(this.resourcePackService);
+        commands.setUpdateService(this.updateService);
         annotationParser.parse(commands);
         getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
     }
@@ -1005,32 +1101,26 @@ public class CroppyPlugin extends JavaPlugin {
     private void setupIntegrations() {
         if (this.integrationManager == null) {
             this.integrationManager = new dev.darkblade.croppy.integration.common.IntegrationManager(getLogger());
-            dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wg =
-                    new dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration(
-                            getLogger(),
-                            this.pluginConfig.isWorldGuardEnabled(),
-                            this.pluginConfig.isWorldGuardUseCustomFlags()
-                    );
+            dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wg = new dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration(
+                    getLogger(),
+                    this.pluginConfig.isWorldGuardEnabled(),
+                    this.pluginConfig.isWorldGuardUseCustomFlags());
             this.integrationManager.register(wg);
         }
 
         // Register PAPI integration
-        dev.darkblade.croppy.integration.papi.PapiIntegration papi =
-                new dev.darkblade.croppy.integration.papi.PapiIntegration(
-                        getLogger(),
-                        this.core,
-                        getDescription().getVersion(),
-                        this.pluginConfig.isPapiEnabled(),
-                        this.pluginConfig.getPapiRaycastDistance()
-                );
+        dev.darkblade.croppy.integration.papi.PapiIntegration papi = new dev.darkblade.croppy.integration.papi.PapiIntegration(
+                getLogger(),
+                this.core,
+                getDescription().getVersion(),
+                this.pluginConfig.isPapiEnabled(),
+                this.pluginConfig.getPapiRaycastDistance());
         this.integrationManager.register(papi);
 
         // Register Vault integration
-        dev.darkblade.croppy.integration.vault.VaultIntegration vault =
-                new dev.darkblade.croppy.integration.vault.VaultIntegration(
-                        getLogger(),
-                        this.pluginConfig.isVaultEnabled()
-                );
+        dev.darkblade.croppy.integration.vault.VaultIntegration vault = new dev.darkblade.croppy.integration.vault.VaultIntegration(
+                getLogger(),
+                this.pluginConfig.isVaultEnabled());
         this.integrationManager.register(vault);
 
         // Enable all integrations
@@ -1038,7 +1128,8 @@ public class CroppyPlugin extends JavaPlugin {
 
         // Resolve active ProtectionPort
         var wgOpt = this.integrationManager.getIntegration("worldguard");
-        if (wgOpt.isPresent() && wgOpt.get() instanceof dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wgIntegration
+        if (wgOpt.isPresent() && wgOpt
+                .get() instanceof dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wgIntegration
                 && wgIntegration.getProtectionAdapter() != null) {
             this.protectionPort = wgIntegration.getProtectionAdapter();
         } else {
@@ -1047,7 +1138,8 @@ public class CroppyPlugin extends JavaPlugin {
 
         // Resolve active EconomyPort
         var vaultOpt = this.integrationManager.getIntegration("vault");
-        if (vaultOpt.isPresent() && vaultOpt.get() instanceof dev.darkblade.croppy.integration.vault.VaultIntegration vaultIntegration
+        if (vaultOpt.isPresent()
+                && vaultOpt.get() instanceof dev.darkblade.croppy.integration.vault.VaultIntegration vaultIntegration
                 && vaultIntegration.getEconomyAdapter() != null) {
             this.economyPort = vaultIntegration.getEconomyAdapter();
         } else {
@@ -1056,7 +1148,8 @@ public class CroppyPlugin extends JavaPlugin {
     }
 
     public dev.darkblade.croppy.api.protection.ProtectionPort getProtectionPort() {
-        return protectionPort != null ? protectionPort : dev.darkblade.croppy.integration.common.NoOpProtectionAdapter.INSTANCE;
+        return protectionPort != null ? protectionPort
+                : dev.darkblade.croppy.integration.common.NoOpProtectionAdapter.INSTANCE;
     }
 
     public dev.darkblade.croppy.api.economy.EconomyPort getEconomyPort() {

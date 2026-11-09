@@ -2,6 +2,6 @@
   "oversized_in_gui": true,
   "model": {
     "type": "minecraft:model",
-    "model": "minecraft:item/cauldron"
+    "model": "croppy:block/cooking_pot"
   }
 }
