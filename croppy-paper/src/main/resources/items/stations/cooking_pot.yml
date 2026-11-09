@@ -1,6 +1,7 @@
 id: "croppy:cooking_pot"
 category: "stations"
-material: "minecraft:player_head"
+material: "minecraft:cauldron"
+item_model: "croppy:cooking_pot"
 name: "<gradient:#ffaa00:#ff5555>Cooking Pot</gradient>"
 lore:
   - "<gray>A versatile heavy pot used for</gray>"

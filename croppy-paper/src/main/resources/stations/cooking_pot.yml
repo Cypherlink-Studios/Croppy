@@ -1,13 +1,24 @@
 id: "croppy:cooking_pot"
 name: "<gradient:#ffaa00:#ff5555>Cooking Pot</gradient>"
-block: "PLAYER_HEAD"
-texture: "http://textures.minecraft.net/texture/56f36f28ce2928e6b216ecd446a512a0527b9e6066526a9c5a9373122a1d594c"
+block: "minecraft:barrier"
 interaction: "HYBRID"
 input_capacity: 6
 output_capacity: 2
 menu: "croppy:cooking_pot"
 has_display: true
 visual:
+  hide_base_block: true
+  interaction:
+    width: 1.01
+    height: 1.01
+  base_model:
+    enabled: true
+    type: "ITEM"
+    item: "croppy:cooking_pot"
+    translation: [0.0, 0.5, 0.0]
+    rotation_pitch: 0.0
+    scale: [1.0, 1.0, 1.0]
+    view_distance: 48
   process_display:
     enabled: true
     type: "ITEM"
@@ -17,7 +28,6 @@ visual:
     interpolation_duration: 3
   text_display:
     enabled: true
-    hide_when_idle: true
     translation: [0.0, 1.35, 0.0]
     billboard: "CENTER"
     view_distance: 8

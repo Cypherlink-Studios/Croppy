@@ -10,12 +10,12 @@ visual:
   hide_base_block: true
   interaction:
     width: 1.01
-    height: 0.2
+    height: 0.30
   base_model:
     enabled: true
     type: "ITEM"
-    item: "minecraft:heavy_weighted_pressure_plate"
-    translation: [0.0, 0.2, 0.0]
+    item: "croppy:skillet"
+    translation: [0.0, 0.4, 0.0]
     rotation_pitch: 0.0
     scale: [1.8, 0.8, 1.8]
     view_distance: 48
@@ -30,7 +30,7 @@ visual:
   text_display:
     enabled: true
     translation: [0.0, 1.15, 0.0]
-    billboard: "CENTER"
+    billboard: "FIXED"
     view_distance: 8
     line_width: 220
     format: |

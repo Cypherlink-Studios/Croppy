@@ -3,8 +3,8 @@
 	"credit": "Made with Blockbench",
 	"texture_size": [32, 32],
 	"textures": {
-		"texture": "croppy:item/cooking_pot",
-		"particle": "croppy:item/cooking_pot"
+		"texture": "croppy:block/cooking_pot",
+		"particle": "croppy:block/cooking_pot"
 	},
 	"elements": [
 		{

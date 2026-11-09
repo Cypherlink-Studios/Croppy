@@ -1,6 +1,7 @@
 id: "croppy:skillet"
 category: "stations"
 material: "minecraft:furnace"
+item_model: "croppy:skillet"
 name: "<gradient:#ffaa00:#ff3300>Skillet</gradient>"
 lore:
   - "<gray>A heavy cast iron pan for</gray>"
