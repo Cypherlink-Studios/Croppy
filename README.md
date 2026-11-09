@@ -56,7 +56,7 @@ Built on modern Minecraft technical foundations, Croppy does not require client-
 |                                                                             |
 |  [7. RECIPE DISCOVERY & CULINARY COMPENDIUM]                                |
 |  Master an in-game cookbook containing categorized dishes, unlock hidden    |
-|  recipes through culinary experimentation, and inspect ingredients.        |
+|  recipes through culinary experimentation, and inspect ingredients.         |
 |                                                                             |
 |  [8. NATIVE MULTI-LANGUAGE SUPPORT (i18n)]                                  |
 |  All messages, action bars, tooltips, and item names render in each         |
@@ -75,6 +75,16 @@ Built on modern Minecraft technical foundations, Croppy does not require client-
 | **RPG & Economy** | Powers rich profession systems (**Farmer**, **Agronomist**, **Chef**, **Tavern Keeper**). Unlocks high-tier dishes with unique status effects and buff durations. |
 | **Towny & Civ Servers** | Integrates agricultural supply chains into local economies. Certain biomes and soil compositions favor distinct crop species, encouraging trade. |
 | **Modpack-like Experience** | Delivers the visual depth of mods like *Farmer's Delight* on Paper servers without forcing players to install client-side mod loaders. |
+
+---
+
+## Gallery
+
+| Tomatoes and Rice plants | DarkBladeDev's dream kitchen |
+|---|---|
+| <img width="3072" height="1759" alt="image" src="https://github.com/user-attachments/assets/59303b4a-16e5-40d8-929b-862ae50cc597" /> | <img width="3072" height="1759" alt="image" src="https://github.com/user-attachments/assets/7619409e-d6c9-4ee8-9726-15d4dae8d50a" /> |
+
+
 
 ---
 
