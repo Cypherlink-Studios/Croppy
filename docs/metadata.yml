@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.15"
+  - version: "0.5.16"
     releaseDate: "2026-11-09"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Harmonized PlaceholderAPI telemetry with official documentation: backward-compatible compendium aliases, canonical species key (%croppy_target_crop_species%) vs display name (%croppy_target_crop_species_name%), multi-phase station cooking progress, smart soil moisture resolution, and removed phantom N-P-K tokens."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.15"
+    releaseDate: "2026-11-09"
+    reference: "e6a8ebb"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Cleaned base resources for neutral theme: vanilla Minecraft material tiers for watering cans, agronomical names for fertilizers, Standard English localization across seeds and tools, removed orphan assets, and staged tomato and rice model pipelines."
     minecraft:

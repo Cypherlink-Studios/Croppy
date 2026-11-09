@@ -2,6 +2,9 @@ package dev.darkblade.croppy.integration.papi;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.process.PhaseDefinition;
+import dev.darkblade.croppy.api.process.ProcessDefinition;
+import dev.darkblade.croppy.api.process.ProcessInstance;
 import dev.darkblade.croppy.api.recipe.KnowledgeState;
 import dev.darkblade.croppy.api.recipe.PlayerRecipeKnowledge;
 import dev.darkblade.croppy.api.species.Species;
@@ -13,6 +16,8 @@ import dev.darkblade.croppy.core.CroppyCore;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.type.Farmland;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -79,13 +84,13 @@ public class CroppyPlaceholderExpansion extends PlaceholderExpansion {
 
         // 2. Player Compendium Placeholders
         if (offlinePlayer != null) {
-            if (query.equals("compendium_total")) {
+            if (query.equals("compendium_total") || query.equals("compendium_total_recipes")) {
                 return String.valueOf(core.getRecipeRegistry().size());
             }
-            if (query.equals("compendium_discovered")) {
+            if (query.equals("compendium_discovered") || query.equals("compendium_discovered_recipes")) {
                 return String.valueOf(getDiscoveredCount(offlinePlayer));
             }
-            if (query.equals("compendium_percentage")) {
+            if (query.equals("compendium_percentage") || query.equals("compendium_completion_percentage")) {
                 int total = core.getRecipeRegistry().size();
                 if (total == 0) {
                     return "0.0%";
@@ -105,7 +110,29 @@ public class CroppyPlaceholderExpansion extends PlaceholderExpansion {
         if (query.startsWith("target_") && offlinePlayer instanceof Player onlinePlayer) {
             Block targetBlock = onlinePlayer.getTargetBlockExact(raycastDistance);
             if (targetBlock == null) {
-                return query.equals("target_is_crop") || query.equals("target_is_station") ? "false" : "";
+                if (query.equals("target_is_crop") || query.equals("target_is_station") || query.equals("target_soil_is_farmland")) {
+                    return "false";
+                }
+                return "";
+            }
+
+            // Handle Target Soil Telemetry
+            if (query.startsWith("target_soil_")) {
+                Farmland farmland = resolveFarmland(targetBlock);
+                if (query.equals("target_soil_is_farmland")) {
+                    return farmland != null ? "true" : "false";
+                }
+                if (farmland == null) {
+                    return query.equals("target_soil_water") ? "0" : "0%";
+                }
+                int moisture = farmland.getMoisture();
+                switch (query) {
+                    case "target_soil_water":
+                        return String.valueOf(moisture);
+                    case "target_soil_moisture":
+                        int pct = (int) Math.round((moisture * 100.0) / 7.0);
+                        return pct + "%";
+                }
             }
 
             BlockPosition pos = new BlockPosition(targetBlock.getWorld().getName(), targetBlock.getX(), targetBlock.getY(), targetBlock.getZ());
@@ -120,6 +147,8 @@ public class CroppyPlaceholderExpansion extends PlaceholderExpansion {
                 CropInstance crop = cropOpt.get();
                 switch (query) {
                     case "target_crop_species":
+                        return crop.getSpeciesKey().asString();
+                    case "target_crop_species_name":
                         return core.getSpeciesRegistry().get(crop.getSpeciesKey())
                                 .map(Species::getName)
                                 .orElse(crop.getSpeciesKey().asString());
@@ -129,8 +158,12 @@ public class CroppyPlaceholderExpansion extends PlaceholderExpansion {
                         return core.getSpeciesRegistry().get(crop.getSpeciesKey())
                                 .map(sp -> String.valueOf(Math.max(0, sp.getTotalStages() - 1)))
                                 .orElse("0");
+                    case "target_crop_total_stages":
+                        return core.getSpeciesRegistry().get(crop.getSpeciesKey())
+                                .map(sp -> String.valueOf(sp.getTotalStages()))
+                                .orElse("0");
                     case "target_crop_progress":
-                        return String.format(Locale.ROOT, "%.0f%%", crop.getProgress() * 100.0);
+                        return String.format(Locale.ROOT, "%.1f%%", crop.getProgress() * 100.0);
                     case "target_crop_is_watered":
                         long currentDay = targetBlock.getWorld().getFullTime() / 24000L;
                         return crop.isWateredOn(currentDay) ? "true" : "false";
@@ -146,16 +179,22 @@ public class CroppyPlaceholderExpansion extends PlaceholderExpansion {
             if (stationOpt.isPresent()) {
                 StationInstance station = stationOpt.get();
                 switch (query) {
+                    case "target_station_name":
                     case "target_station_type":
                         return station.getStationKey().asString();
                     case "target_station_temperature":
                         return station.getComponent(ThermalComponent.class)
-                                .map(tc -> String.format(Locale.ROOT, "%.0f°C", tc.getTemperature()))
-                                .orElse("0°C");
+                                .map(tc -> String.format(Locale.ROOT, "%.1f°C", tc.getTemperature()))
+                                .orElse("0.0°C");
                     case "target_station_is_cooking":
                         return station.getComponent(ProcessComponent.class)
                                 .map(pc -> pc.hasActiveProcess() ? "true" : "false")
                                 .orElse("false");
+                    case "target_station_cooking_progress":
+                        return station.getComponent(ProcessComponent.class)
+                                .flatMap(ProcessComponent::getActiveProcess)
+                                .map(this::calculateCookingProgress)
+                                .orElse("0.0%");
                 }
             }
         }
@@ -175,5 +214,36 @@ public class CroppyPlaceholderExpansion extends PlaceholderExpansion {
             }
         }
         return count;
+    }
+
+    private String calculateCookingProgress(ProcessInstance process) {
+        Optional<ProcessDefinition> defOpt = core.getProcessRegistry().get(process.getProcessKey());
+        if (defOpt.isEmpty()) {
+            return "0.0%";
+        }
+        ProcessDefinition def = defOpt.get();
+        long totalDuration = 0L;
+        for (PhaseDefinition phase : def.phases()) {
+            totalDuration += phase.durationTicks();
+        }
+        if (totalDuration <= 0L) {
+            return process.getTotalElapsedTicks() > 0 ? "100.0%" : "0.0%";
+        }
+        double pct = Math.min(100.0, (process.getTotalElapsedTicks() * 100.0) / totalDuration);
+        return String.format(Locale.ROOT, "%.1f%%", pct);
+    }
+
+    private Farmland resolveFarmland(Block targetBlock) {
+        if (targetBlock == null) {
+            return null;
+        }
+        if (targetBlock.getBlockData() instanceof Farmland farmland) {
+            return farmland;
+        }
+        Block below = targetBlock.getRelative(BlockFace.DOWN);
+        if (below != null && below.getBlockData() instanceof Farmland farmlandBelow) {
+            return farmlandBelow;
+        }
+        return null;
     }
 }
