@@ -49,7 +49,7 @@ Los ítems se organizan en subcarpetas temáticas bajo `plugins/Croppy/items/<ca
 | `seeds` | Semillas de cultivos vinculadas a definiciones de especies | `croppy:wheat_seeds`, `croppy:tomato_seeds` |
 | `tools` | Herramientas operativas y de diagnóstico | `croppy:inspector`, `croppy:thermometer` |
 | `watering_cans` | Regaderas con capacidades y áreas de riego progresivas | `croppy:copper_can`, `croppy:gold_can` |
-| `fertilizers` | Enmiendas y abonos (Crecimiento, Calidad, Retención) | `croppy:speed_gro`, `croppy:retaining_soil` |
+| `fertilizers` | Enmiendas y abonos (Crecimiento, Calidad, Retención) | `croppy:growth_fertilizer`, `croppy:hydrating_fertilizer` |
 | `stations` | Bloques físicos de estaciones de trabajo | `croppy:cooking_pot`, `croppy:skillet`, `croppy:stove` |
 | `ingredients` | Cosechas, carnes preparadas, caldos y platos culinarios | `croppy:tomato`, `croppy:tomato_soup` |
 | `misc` | Libros de cocina, manuales y objetos misceláneos | `croppy:recipe_book`, `croppy:burnt_food` |
@@ -61,7 +61,7 @@ Los ítems se organizan en subcarpetas temáticas bajo `plugins/Croppy/items/<ca
 Cada archivo de configuración es analizado por `YamlItemLoader`. A continuación se muestra un ejemplo de referencia completo:
 
 ```yaml
-id: "croppy:speed_gro"
+id: "croppy:growth_fertilizer"
 category: "fertilizers"
 
 # Título visible con formato MiniMessage y degradado
@@ -76,7 +76,7 @@ lore:
 material: "BONE_MEAL"
 
 # Componente nativo de Minecraft 1.21.4+ (assets/<ns>/items/*.json)
-item_model: "croppy:speed_gro"
+item_model: "croppy:growth_fertilizer"
 
 # Entero CustomModelData para compatibilidad clásica
 custom_model_data: 1001

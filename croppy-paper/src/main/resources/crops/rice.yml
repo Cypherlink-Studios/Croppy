@@ -14,7 +14,7 @@ stages:
   - id: "submerged_seedling"
     progress_required: 80
     model:
-      item_model: "croppy:rice_stage_0"
+      item_model: "croppy:plant/rice/stage_0"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:
@@ -23,7 +23,7 @@ stages:
   - id: "emergent_tillering"
     progress_required: 120
     model:
-      item_model: "croppy:rice_stage_1"
+      item_model: "croppy:plant/rice/stage_1"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:
@@ -32,7 +32,7 @@ stages:
   - id: "mature_panicle"
     progress_required: 0
     model:
-      item_model: "croppy:rice_mature"
+      item_model: "croppy:plant/rice/stage_2"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.1, 0.0]
       hitbox:

@@ -153,7 +153,7 @@ class CropInspectorServiceTest {
         BlockPosition pos = new BlockPosition("world", 40, 64, 40);
         DefaultCropInstance crop = new DefaultCropInstance(testSpecies.getKey(), pos);
         crop.setLastWateredDay(5L);
-        crop.setFertilizerKey(Key.of("croppy", "speed_gro"));
+        crop.setFertilizerKey(Key.of("croppy", "growth_fertilizer"));
 
         CropEnvironment env = CropEnvironment.of(15, 8);
 
@@ -161,7 +161,7 @@ class CropInspectorServiceTest {
         Component cardWatered = inspectorService.formatCropCard(crop, testSpecies, env, 5L);
         String textWatered = PlainTextComponentSerializer.plainText().serialize(cardWatered);
         assertTrue(textWatered.contains("Watered today"));
-        assertTrue(textWatered.contains("Fertilizer: croppy:speed_gro"));
+        assertTrue(textWatered.contains("Fertilizer: croppy:growth_fertilizer"));
         assertTrue(textWatered.contains("Unwatered Policy: PAUSE"));
 
         // When currentDay is 7 (dry for 2 days)

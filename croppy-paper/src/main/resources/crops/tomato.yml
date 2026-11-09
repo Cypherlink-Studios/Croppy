@@ -11,7 +11,7 @@ stages:
   - id: "seed"
     progress_required: 50
     model:
-      item_model: "croppy:tomato_stage_0"
+      item_model: "croppy:plant/tomato/stage_0"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:
@@ -20,7 +20,7 @@ stages:
   - id: "sprout"
     progress_required: 100
     model:
-      item_model: "croppy:tomato_stage_1"
+      item_model: "croppy:plant/tomato/stage_1"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:
@@ -29,7 +29,7 @@ stages:
   - id: "mature"
     progress_required: 0
     model:
-      item_model: "croppy:tomato_mature"
+      item_model: "croppy:plant/tomato/stage_2"
       scale: [1.0, 1.0, 1.0]
       translation: [0.0, 0.0, 0.0]
       hitbox:

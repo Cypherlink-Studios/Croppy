@@ -1,0 +1,14 @@
+id: "croppy:iron_can"
+category: "watering_cans"
+material: "IRON_INGOT"
+item-model: "croppy:iron_can"
+name: "<white>Iron Watering Can</white>"
+lore:
+  - "<gray>A sturdy iron watering can with moderate capacity.</gray>"
+  - "<aqua>Capacity: 100 uses</aqua>"
+  - "<yellow>Area: 1x3</yellow>"
+pdc:
+  tier: "iron"
+  capacity: "100"
+  aoe_width: "1"
+  aoe_length: "3"

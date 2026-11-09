@@ -29,7 +29,7 @@ class FertilizerServiceTest {
     @DisplayName("Verify transient soil buffer storage and consumption")
     void testSoilBuffer() {
         BlockPosition pos = BlockPosition.of("world", 10, 64, 10);
-        Key speedGro = Key.of("croppy", "speed_gro");
+        Key speedGro = Key.of("croppy", "growth_fertilizer");
 
         service.bufferSoilFertilizer(pos, speedGro);
 
@@ -44,10 +44,10 @@ class FertilizerServiceTest {
     @Test
     @DisplayName("Verify fertilizer registry integration")
     void testRegistryIntegration() {
-        Key key = Key.of("croppy", "speed_gro");
+        Key key = Key.of("croppy", "growth_fertilizer");
         Fertilizer fert = new Fertilizer(
                 key,
-                "Speed-Gro",
+                "Growth Fertilizer",
                 List.of("Boosts speed"),
                 FertilizerType.SPEED,
                 1.25,

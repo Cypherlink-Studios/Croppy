@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.5.15"
+    releaseDate: "2026-11-09"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Cleaned base resources for neutral theme: vanilla Minecraft material tiers for watering cans, agronomical names for fertilizers, Standard English localization across seeds and tools, removed orphan assets, and staged tomato and rice model pipelines."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.5.14"
     releaseDate: "2026-11-08"
-    reference: "main"
+    reference: "3aa2bed"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Enhanced Culinary Compendium with recipe detail inspection views, dynamic category registry, interactive search prompt via ChatPromptService, and fixed MiniMessage formatting and ticker slot overwrites."
     minecraft:

@@ -1,6 +1,6 @@
 id: "croppy:carrot_seeds"
 category: "seeds"
 material: "CARROT"
-name: "<gold>Semillas de Zanahoria</gold>"
+name: "<gold>Carrot Seeds</gold>"
 lore:
-  - "<gray>Plántalas en tierra arada para cultivar zanahorias.</gray>"
+  - "<gray>Plant in tilled soil to grow carrots.</gray>"

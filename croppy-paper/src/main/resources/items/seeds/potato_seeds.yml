@@ -1,6 +1,6 @@
 id: "croppy:potato_seeds"
 category: "seeds"
 material: "POTATO"
-name: "<yellow>Semillas de Patata</yellow>"
+name: "<yellow>Potato Seeds</yellow>"
 lore:
-  - "<gray>Plántalas en tierra arada para cultivar patatas.</gray>"
+  - "<gray>Plant in tilled soil to grow potatoes.</gray>"

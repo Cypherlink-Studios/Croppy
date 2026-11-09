@@ -1,0 +1,14 @@
+id: "croppy:diamond_can"
+category: "watering_cans"
+material: "DIAMOND"
+item-model: "croppy:diamond_can"
+name: "<aqua>Diamond Watering Can</aqua>"
+lore:
+  - "<gray>A high-grade diamond watering can for large fields.</gray>"
+  - "<aqua>Capacity: 500 uses</aqua>"
+  - "<yellow>Area: 3x3</yellow>"
+pdc:
+  tier: "diamond"
+  capacity: "500"
+  aoe_width: "3"
+  aoe_length: "3"

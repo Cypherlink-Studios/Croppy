@@ -29,9 +29,9 @@ Croppy incluye tres tipos principales de fertilizantes configurados en `items/fe
 
 | Clave del Ítem | Material Base | Clasificación | Efecto Principal |
 |---|---|---|---|
-| `croppy:speed_gro` | `BONE_MEAL` | **`SPEED`** | Acelera la velocidad de crecimiento en un **+25%** (`speed_multiplier: 1.25`). |
+| `croppy:growth_fertilizer` | `BONE_MEAL` | **`SPEED`** | Acelera la velocidad de crecimiento en un **+25%** (`speed_multiplier: 1.25`). |
 | `croppy:quality_fertilizer` | `GLOWSTONE_DUST` | **`QUALITY`** | Otorga un bono del **+20%** (`quality_boost: 0.20`) para cosechar productos de calidad superior. |
-| `croppy:retaining_soil` | `CLAY_BALL` | **`RETAINING`** | Ofrece un **33% de probabilidad** (`retention_chance: 0.33`) de conservar la humedad al amanecer sin regar. |
+| `croppy:hydrating_fertilizer` | `CLAY_BALL` | **`RETAINING`** | Ofrece un **33% de probabilidad** (`retention_chance: 0.33`) de conservar la humedad al amanecer sin regar. |
 
 ---
 
@@ -48,12 +48,12 @@ Croppy incluye tres tipos principales de fertilizantes configurados en `items/fe
 
 Los fertilizantes se declaran en `plugins/Croppy/items/fertilizers/*.yml` y son analizados por `YamlFertilizerLoader`.
 
-### Ejemplo Completo YAML (`speed_gro.yml`)
+### Ejemplo Completo YAML (`growth_fertilizer.yml`)
 
 ```yaml
-id: "croppy:speed_gro"
+id: "croppy:growth_fertilizer"
 category: "fertilizers"
-name: "<green>Fertilizante Speed-Gro</green>"
+name: "<green>Growth Fertilizer</green>"
 lore:
   - "<gray>Acelera la velocidad de crecimiento del cultivo en un 25%.</gray>"
 
@@ -69,7 +69,7 @@ speed_multiplier: 1.25
 item:
   material: BONE_MEAL
   custom_model_data: 1001
-  item-model: "croppy:speed_gro"
+  item-model: "croppy:growth_fertilizer"
 
 # Etiquetas PDC vinculadas
 pdc:
@@ -81,7 +81,7 @@ pdc:
 
 | Ruta del Campo | Tipo | Requerido | Descripción |
 |---|---|---|---|
-| `id` | String (`Key`) | **Sí** | Clave única con namespace (ej. `croppy:speed_gro`). |
+| `id` | String (`Key`) | **Sí** | Clave única con namespace (ej. `croppy:growth_fertilizer`). |
 | `type` | Enum | **Sí** | Clasificación: `SPEED`, `QUALITY` o `RETAINING`. |
 | `speed_multiplier` | Double | Para `SPEED` | Multiplicador de crecimiento (ej. `1.25` para +25% de velocidad). |
 | `quality_boost` | Double | Para `QUALITY` | Modificador de tirada de calidad (ej. `0.20` para +20% de probabilidad). |

@@ -82,8 +82,8 @@ class FertilizerListenerTest {
     void setUp() {
         fertilizerRegistry = new DefaultFertilizerRegistry();
         testFertilizer = new Fertilizer(
-                Key.of("croppy", "speed_gro"),
-                "Speed-Gro",
+                Key.of("croppy", "growth_fertilizer"),
+                "Growth Fertilizer",
                 List.of("Boosts speed"),
                 FertilizerType.SPEED,
                 1.25,

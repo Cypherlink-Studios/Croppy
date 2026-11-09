@@ -1,0 +1,14 @@
+id: "croppy:wooden_can"
+category: "watering_cans"
+material: "WOODEN_HOE"
+item-model: "croppy:wooden_can"
+name: "<color:#a0522d>Wooden Watering Can</color>"
+lore:
+  - "<gray>A simple wooden watering can for novice farmers.</gray>"
+  - "<aqua>Capacity: 20 uses</aqua>"
+  - "<yellow>Area: 1x1</yellow>"
+pdc:
+  tier: "wooden"
+  capacity: "20"
+  aoe_width: "1"
+  aoe_length: "1"

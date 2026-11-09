@@ -1,0 +1,16 @@
+id: "croppy:hydrating_fertilizer"
+category: "fertilizers"
+name: "<aqua>Hydrating Fertilizer</aqua>"
+description:
+  - "<gray>33% chance to preserve soil hydration across day turnover.</gray>"
+lore:
+  - "<gray>33% chance to preserve soil hydration across day turnover.</gray>"
+type: RETAINING
+retention_chance: 0.33
+item:
+  material: CLAY_BALL
+  custom_model_data: 1002
+  item-model: "croppy:hydrating_fertilizer"
+pdc:
+  type: "RETAINING"
+  retention_chance: "0.33"

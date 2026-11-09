@@ -17,11 +17,12 @@ Watering cans store discrete water charges within their Persistent Data Containe
 
 | Item Key | Display Name | Base Material | Water Capacity | Hydration Area (AoE) |
 |---|---|---|---|---|
-| `croppy:rusty_can` | **Rusty Can** | `COPPER_INGOT` | **20 uses** | **1x1** (Single block) |
-| `croppy:copper_can` | **Copper Can** | `COPPER_INGOT` | **40 uses** | **1x3** (Linear 3 blocks) |
-| `croppy:silver_can` | **Silver Can** | `IRON_INGOT` | **100 uses** | **3x3** (Square 9 blocks) |
-| `croppy:gold_can` | **Gold Can** | `GOLD_INGOT` | **250 uses** | **3x3** (Square 9 blocks) |
-| `croppy:iridium_can` | **Iridium Can** | `NETHERITE_INGOT` | **600 uses** | **5x5** (Square 25 blocks) |
+| `croppy:wooden_can` | **Wooden Watering Can** | `WOODEN_HOE` | **20 uses** | **1x1** (Single block) |
+| `croppy:copper_can` | **Copper Watering Can** | `COPPER_INGOT` | **50 uses** | **1x3** (Linear 3 blocks) |
+| `croppy:iron_can` | **Iron Watering Can** | `IRON_INGOT` | **100 uses** | **1x3** (Linear 3 blocks) |
+| `croppy:golden_can` | **Golden Watering Can** | `GOLD_INGOT` | **250 uses** | **3x3** (Square 9 blocks) |
+| `croppy:diamond_can` | **Diamond Watering Can** | `DIAMOND` | **500 uses** | **3x3** (Square 9 blocks) |
+| `croppy:netherite_can` | **Netherite Watering Can** | `NETHERITE_INGOT` | **1000 uses** | **5x5** (Square 25 blocks) |
 
 ---
 
@@ -43,5 +44,5 @@ To refill a watering can to maximum capacity:
 ## 3. Farmland Hydration Dynamics
 
 * **Hydration Levels (0 to 8)**: When poured on farmland, Croppy elevates the block's moisture level to maximum (`8/8`).
-* **Moisture Evaporation**: Each morning or during dry weather cycles, farmland loses moisture unless sustained by adjacent water channels or protected with `croppy:retaining_soil`.
+* **Moisture Evaporation**: Each morning or during dry weather cycles, farmland loses moisture unless sustained by adjacent water channels or protected with `croppy:hydrating_fertilizer`.
 * **Daily Watered Check**: Crops inspect whether their block was hydrated during the current world day. Keeping soil consistently moist guarantees uninterrupted growth cycles.

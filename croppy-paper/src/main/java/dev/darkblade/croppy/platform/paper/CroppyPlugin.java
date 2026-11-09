@@ -567,14 +567,15 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/ingredients/grapes.yml");
         saveResourceIfNotExists("items/ingredients/rice_panicle.yml");
         // Watering Cans
-        saveResourceIfNotExists("items/watering_cans/rusty_can.yml");
+        saveResourceIfNotExists("items/watering_cans/wooden_can.yml");
         saveResourceIfNotExists("items/watering_cans/copper_can.yml");
-        saveResourceIfNotExists("items/watering_cans/silver_can.yml");
-        saveResourceIfNotExists("items/watering_cans/gold_can.yml");
-        saveResourceIfNotExists("items/watering_cans/iridium_can.yml");
+        saveResourceIfNotExists("items/watering_cans/iron_can.yml");
+        saveResourceIfNotExists("items/watering_cans/golden_can.yml");
+        saveResourceIfNotExists("items/watering_cans/diamond_can.yml");
+        saveResourceIfNotExists("items/watering_cans/netherite_can.yml");
         // Fertilizers
-        saveResourceIfNotExists("items/fertilizers/speed_gro.yml");
-        saveResourceIfNotExists("items/fertilizers/retaining_soil.yml");
+        saveResourceIfNotExists("items/fertilizers/growth_fertilizer.yml");
+        saveResourceIfNotExists("items/fertilizers/hydrating_fertilizer.yml");
         saveResourceIfNotExists("items/fertilizers/quality_fertilizer.yml");
         // Stations
         saveResourceIfNotExists("items/stations/cooking_pot.yml");
@@ -610,8 +611,8 @@ public class CroppyPlugin extends JavaPlugin {
 
         Path fertDir = getDataFolder().toPath().resolve("items").resolve("fertilizers");
         if (!Files.exists(fertDir)) {
-            saveResourceIfNotExists("items/fertilizers/speed_gro.yml");
-            saveResourceIfNotExists("items/fertilizers/retaining_soil.yml");
+            saveResourceIfNotExists("items/fertilizers/growth_fertilizer.yml");
+            saveResourceIfNotExists("items/fertilizers/hydrating_fertilizer.yml");
             saveResourceIfNotExists("items/fertilizers/quality_fertilizer.yml");
         }
 

@@ -49,7 +49,7 @@ Items are organized under semantic subdirectories inside `plugins/Croppy/items/<
 | `seeds` | Plantable crop seeds linking to species definitions | `croppy:wheat_seeds`, `croppy:tomato_seeds` |
 | `tools` | Diagnostic and operational implements | `croppy:inspector`, `croppy:thermometer` |
 | `watering_cans` | Hydration equipment with capacities and AoE widths | `croppy:copper_can`, `croppy:gold_can` |
-| `fertilizers` | Nutrient enhancements (Speed, Quality, Retaining) | `croppy:speed_gro`, `croppy:retaining_soil` |
+| `fertilizers` | Nutrient enhancements (Speed, Quality, Retaining) | `croppy:growth_fertilizer`, `croppy:hydrating_fertilizer` |
 | `stations` | Placeable physical block workstation items | `croppy:cooking_pot`, `croppy:skillet`, `croppy:stove` |
 | `ingredients` | Harvest produce, processed meats, broths & dishes | `croppy:tomato`, `croppy:tomato_soup` |
 | `misc` | Encyclopedias, cooking manuals, and general items | `croppy:recipe_book`, `croppy:burnt_food` |
@@ -61,11 +61,11 @@ Items are organized under semantic subdirectories inside `plugins/Croppy/items/<
 Every item configuration is parsed by `YamlItemLoader`. Here is a complete reference example:
 
 ```yaml
-id: "croppy:speed_gro"
+id: "croppy:growth_fertilizer"
 category: "fertilizers"
 
 # Display title supporting MiniMessage gradient formatting
-name: "<gradient:#55ff55:#22aa22>Speed-Gro Fertilizer</gradient>"
+name: "<gradient:#55ff55:#22aa22>Growth Fertilizer</gradient>"
 
 # Lore lines displayed on the item tooltip
 lore:
@@ -76,7 +76,7 @@ lore:
 material: "BONE_MEAL"
 
 # Minecraft 1.21.4+ Modern Data Component (assets/<ns>/items/*.json)
-item_model: "croppy:speed_gro"
+item_model: "croppy:growth_fertilizer"
 
 # Legacy or fallback integer CustomModelData
 custom_model_data: 1001

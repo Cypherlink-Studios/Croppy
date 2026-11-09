@@ -1,10 +1,10 @@
 id: "croppy:quality_fertilizer"
 category: "fertilizers"
-name: "<gold>Fertilizante de Calidad</gold>"
+name: "<gold>Quality Fertilizer</gold>"
 description:
-  - "<gray>Mejora la probabilidad de cosechas de mayor calidad.</gray>"
+  - "<gray>Improves probability of higher quality harvests.</gray>"
 lore:
-  - "<gray>Mejora la probabilidad de cosechas de mayor calidad.</gray>"
+  - "<gray>Improves probability of higher quality harvests.</gray>"
 type: QUALITY
 quality_boost: 0.20
 item:

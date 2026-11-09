@@ -72,7 +72,7 @@ Todos los subcomandos de gestión y depuración requieren el permiso **`croppy.a
 * **`/croppy water`**:
   Hidrata instantáneamente la tierra arada seleccionada a su nivel máximo (`8/8`).
 * **`/croppy fertilize <fertilizer_id>`**:
-  Aplica el fertilizante especificado (ej. `croppy:speed_gro`, `croppy:quality_fertilizer`) sobre el bloque de tierra.
+  Aplica el fertilizante especificado (ej. `croppy:growth_fertilizer`, `croppy:quality_fertilizer`) sobre el bloque de tierra.
 * **`/croppy setstage <índice_etapa>`**:
   Fuerza el cultivo a una fase específica de su ciclo (de 0 al máximo de la especie), actualizando de inmediato su modelo o estado de bloque.
 * **`/croppy setprogress <porcentaje_progreso>`**:

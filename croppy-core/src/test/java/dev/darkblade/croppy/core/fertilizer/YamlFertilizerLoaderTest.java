@@ -20,8 +20,8 @@ class YamlFertilizerLoaderTest {
     @DisplayName("Should load valid speed fertilizer YAML")
     void testLoadSpeedFertilizer() {
         String yaml = """
-            id: "croppy:speed_gro"
-            name: "<green>Speed-Gro</green>"
+            id: "croppy:growth_fertilizer"
+            name: "<green>Growth Fertilizer</green>"
             description:
               - "<gray>Accelerates growth by 25%</gray>"
             type: SPEED
@@ -31,10 +31,10 @@ class YamlFertilizerLoaderTest {
               custom_model_data: 1001
         """;
 
-        Fertilizer f = loader.load(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)), "speed_gro.yml");
+        Fertilizer f = loader.load(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)), "growth_fertilizer.yml");
 
-        assertEquals(Key.of("croppy", "speed_gro"), f.getKey());
-        assertEquals("<green>Speed-Gro</green>", f.name());
+        assertEquals(Key.of("croppy", "growth_fertilizer"), f.getKey());
+        assertEquals("<green>Growth Fertilizer</green>", f.name());
         assertEquals(List.of("<gray>Accelerates growth by 25%</gray>"), f.description());
         assertEquals(FertilizerType.SPEED, f.type());
         assertEquals(1.25, f.speedMultiplier(), 0.001);
@@ -47,17 +47,17 @@ class YamlFertilizerLoaderTest {
     @DisplayName("Should load valid retaining soil YAML")
     void testLoadRetainingSoil() {
         String yaml = """
-            id: "croppy:retaining_soil"
-            name: "<aqua>Retaining Soil</aqua>"
+            id: "croppy:hydrating_fertilizer"
+            name: "<aqua>Hydrating Fertilizer</aqua>"
             type: RETAINING
             retention_chance: 0.50
             item:
               material: CLAY_BALL
         """;
 
-        Fertilizer f = loader.load(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)), "retaining_soil.yml");
+        Fertilizer f = loader.load(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)), "hydrating_fertilizer.yml");
 
-        assertEquals(Key.of("croppy", "retaining_soil"), f.getKey());
+        assertEquals(Key.of("croppy", "hydrating_fertilizer"), f.getKey());
         assertEquals(FertilizerType.RETAINING, f.type());
         assertEquals(0.50, f.retentionChance(), 0.001);
         assertEquals("CLAY_BALL", f.material());

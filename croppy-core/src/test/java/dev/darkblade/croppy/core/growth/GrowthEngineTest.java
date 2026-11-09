@@ -236,7 +236,7 @@ class GrowthEngineTest {
     @DisplayName("FertilizerGrowthModifier multiplies base progress by speed multiplier")
     void testFertilizerGrowthModifier() {
         dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry registry = new dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry();
-        dev.darkblade.croppy.api.identifier.Key speedKey = dev.darkblade.croppy.api.identifier.Key.of("croppy", "speed_gro");
+        dev.darkblade.croppy.api.identifier.Key speedKey = dev.darkblade.croppy.api.identifier.Key.of("croppy", "growth_fertilizer");
         registry.register(new dev.darkblade.croppy.api.fertilizer.Fertilizer(
                 speedKey, "Speed", java.util.List.of(), dev.darkblade.croppy.api.fertilizer.FertilizerType.SPEED,
                 1.5, 0.0, 0.0, "BONE_MEAL", 0

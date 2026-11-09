@@ -26,10 +26,10 @@ class YamlItemLoaderTest {
     @DisplayName("Load flat item definition YAML")
     void testLoadFlatYaml() {
         String yaml = """
-                id: "croppy:speed_gro"
+                id: "croppy:growth_fertilizer"
                 material: "minecraft:bone_meal"
                 custom-model-data: 101
-                name: "<green>Speed-Gro</green>"
+                name: "<green>Growth Fertilizer</green>"
                 lore:
                   - "<gray>Increases growth rate by 20%</gray>"
                   - "<dark_gray>Single use per crop</dark_gray>"
@@ -39,15 +39,15 @@ class YamlItemLoaderTest {
                 """;
 
         ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
-        ItemDefinition def = loader.load(in, "fertilizers", "speed_gro.yml");
+        ItemDefinition def = loader.load(in, "fertilizers", "growth_fertilizer.yml");
 
-        assertEquals(Key.of("croppy", "speed_gro"), def.key());
+        assertEquals(Key.of("croppy", "growth_fertilizer"), def.key());
         assertEquals("fertilizers", def.category());
         assertEquals("minecraft:bone_meal", def.materialKey());
         assertEquals(101, def.customModelData());
         assertNull(def.itemModel());
         assertTrue(def.getItemModel().isEmpty());
-        assertEquals("<green>Speed-Gro</green>", def.displayName());
+        assertEquals("<green>Growth Fertilizer</green>", def.displayName());
         assertEquals(2, def.lore().size());
         assertEquals("1.2", def.pdcProperties().get("speed_multiplier"));
         assertEquals("1", def.pdcProperties().get("tier"));
@@ -57,22 +57,22 @@ class YamlItemLoaderTest {
     @DisplayName("Load flat item definition with item-model")
     void testLoadFlatYamlWithItemModel() {
         String yaml = """
-                id: "croppy:speed_gro"
+                id: "croppy:growth_fertilizer"
                 material: "minecraft:bone_meal"
-                item-model: "croppy:speed_gro"
-                name: "<green>Speed-Gro</green>"
+                item-model: "croppy:growth_fertilizer"
+                name: "<green>Growth Fertilizer</green>"
                 lore:
                   - "<gray>Increases growth rate</gray>"
                 """;
 
         ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
-        ItemDefinition def = loader.load(in, "fertilizers", "speed_gro.yml");
+        ItemDefinition def = loader.load(in, "fertilizers", "growth_fertilizer.yml");
 
-        assertEquals(Key.of("croppy", "speed_gro"), def.key());
+        assertEquals(Key.of("croppy", "growth_fertilizer"), def.key());
         assertEquals(0, def.customModelData());
-        assertEquals(Key.of("croppy", "speed_gro"), def.itemModel());
+        assertEquals(Key.of("croppy", "growth_fertilizer"), def.itemModel());
         assertTrue(def.getItemModel().isPresent());
-        assertEquals(Key.of("croppy", "speed_gro"), def.getItemModel().get());
+        assertEquals(Key.of("croppy", "growth_fertilizer"), def.getItemModel().get());
     }
 
     @Test

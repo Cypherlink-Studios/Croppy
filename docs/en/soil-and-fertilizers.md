@@ -29,9 +29,9 @@ Croppy bundles three distinct classes of specialized fertilizers:
 
 | Fertilizer Key | Base Material | Classification | Primary Effect |
 |---|---|---|---|
-| `croppy:speed_gro` | `BONE_MEAL` | **`SPEED`** | Accelerates crop growth rate by **+25%** (`speed_multiplier: 1.25`). |
+| `croppy:growth_fertilizer` | `BONE_MEAL` | **`SPEED`** | Accelerates crop growth rate by **+25%** (`speed_multiplier: 1.25`). |
 | `croppy:quality_fertilizer` | `GLOWSTONE_DUST` | **`QUALITY`** | Grants a **+20% bonus** (`quality_boost: 0.20`) to higher-tier harvest yields. |
-| `croppy:retaining_soil` | `CLAY_BALL` | **`RETAINING`** | Provides a **33% chance** (`retention_chance: 0.33`) for soil to remain hydrated overnight without watering. |
+| `croppy:hydrating_fertilizer` | `CLAY_BALL` | **`RETAINING`** | Provides a **33% chance** (`retention_chance: 0.33`) for soil to remain hydrated overnight without watering. |
 
 ---
 
@@ -49,12 +49,12 @@ Croppy bundles three distinct classes of specialized fertilizers:
 
 Fertilizers are defined in `plugins/Croppy/items/fertilizers/*.yml` and loaded via `YamlFertilizerLoader`.
 
-### Complete YAML Example (`speed_gro.yml`)
+### Complete YAML Example (`growth_fertilizer.yml`)
 
 ```yaml
-id: "croppy:speed_gro"
+id: "croppy:growth_fertilizer"
 category: "fertilizers"
-name: "<green>Speed-Gro Fertilizer</green>"
+name: "<green>Growth Fertilizer</green>"
 lore:
   - "<gray>Accelerates crop growth rate by 25%.</gray>"
 
@@ -70,7 +70,7 @@ speed_multiplier: 1.25
 item:
   material: BONE_MEAL
   custom_model_data: 1001
-  item-model: "croppy:speed_gro"
+  item-model: "croppy:growth_fertilizer"
 
 # Bound PDC tags
 pdc:
@@ -82,7 +82,7 @@ pdc:
 
 | Field Path | Type | Required | Description |
 |---|---|---|---|
-| `id` | String (`Key`) | **Yes** | Unique namespaced key (e.g. `croppy:speed_gro`). |
+| `id` | String (`Key`) | **Yes** | Unique namespaced key (e.g. `croppy:growth_fertilizer`). |
 | `type` | Enum | **Yes** | Classification: `SPEED`, `QUALITY`, or `RETAINING`. |
 | `speed_multiplier` | Double | For `SPEED` | Growth multiplier (e.g., `1.25` for +25% speed). |
 | `quality_boost` | Double | For `QUALITY` | Yield quality roll modifier (e.g., `0.20` for +20% higher quality chance). |

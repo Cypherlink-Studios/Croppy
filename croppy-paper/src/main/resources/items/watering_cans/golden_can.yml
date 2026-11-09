@@ -1,0 +1,14 @@
+id: "croppy:golden_can"
+category: "watering_cans"
+material: "GOLD_INGOT"
+item-model: "croppy:golden_can"
+name: "<gold>Golden Watering Can</gold>"
+lore:
+  - "<gray>A gilded watering can with expansive area coverage.</gray>"
+  - "<aqua>Capacity: 250 uses</aqua>"
+  - "<yellow>Area: 3x3</yellow>"
+pdc:
+  tier: "golden"
+  capacity: "250"
+  aoe_width: "3"
+  aoe_length: "3"

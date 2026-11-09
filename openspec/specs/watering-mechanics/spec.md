@@ -6,7 +6,7 @@ Enables active soil hydration through tiered watering cans, natural rain exposur
 ## Requirements
 
 ### Requirement: Tiered Watering Cans
-The system SHALL provide tiered watering cans configured in `items/watering_cans/*.yml` and registered in `ItemRegistry`, identified via PDC `croppy:item_id` with dynamic water use tracking in PDC, defined water capacity, area-of-effect hydration patterns, and refill capabilities.
+The system SHALL provide tiered watering cans aligned with native Minecraft material tiers (`wooden`, `copper`, `iron`, `golden`, `diamond`, `netherite`) configured in `items/watering_cans/*.yml` and registered in `ItemRegistry`, identified via PDC `croppy:item_id` with dynamic water use tracking in PDC, defined water capacity, area-of-effect hydration patterns, and refill capabilities.
 
 #### Scenario: Watering crops within area of effect
 - **WHEN** a player right-clicks with a filled watering can on a crop or farmland

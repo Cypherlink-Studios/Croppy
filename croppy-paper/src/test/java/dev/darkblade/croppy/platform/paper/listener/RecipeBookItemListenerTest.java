@@ -131,7 +131,7 @@ class RecipeBookItemListenerTest {
     @Test
     @DisplayName("Verify isRecipeBook rejects unrelated items or null")
     void testUnrelatedItemNotDetected() throws Exception {
-        ItemStack otherItem = createMockItem("croppy:speed_gro", null);
+        ItemStack otherItem = createMockItem("croppy:growth_fertilizer", null);
         assertFalse(listener.isRecipeBook(otherItem));
         assertFalse(listener.isRecipeBook((ItemStack) null));
         assertFalse(listener.isRecipeBook((ItemMeta) null));

@@ -1,0 +1,14 @@
+id: "croppy:netherite_can"
+category: "watering_cans"
+material: "NETHERITE_INGOT"
+item-model: "croppy:netherite_can"
+name: "<dark_purple>Netherite Watering Can</dark_purple>"
+lore:
+  - "<gray>An indestructible netherite watering can covering vast estates.</gray>"
+  - "<aqua>Capacity: 1000 uses</aqua>"
+  - "<yellow>Area: 5x5</yellow>"
+pdc:
+  tier: "netherite"
+  capacity: "1000"
+  aoe_width: "5"
+  aoe_length: "5"

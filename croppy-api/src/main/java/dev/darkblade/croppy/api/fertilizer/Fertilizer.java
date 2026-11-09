@@ -9,7 +9,7 @@ import java.util.Objects;
 /**
  * Immutable domain definition of an enrichable soil fertilizer.
  *
- * @param key unique identifier of this fertilizer (e.g., croppy:speed_gro)
+ * @param key unique identifier of this fertilizer (e.g., croppy:growth_fertilizer)
  * @param name display name formatted with MiniMessage or color codes
  * @param description lore or descriptive text lines
  * @param type primary effect category

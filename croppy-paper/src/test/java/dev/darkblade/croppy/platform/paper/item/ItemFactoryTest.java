@@ -38,18 +38,18 @@ class ItemFactoryTest {
     @DisplayName("Verify NamespacedKey creation and ItemDefinition integration")
     void testItemDefinitionIntegration() {
         ItemDefinition def = new ItemDefinition(
-                Key.of("croppy", "speed_gro"),
+                Key.of("croppy", "growth_fertilizer"),
                 "fertilizers",
                 "minecraft:bone_meal",
                 101,
-                "<green>Speed-Gro</green>",
+                "<green>Growth Fertilizer</green>",
                 List.of("<gray>Growth booster</gray>"),
                 Map.of("speed_multiplier", "1.25")
         );
         registry.register(def);
 
         assertEquals(1, registry.size());
-        assertEquals("fertilizers", registry.get(Key.of("croppy", "speed_gro")).get().category());
+        assertEquals("fertilizers", registry.get(Key.of("croppy", "growth_fertilizer")).get().category());
 
         NamespacedKey itemIdKey = new NamespacedKey("croppy", "item_id");
         NamespacedKey categoryKey = new NamespacedKey("croppy", "category");
@@ -98,11 +98,11 @@ class ItemFactoryTest {
     @DisplayName("applyToMeta does not set itemModel when null on definition")
     void testApplyToMetaWithoutItemModel() {
         ItemDefinition def = new ItemDefinition(
-                Key.of("croppy", "speed_gro"),
+                Key.of("croppy", "growth_fertilizer"),
                 "fertilizers",
                 "minecraft:bone_meal",
                 101,
-                "<green>Speed-Gro</green>",
+                "<green>Growth Fertilizer</green>",
                 List.of("<gray>Growth booster</gray>"),
                 Map.of()
         );

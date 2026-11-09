@@ -1,6 +1,6 @@
 id: "croppy:wheat_seeds"
 category: "seeds"
 material: "WHEAT_SEEDS"
-name: "<green>Semillas de Trigo</green>"
+name: "<green>Wheat Seeds</green>"
 lore:
-  - "<gray>Plántalas en tierra arada para cultivar trigo.</gray>"
+  - "<gray>Plant in tilled soil to grow wheat.</gray>"

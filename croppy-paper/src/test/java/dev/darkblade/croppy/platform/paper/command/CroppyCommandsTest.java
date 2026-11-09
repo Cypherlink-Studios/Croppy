@@ -63,12 +63,12 @@ class CroppyCommandsTest {
     @Test
     @DisplayName("Verify category items suggestion provider")
     void testSuggestCategoryItems() {
-        itemRegistry.register(new ItemDefinition(Key.of("croppy", "rusty_can"), "watering_cans", "IRON_INGOT", 0, "Rusty Can", List.of(), Map.of()));
+        itemRegistry.register(new ItemDefinition(Key.of("croppy", "wooden_can"), "watering_cans", "WOODEN_HOE", 0, "Wooden Can", List.of(), Map.of()));
         itemRegistry.register(new ItemDefinition(Key.of("croppy", "wheat_seeds"), "seeds", "WHEAT_SEEDS", 0, "Seeds", List.of(), Map.of()));
 
         List<String> allItems = commands.suggestCategoryItems(null, CommandInput.empty());
         assertEquals(2, allItems.size());
-        assertTrue(allItems.contains("croppy:rusty_can"));
+        assertTrue(allItems.contains("croppy:wooden_can"));
         assertTrue(allItems.contains("croppy:wheat_seeds"));
     }
 

@@ -22,21 +22,21 @@ class KeyParserTest {
     @Test
     @DisplayName("Parse key with namespace")
     void testParseWithNamespace() {
-        CommandInput input = CommandInput.of("croppy:rusty_can");
+        CommandInput input = CommandInput.of("croppy:wooden_can");
         ArgumentParseResult<Key> result = parser.parse(null, input);
 
         assertTrue(result.parsedValue().isPresent());
-        assertEquals(Key.of("croppy", "rusty_can"), result.parsedValue().get());
+        assertEquals(Key.of("croppy", "wooden_can"), result.parsedValue().get());
     }
 
     @Test
     @DisplayName("Parse key without namespace defaults to croppy")
     void testParseWithoutNamespace() {
-        CommandInput input = CommandInput.of("rusty_can");
+        CommandInput input = CommandInput.of("wooden_can");
         ArgumentParseResult<Key> result = parser.parse(null, input);
 
         assertTrue(result.parsedValue().isPresent());
-        assertEquals(Key.of("croppy", "rusty_can"), result.parsedValue().get());
+        assertEquals(Key.of("croppy", "wooden_can"), result.parsedValue().get());
     }
 
     @Test

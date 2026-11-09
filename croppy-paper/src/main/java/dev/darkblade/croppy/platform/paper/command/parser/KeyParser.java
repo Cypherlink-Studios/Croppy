@@ -10,7 +10,7 @@ import org.incendo.cloud.parser.ParserDescriptor;
 
 /**
  * Cloud 2.0 argument parser that parses a {@link Key} from command input.
- * Supports namespaced keys (e.g. 'croppy:rusty_can') and unqualified keys (e.g. 'rusty_can'),
+ * Supports namespaced keys (e.g. 'croppy:wooden_can') and unqualified keys (e.g. 'wooden_can'),
  * defaulting unqualified keys to the 'croppy' namespace.
  *
  * @param <C> command sender context type

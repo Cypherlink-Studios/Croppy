@@ -38,7 +38,7 @@ class DefaultCropInstanceTest {
         assertTrue(crop.isWateredOn(42));
         assertFalse(crop.isWateredOn(43));
 
-        Key fertilizer = Key.of("croppy", "speed_gro");
+        Key fertilizer = Key.of("croppy", "growth_fertilizer");
         crop.setFertilizerKey(fertilizer);
         assertEquals(fertilizer, crop.getFertilizerKey());
         assertTrue(crop.hasFertilizer());
@@ -53,7 +53,7 @@ class DefaultCropInstanceTest {
     void shouldConstructWithFullArguments() {
         Key species = Key.of("croppy", "wheat");
         BlockPosition pos = BlockPosition.of("farm", 0, 60, 0);
-        Key fertilizer = Key.of("croppy", "retaining_soil");
+        Key fertilizer = Key.of("croppy", "hydrating_fertilizer");
 
         DefaultCropInstance crop = new DefaultCropInstance(species, pos, 2, 45.5, 1000L, 2000L, 10L, fertilizer);
 

@@ -1,7 +1,7 @@
 id: "croppy:grapes"
 category: "ingredients"
 material: "SWEET_BERRIES"
-item_model: "croppy:grape"
+item-model: "croppy:grapes"
 name: "<dark_purple>Sweet Grapes</dark_purple>"
 lore:
   - "<gray>Juicy purple grapes harvested from an overhead trellis.</gray>"

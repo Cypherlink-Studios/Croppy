@@ -1,0 +1,7 @@
+{
+  "oversized_in_gui": true,
+  "model": {
+    "type": "minecraft:model",
+    "model": "croppy:block/plant/tomato/stage_0"
+  }
+}

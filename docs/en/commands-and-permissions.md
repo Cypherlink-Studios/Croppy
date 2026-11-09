@@ -72,7 +72,7 @@ All administrative subcommands require the **`croppy.admin`** permission node.
 * **`/croppy water`**:
   Immediately hydrates the targeted farmland block to maximum moisture (`8/8`).
 * **`/croppy fertilize <fertilizer_id>`**:
-  Applies the specified fertilizer (e.g., `croppy:speed_gro`, `croppy:quality_fertilizer`) directly to the targeted soil block, modifying its N-P-K nutrient reserves.
+  Applies the specified fertilizer (e.g., `croppy:growth_fertilizer`, `croppy:quality_fertilizer`) directly to the targeted soil block, modifying its N-P-K nutrient reserves.
 * **`/croppy setstage <stage_index>`**:
   Forces the targeted crop to a specific lifecycle stage index (0 to max stage for that species), instantly updating block states or visual models.
 * **`/croppy setprogress <progress_percent>`**:

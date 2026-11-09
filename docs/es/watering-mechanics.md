@@ -17,11 +17,12 @@ Las regaderas almacenan cargas de agua en su PersistentDataContainer (PDC). Al m
 
 | Ítem | Nombre Visible | Material Base | Capacidad | Área de Riego (AoE) |
 |---|---|---|---|---|
-| `croppy:rusty_can` | **Regadera Oxidada** | `COPPER_INGOT` | **20 usos** | **1x1** (1 bloque) |
-| `croppy:copper_can` | **Regadera de Cobre** | `COPPER_INGOT` | **40 usos** | **1x3** (Línea de 3 bloques) |
-| `croppy:silver_can` | **Regadera de Plata** | `IRON_INGOT` | **100 usos** | **3x3** (Cuadrado de 9 bloques) |
-| `croppy:gold_can` | **Regadera de Oro** | `GOLD_INGOT` | **250 usos** | **3x3** (Cuadrado de 9 bloques) |
-| `croppy:iridium_can` | **Regadera de Iridio** | `NETHERITE_INGOT` | **600 usos** | **5x5** (Cuadrado de 25 bloques) |
+| `croppy:wooden_can` | **Regadera de Madera** | `WOODEN_HOE` | **20 usos** | **1x1** (1 bloque) |
+| `croppy:copper_can` | **Regadera de Cobre** | `COPPER_INGOT` | **50 usos** | **1x3** (Línea de 3 bloques) |
+| `croppy:iron_can` | **Regadera de Hierro** | `IRON_INGOT` | **100 usos** | **1x3** (Línea de 3 bloques) |
+| `croppy:golden_can` | **Regadera de Oro** | `GOLD_INGOT` | **250 usos** | **3x3** (Cuadrado de 9 bloques) |
+| `croppy:diamond_can` | **Regadera de Diamante** | `DIAMOND` | **500 usos** | **3x3** (Cuadrado de 9 bloques) |
+| `croppy:netherite_can` | **Regadera de Netherite** | `NETHERITE_INGOT` | **1000 usos** | **5x5** (Cuadrado de 25 bloques) |
 
 ---
 
@@ -43,5 +44,5 @@ Para recargar la regadera al máximo:
 ## 3. Dinámica de Humedad en la Tierra Arada
 
 * **Nivel Máximo (8/8)**: Al regar con la regadera, el nivel de hidratación del bloque sube instantáneamente a 8.
-* **Evaporación**: Con el paso de los ciclos o el inicio de un nuevo día, la tierra pierde humedad gradualmente a menos que cuente con canales de agua adyacentes o `croppy:retaining_soil`.
+* **Evaporación**: Con el paso de los ciclos o el inicio de un nuevo día, la tierra pierde humedad gradualmente a menos que cuente con canales de agua adyacentes o `croppy:hydrating_fertilizer`.
 * **Comprobación Diaria**: Los cultivos requieren haber recibido agua en el día del mundo actual para mantener su ritmo de crecimiento sin interrupciones.

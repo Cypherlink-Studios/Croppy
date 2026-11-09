@@ -70,14 +70,14 @@ class ItemDefinitionTest {
     @Test
     @DisplayName("Backward-compatible 7-arg constructor defaults itemModel to null")
     void testBackwardCompatibleConstructor() {
-        Key itemKey = Key.of("croppy", "speed_gro");
+        Key itemKey = Key.of("croppy", "growth_fertilizer");
 
         ItemDefinition def = new ItemDefinition(
                 itemKey,
                 "fertilizers",
                 "minecraft:bone_meal",
                 101,
-                "<green>Speed-Gro</green>",
+                "<green>Growth Fertilizer</green>",
                 List.of("<gray>Booster</gray>"),
                 Map.of("speed", "1.2")
         );
@@ -86,7 +86,7 @@ class ItemDefinitionTest {
         assertNull(def.itemModel());
         assertTrue(def.getItemModel().isEmpty());
         assertEquals(101, def.customModelData());
-        assertEquals("<green>Speed-Gro</green>", def.displayName());
+        assertEquals("<green>Growth Fertilizer</green>", def.displayName());
     }
 
     @Test

@@ -28,7 +28,7 @@ class CropBinaryCodecTest {
                 1000000L,
                 2000000L,
                 42L,
-                Key.of("croppy", "speed_gro"),
+                Key.of("croppy", "growth_fertilizer"),
                 90.0f
         );
         CropInstance c2 = new DefaultCropInstance(
@@ -58,7 +58,7 @@ class CropBinaryCodecTest {
         assertEquals(c1.getPlantedAtMillis(), d1.getPlantedAtMillis());
         assertEquals(c1.getLastUpdatedMillis(), d1.getLastUpdatedMillis());
         assertEquals(42L, d1.getLastWateredDay());
-        assertEquals(Key.of("croppy", "speed_gro"), d1.getFertilizerKey());
+        assertEquals(Key.of("croppy", "growth_fertilizer"), d1.getFertilizerKey());
         assertTrue(d1.hasFertilizer());
         assertEquals(90.0f, d1.getYaw(), 0.001f);
 

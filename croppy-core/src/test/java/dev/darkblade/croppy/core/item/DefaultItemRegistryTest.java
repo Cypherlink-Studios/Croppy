@@ -25,13 +25,13 @@ class DefaultItemRegistryTest {
     @Test
     @DisplayName("Register and retrieve item by key")
     void testRegisterAndGet() {
-        Key key = Key.of("croppy", "speed_gro");
+        Key key = Key.of("croppy", "growth_fertilizer");
         ItemDefinition item = new ItemDefinition(
                 key,
                 "fertilizers",
                 "minecraft:bone_meal",
                 101,
-                "<green>Speed-Gro</green>",
+                "<green>Growth Fertilizer</green>",
                 List.of("<gray>Growth speed bonus</gray>"),
                 Map.of("speed_multiplier", "1.5")
         );
@@ -69,11 +69,11 @@ class DefaultItemRegistryTest {
                 Map.of()
         );
         ItemDefinition fert = new ItemDefinition(
-                Key.of("croppy", "speed_gro"),
+                Key.of("croppy", "growth_fertilizer"),
                 "fertilizers",
                 "minecraft:bone_meal",
                 0,
-                "Speed-Gro",
+                "Growth Fertilizer",
                 List.of(),
                 Map.of()
         );
