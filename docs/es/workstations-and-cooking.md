@@ -46,7 +46,8 @@ En lugar de utilizar Armor Stands reales (que saturan el servidor y dejan entida
   * Nombre de la Receta (`{recipe_name}`)
   * Barra de Progreso animada (`{progress_bar}`) y porcentaje (`{progress_percent}%`)
   * Temperatura actual (`{temperature_c}`) y zona térmica activa (`{thermal_zone}`)
-* **Culling por Distancia e Inactividad**: Los displays virtuales desaparecen automáticamente fuera del rango visual configurado (`8-24 bloques`). Si se activa `hide_when_idle: true`, los hologramas de texto se desvanecen por completo cuando la estación está fría (<= 25°C), vacía e inactiva, evitando ruido visual en cocinas grandes y reapareciendo instantáneamente al calentarse o recibir ingredientes.
+* **Estados de Estación Reactivos (v0.6.0)**: Las estaciones se transforman visualmente al cambiar sus propiedades internas. Las estufas encienden brasas ardientes al quemar combustible, las ollas vacías muestran hierro forjado frío, se llenan con agua al recibir ingredientes, simulan trozos de verduras flotantes en cocción y hierven con espuma en altas temperaturas. Las sartenes calientes brillan al rojo vivo, adaptan su hitbox dinámicamente y emiten sonido de fritura y humo.
+* **Culling por Distancia e Inactividad**: Los displays virtuales desaparecen automáticamente fuera del rango visual configurado (`8-48 bloques`). Si se activa `hide_when_idle: true`, los hologramas de texto se desvanecen por completo cuando la estación está fría (<= 25°C), vacía e inactiva, evitando ruido visual en cocinas grandes y reapareciendo instantáneamente al calentarse o recibir ingredientes.
 
 ---
 

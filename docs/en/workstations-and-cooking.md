@@ -46,7 +46,8 @@ Unlike traditional plugins that spawn live Armor Stands or Minecraft entities (w
   * Dish Name (`{recipe_name}`)
   * Animated Progress Bar (`{progress_bar}`) & Percentage (`{progress_percent}%`)
   * Current Temperature (`{temperature_c}`) and Active Thermal Zone (`{thermal_zone}`)
-* **Distance & Idle Culling**: Virtual displays automatically cull outside their configured view distance (`8-24 blocks`). When `hide_when_idle: true` is configured, text holograms automatically despawn completely when stations are cold (<= 25°C), empty, and inactive, eliminating visual clutter in large kitchens while respawning instantaneously upon item insertion or heating.
+* **Reactive Station States (v0.6.0)**: Workstations physically transform as their internal state evolves. Stoves ignite glowing firebox textures when fueled, empty cooking pots fill with blue water planes upon adding ingredients, simmer into vegetable stew chunks while cooking, and boil vigorously with bubbling froth at high temperatures. Sizzling skillets glow radiant red, dynamically adjusting interaction hitboxes and emitting ambient smoke and frying audio.
+* **Distance & Idle Culling**: Virtual displays automatically cull outside their configured view distance (`8-48 blocks`). When `hide_when_idle: true` is configured, text holograms automatically despawn completely when stations are cold (<= 25°C), empty, and inactive, eliminating visual clutter in large kitchens while respawning instantaneously upon item insertion or heating.
 
 ---
 
