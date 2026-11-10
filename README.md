@@ -84,7 +84,7 @@ Built on modern Minecraft technical foundations, Croppy does not require client-
 
 ## Gallery
 
-| Tomatoes and Rice plants | DarkBladeDev's dream kitchen |
+| Tomato and Rice plants | DarkBladeDev's dream kitchen |
 |---|---|
 | <img width="3072" height="1759" alt="image" src="https://github.com/user-attachments/assets/59303b4a-16e5-40d8-929b-862ae50cc597" /> | <img width="3072" height="1759" alt="image" src="https://github.com/user-attachments/assets/7619409e-d6c9-4ee8-9726-15d4dae8d50a" /> |
 
