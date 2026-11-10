@@ -26,6 +26,32 @@ The root command alias is `/croppy`.
 
 All administrative subcommands require the **`croppy.admin`** permission node.
 
+### Interactive Item Catalog GUI & Spawner
+
+```text
+/croppy items [category | search | clear | next | prev] [query]
+```
+
+* **`/croppy items`**:
+  Opens the interactive Item Catalog GUI showing all registered items across all categories.
+* **`/croppy items <category>`**:
+  Opens the catalog directly filtered to a specific category tab (`all`, `seeds`, `fertilizers`, `watering_cans`, `tools`, `ingredients`, `stations`, `misc`).
+* **`/croppy items search [query]`**:
+  Opens the catalog filtered by a text query, or prompts for a search query in chat if omitted.
+* **`/croppy items clear`**:
+  Clears all active filters and search queries, returning to the first page of all items.
+
+**Catalog Shortcut Controls (Administrative Spawner):**
+* **Left-Click**: Spawn 1x item into inventory.
+* **Right-Click**: Spawn a full stack (up to item maximum stack size, e.g. 64x).
+* **Shift-Click**: Suggest `/croppy item give <category> <id> 1` pre-filled in chat.
+* **Drop Key [Q]**: Drop 1x item on the ground at feet.
+* **Control + Drop [Ctrl+Q]**: Drop full stack on the ground at feet.
+
+Permission: `croppy.admin.items` (included in `croppy.admin`).
+
+---
+
 ### Custom Item & Tool Management
 
 ```text
@@ -139,4 +165,5 @@ All administrative subcommands require the **`croppy.admin`** permission node.
 | Permission Node | Default | Description |
 |---|---|---|
 | `croppy.admin` | `op` | Full access to all `/croppy` administrative and debugging subcommands. |
+| `croppy.admin.items` | `op` | Access to the interactive item catalog GUI and administrative spawner (`/croppy items`). |
 | `croppy.admin.addon` | `op` | Full access to `/croppy addon` lifecycle management subcommands. |

@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.16"
+  - version: "0.5.17"
     releaseDate: "2026-11-09"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added interactive item catalog GUI (/croppy items) with tabbed category filtering, horizontal category pagination, real-time chat search prompt, and multi-action administrative item spawner (1x, 64x, command suggestion, and ground drop)."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.16"
+    releaseDate: "2026-11-09"
+    reference: "97f4c74"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Harmonized PlaceholderAPI telemetry with official documentation: backward-compatible compendium aliases, canonical species key (%croppy_target_crop_species%) vs display name (%croppy_target_crop_species_name%), multi-phase station cooking progress, smart soil moisture resolution, and removed phantom N-P-K tokens."
     minecraft:

@@ -1,0 +1,100 @@
+id: "croppy:items_menu"
+title: "<dark_aqua><bold>Croppy Item Catalog</bold></dark_aqua>"
+rows: 6
+pattern:
+  - "[ C C C C C C C ]"
+  - "X I I I I I I I X"
+  - "X I I I I I I I X"
+  - "X I I I I I I I X"
+  - "X I I I I I I I X"
+  - "< X Q X ? X R X >"
+
+elements:
+  'X':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_stained_glass_pane"
+      name: " "
+
+  '[':
+    type: ACTION
+    item:
+      material: "minecraft:arrow"
+      name: "<yellow><bold>« Previous Categories</bold></yellow>"
+      lore:
+        - "<gray>Scroll categories left.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy items catprev"
+
+  ']':
+    type: ACTION
+    item:
+      material: "minecraft:arrow"
+      name: "<yellow><bold>Next Categories »</bold></yellow>"
+      lore:
+        - "<gray>Scroll categories right.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy items catnext"
+
+  'C':
+    type: DECORATION
+    item:
+      material: "minecraft:gray_stained_glass_pane"
+      name: " "
+
+  'I':
+    type: DECORATION
+    item:
+      material: "minecraft:air"
+
+  '<':
+    type: ACTION
+    item:
+      material: "minecraft:arrow"
+      name: "<yellow><bold>Previous Page</bold></yellow>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy items prev"
+
+  '>':
+    type: ACTION
+    item:
+      material: "minecraft:arrow"
+      name: "<yellow><bold>Next Page</bold></yellow>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy items next"
+
+  '?':
+    type: STATUS
+    item:
+      material: "minecraft:knowledge_book"
+      name: "<gold><bold>Catalog Overview</bold></gold>"
+      lore:
+        - "<gray>Category: <yellow>{category}</yellow></gray>"
+        - "<gray>Page: <aqua>{page}</aqua> / <aqua>{max_page}</aqua></gray>"
+        - "<gray>Total Items: <green>{total_items}</green></gray>"
+
+  'Q':
+    type: ACTION
+    item:
+      material: "minecraft:compass"
+      name: "<aqua><bold>Search Items</bold></aqua>"
+      lore:
+        - "<gray>Click to search items by name or ID.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy items search"
+
+  'R':
+    type: ACTION
+    item:
+      material: "minecraft:milk_bucket"
+      name: "<red><bold>Clear Filters</bold></red>"
+      lore:
+        - "<gray>Click to reset category and search filter.</gray>"
+    actions:
+      - type: PLAYER_COMMAND
+        target: "croppy items clear"

@@ -7,6 +7,8 @@ import dev.darkblade.croppy.api.fertilizer.Fertilizer;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.item.ItemCategory;
+import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeCategory;
@@ -23,6 +25,7 @@ import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
 import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController;
+import dev.darkblade.croppy.platform.paper.menu.ItemCatalogController;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
 import net.kyori.adventure.text.Component;
@@ -78,6 +81,8 @@ public class CroppyCommands {
     private RecipeKnowledgeStorage recipeStorage;
     private CompendiumMenuController compendiumController;
     private RecipeCategoryRegistry recipeCategoryRegistry;
+    private ItemCatalogController itemCatalogController;
+    private ItemCategoryRegistry itemCategoryRegistry;
     private dev.darkblade.croppy.platform.paper.prompt.ChatPromptService chatPromptService;
     private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
     private dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService;
@@ -85,6 +90,14 @@ public class CroppyCommands {
 
     public void setChatPromptService(dev.darkblade.croppy.platform.paper.prompt.ChatPromptService chatPromptService) {
         this.chatPromptService = chatPromptService;
+    }
+
+    public void setItemCatalogController(ItemCatalogController itemCatalogController) {
+        this.itemCatalogController = itemCatalogController;
+    }
+
+    public void setItemCategoryRegistry(ItemCategoryRegistry itemCategoryRegistry) {
+        this.itemCategoryRegistry = itemCategoryRegistry;
     }
 
     public void setAddonManager(dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager) {
@@ -366,6 +379,99 @@ public class CroppyCommands {
         }
     }
 
+    @Command("croppy items [action] [query]")
+    @Permission("croppy.admin.items")
+    public void openItemsCatalog(
+            Source source,
+            @Argument(value = "action", suggestions = "catalog_actions") @Nullable String action,
+            @Argument(value = "query") @Nullable @Greedy String query
+    ) {
+        CommandSender sender = source.source();
+        if (!(sender instanceof Player player)) {
+            sendPrefixed(sender, MessageKey.of("command.player-only"));
+            return;
+        }
+
+        if (itemCatalogController == null) {
+            sendPrefixed(player, MessageKey.of("catalog.missing-config"));
+            return;
+        }
+
+        if (action == null || action.isBlank() || "all".equalsIgnoreCase(action)) {
+            itemCatalogController.openCatalog(player, ItemCategory.ALL.getKey(), 1);
+            return;
+        }
+
+        if ("next".equalsIgnoreCase(action)) {
+            itemCatalogController.nextPage(player);
+            return;
+        }
+
+        if ("prev".equalsIgnoreCase(action) || "previous".equalsIgnoreCase(action)) {
+            itemCatalogController.prevPage(player);
+            return;
+        }
+
+        if ("catnext".equalsIgnoreCase(action)) {
+            itemCatalogController.nextCategoryPage(player);
+            return;
+        }
+
+        if ("catprev".equalsIgnoreCase(action) || "catprevious".equalsIgnoreCase(action)) {
+            itemCatalogController.prevCategoryPage(player);
+            return;
+        }
+
+        if ("clear".equalsIgnoreCase(action)) {
+            if (chatPromptService != null) {
+                chatPromptService.cancelPrompt(player.getUniqueId(), false);
+            }
+            itemCatalogController.clearFilters(player);
+            sendPrefixed(player, MessageKey.of("catalog.filter.cleared"));
+            return;
+        }
+
+        if ("search".equalsIgnoreCase(action)) {
+            if (query == null || query.isBlank()) {
+                itemCatalogController.startSearch(player);
+            } else {
+                String cleanQuery = query.trim();
+                itemCatalogController.setSearchQuery(player, cleanQuery);
+                sendPrefixed(player, MessageKey.of("catalog.filter.search"), "query", cleanQuery);
+            }
+            return;
+        }
+
+        // Check if action matches a registered category key or value
+        Key catKey = action.contains(":") ? Key.parse(action) : Key.of("croppy", action.toLowerCase(Locale.ROOT));
+        if (itemCategoryRegistry != null && itemCategoryRegistry.contains(catKey)) {
+            itemCatalogController.openCatalog(player, catKey, 1);
+            return;
+        }
+
+        // Fallback: search query
+        itemCatalogController.setSearchQuery(player, action);
+        sendPrefixed(player, MessageKey.of("catalog.filter.search"), "query", action);
+    }
+
+    @Suggestions("catalog_actions")
+    public List<String> suggestCatalogActions(CommandContext<Source> context, CommandInput input) {
+        List<String> list = new ArrayList<>();
+        list.add("all");
+        list.add("search");
+        list.add("clear");
+        list.add("next");
+        list.add("prev");
+        list.add("catnext");
+        list.add("catprev");
+        if (itemCategoryRegistry != null) {
+            for (ItemCategory cat : itemCategoryRegistry.values()) {
+                list.add(cat.key().value());
+            }
+        }
+        return list;
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Core Crop & Inspection Commands
     // ---------------------------------------------------------------------------------------------
@@ -627,6 +733,9 @@ public class CroppyCommands {
         }
 
         if ("clear".equalsIgnoreCase(action)) {
+            if (chatPromptService != null) {
+                chatPromptService.cancelPrompt(player.getUniqueId(), false);
+            }
             compendiumController.clearFilters(player);
             sendPrefixed(player, MessageKey.of("compendium.filter.ready-off"));
             return;

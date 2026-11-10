@@ -383,7 +383,9 @@ public class CompendiumMenuController {
     }
 
     public void clearFilters(Player player) {
-        openCompendium(player, RecipeCategory.ALL.getKey(), 1);
+        CompendiumSession fresh = new CompendiumSession(1, RecipeCategory.ALL.getKey(), null, false, 1);
+        sessions.put(player.getUniqueId(), fresh);
+        openCompendiumWithSession(player, fresh);
     }
 
     public void backToCompendium(Player player) {

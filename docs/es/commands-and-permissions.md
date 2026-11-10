@@ -26,6 +26,32 @@ El comando raíz es `/croppy`.
 
 Todos los subcomandos de gestión y depuración requieren el permiso **`croppy.admin`**.
 
+### Catálogo Interactivo de Ítems y Spawner
+
+```text
+/croppy items [categoría | search | clear | next | prev] [query]
+```
+
+* **`/croppy items`**:
+  Abre la interfaz interactiva del Catálogo de Ítems mostrando todos los ítems registrados.
+* **`/croppy items <categoría>`**:
+  Abre el catálogo filtrado directamente por pestaña de categoría (`all`, `seeds`, `fertilizers`, `watering_cans`, `tools`, `ingredients`, `stations`, `misc`).
+* **`/croppy items search [query]`**:
+  Abre el catálogo filtrado por término de búsqueda, o inicia un prompt en el chat si se omite.
+* **`/croppy items clear`**:
+  Restablece todos los filtros activos y términos de búsqueda regresando a la primera página.
+
+**Atajos del Spawner Administrativo:**
+* **Clic Izquierdo**: Da 1 unidad (1x) al inventario.
+* **Clic Derecho**: Da 1 stack completo (hasta el máximo del ítem, ej. 64x).
+* **Shift + Clic**: Sugiere `/croppy item give <categoría> <id> 1` pre-escrito en el chat.
+* **Tecla Q (Drop)**: Suelta 1 unidad en el suelo a los pies del jugador.
+* **Control + Q [Ctrl+Drop]**: Suelta 1 stack completo en el suelo a los pies del jugador.
+
+Permiso: `croppy.admin.items` (incluido en `croppy.admin`).
+
+---
+
 ### Gestión de Ítems y Herramientas
 
 ```text
@@ -139,4 +165,5 @@ Todos los subcomandos de gestión y depuración requieren el permiso **`croppy.a
 | Permiso | Predeterminado | Descripción |
 |---|---|---|
 | `croppy.admin` | `op` | Acceso completo a todos los subcomandos administrativos y herramientas de depuración de `/croppy`. |
+| `croppy.admin.items` | `op` | Acceso al catálogo interactivo de ítems y spawner administrativo (`/croppy items`). |
 | `croppy.admin.addon` | `op` | Acceso completo a los subcomandos de gestión del ciclo de vida de `/croppy addon`. |

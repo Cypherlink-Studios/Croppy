@@ -2,6 +2,7 @@ package dev.darkblade.croppy.api.addon;
 
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
+import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.menu.MenuRegistry;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
@@ -44,6 +45,11 @@ public interface AddonContext {
      * @return the global item registry
      */
     ItemRegistry getItemRegistry();
+
+    /**
+     * @return the global item category registry
+     */
+    ItemCategoryRegistry getItemCategoryRegistry();
 
     /**
      * @return the global fertilizer registry

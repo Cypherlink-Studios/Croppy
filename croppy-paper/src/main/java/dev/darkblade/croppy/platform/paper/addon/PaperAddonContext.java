@@ -6,6 +6,7 @@ import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.growth.GrowthModifier;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
+import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.menu.MenuRegistry;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
@@ -54,6 +55,7 @@ public class PaperAddonContext implements AddonContext {
     private final Set<Key> registeredItems = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredRecipes = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredCategories = ConcurrentHashMap.newKeySet();
+    private final Set<Key> registeredItemCategories = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredProcesses = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredStations = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredMenus = ConcurrentHashMap.newKeySet();
@@ -116,6 +118,11 @@ public class PaperAddonContext implements AddonContext {
     @Override
     public ItemRegistry getItemRegistry() {
         return core != null ? core.getItemRegistry() : null;
+    }
+
+    @Override
+    public ItemCategoryRegistry getItemCategoryRegistry() {
+        return core != null ? core.getItemCategoryRegistry() : null;
     }
 
     @Override
@@ -304,6 +311,10 @@ public class PaperAddonContext implements AddonContext {
         if (key != null) registeredCategories.add(key);
     }
 
+    public void trackItemCategory(Key key) {
+        if (key != null) registeredItemCategories.add(key);
+    }
+
     public void trackProcess(Key key) {
         if (key != null) registeredProcesses.add(key);
     }
@@ -346,6 +357,10 @@ public class PaperAddonContext implements AddonContext {
 
     public Set<Key> getRegisteredCategories() {
         return Collections.unmodifiableSet(registeredCategories);
+    }
+
+    public Set<Key> getRegisteredItemCategories() {
+        return Collections.unmodifiableSet(registeredItemCategories);
     }
 
     public Set<Key> getRegisteredProcesses() {

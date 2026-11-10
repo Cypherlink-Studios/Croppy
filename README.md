@@ -126,7 +126,7 @@ Croppy (Root)
 
 ### 1. Installation
 1. Install `packetevents-spigot.jar` into your server's `plugins/` directory.
-2. Download the latest `Croppy-paper-0.5.16.jar` from [Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it in `plugins/`.
+2. Download the latest `Croppy-paper-0.5.17.jar` from [Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it in `plugins/`.
 3. Provide the **Croppy Companion Resource Pack** (`resourcepack/`) to your players via `server.properties` or server resource pack hosting.
 4. Start your server.
 
@@ -143,6 +143,9 @@ Croppy (Root)
 
 #### Administrative Commands (`croppy.admin`)
 ```bash
+# Interactive Item Catalog GUI & administrative spawner
+/croppy items [category | search | clear]
+
 # Spawn custom agricultural items and tools
 /croppy item give seeds wheat_seeds 5
 /croppy item give watering_cans copper_can 1

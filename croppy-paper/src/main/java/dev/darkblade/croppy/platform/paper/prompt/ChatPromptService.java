@@ -35,7 +35,8 @@ public final class ChatPromptService implements Listener {
 
     public enum PromptType {
         TEMPERATURE,
-        TEXT_SEARCH
+        TEXT_SEARCH,
+        ITEM_SEARCH
     }
 
     public record PromptSession(
@@ -140,8 +141,51 @@ public final class ChatPromptService implements Listener {
      * @param onSearchQuery callback executed on main thread on valid search query (null or empty string clears query)
      * @param onCancel      callback executed on main thread on cancel or timeout
      */
+    public void startRecipeSearchPrompt(
+            Player player,
+            Consumer<String> onSearchQuery,
+            Runnable onCancel
+    ) {
+        startSearchPromptInternal(player, PromptType.TEXT_SEARCH, "prompt.search-prompt", "/croppy recipes clear", "recipe", "prompt.search-timeout", onSearchQuery, onCancel);
+    }
+
+    /**
+     * Starts an item catalog search text prompt for the player.
+     *
+     * @param player        the player
+     * @param onSearchQuery callback executed on main thread on valid search query (null or empty string clears query)
+     * @param onCancel      callback executed on main thread on cancel or timeout
+     */
+    public void startItemSearchPrompt(
+            Player player,
+            Consumer<String> onSearchQuery,
+            Runnable onCancel
+    ) {
+        startSearchPromptInternal(player, PromptType.ITEM_SEARCH, "prompt.item-search-prompt", "/croppy items clear", "item", "prompt.item-search-timeout", onSearchQuery, onCancel);
+    }
+
+    /**
+     * Starts a general search text prompt for the player (defaults to recipe search).
+     *
+     * @param player        the player
+     * @param onSearchQuery callback executed on main thread on valid search query (null or empty string clears query)
+     * @param onCancel      callback executed on main thread on cancel or timeout
+     */
     public void startSearchPrompt(
             Player player,
+            Consumer<String> onSearchQuery,
+            Runnable onCancel
+    ) {
+        startRecipeSearchPrompt(player, onSearchQuery, onCancel);
+    }
+
+    private void startSearchPromptInternal(
+            Player player,
+            PromptType type,
+            String messageKey,
+            String clearCommand,
+            String itemOrRecipe,
+            String timeoutKey,
             Consumer<String> onSearchQuery,
             Runnable onCancel
     ) {
@@ -154,9 +198,9 @@ public final class ChatPromptService implements Listener {
         player.closeInventory();
 
         if (messageService != null) {
-            messageService.sendPrefixedMessage(player, MessageKey.of("prompt.search-prompt"));
+            messageService.sendPrefixedMessage(player, MessageKey.of(messageKey));
         } else {
-            String promptMsg = DEFAULT_PREFIX + "<yellow>Enter recipe search query in chat, or type </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Click to cancel'><red>'cancel'</red></hover></click><yellow> to abort (or </yellow><click:run_command:'/croppy recipes clear'><hover:show_text:'<gray>Click to clear filter'><aqua>'clear'</aqua></hover></click><yellow> to reset):</yellow>";
+            String promptMsg = DEFAULT_PREFIX + "<yellow>Enter " + itemOrRecipe + " search query in chat, or type </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Click to cancel'><red>'cancel'</red></hover></click><yellow> to abort (or </yellow><click:run_command:'" + clearCommand + "'><hover:show_text:'<gray>Click to clear filter'><aqua>'clear'</aqua></hover></click><yellow> to reset):</yellow>";
             player.sendMessage(miniMessage.deserialize(promptMsg));
         }
 
@@ -169,9 +213,9 @@ public final class ChatPromptService implements Listener {
                     Player p = Bukkit.getPlayer(playerId);
                     if (p != null && p.isOnline()) {
                         if (messageService != null) {
-                            messageService.sendPrefixedMessage(p, MessageKey.of("prompt.search-timeout"));
+                            messageService.sendPrefixedMessage(p, MessageKey.of(timeoutKey));
                         } else {
-                            p.sendMessage(miniMessage.deserialize(DEFAULT_PREFIX + "<gray>Recipe search timed out.</gray>"));
+                            p.sendMessage(miniMessage.deserialize(DEFAULT_PREFIX + "<gray>" + Character.toUpperCase(itemOrRecipe.charAt(0)) + itemOrRecipe.substring(1) + " search timed out.</gray>"));
                         }
                         try {
                             p.playSound(p.getLocation(), "block.note_block.bass", 1.0f, 0.8f);
@@ -185,7 +229,7 @@ public final class ChatPromptService implements Listener {
         }
 
         activePrompts.put(playerId, new PromptSession(
-                playerId, PromptType.TEXT_SEARCH, 0.0, 0.0, null, onSearchQuery, onCancel, expiryMillis, timeoutTask
+                playerId, type, 0.0, 0.0, null, onSearchQuery, onCancel, expiryMillis, timeoutTask
         ));
     }
 
@@ -217,16 +261,18 @@ public final class ChatPromptService implements Listener {
 
         String trimmed = input.trim();
 
-        if (session.type() == PromptType.TEXT_SEARCH) {
+        if (session.type() == PromptType.TEXT_SEARCH || session.type() == PromptType.ITEM_SEARCH) {
             if ("cancel".equalsIgnoreCase(trimmed) || "cancelar".equalsIgnoreCase(trimmed)) {
                 activePrompts.remove(playerId);
                 if (session.timeoutTask() != null) {
                     session.timeoutTask().cancel();
                 }
+                String cancelKey = (session.type() == PromptType.ITEM_SEARCH) ? "prompt.item-search-cancelled" : "prompt.search-cancelled";
+                String fallbackMsg = (session.type() == PromptType.ITEM_SEARCH) ? "<gray>Item search cancelled.</gray>" : "<gray>Recipe search cancelled.</gray>";
                 if (messageService != null) {
-                    messageService.sendPrefixedMessage(player, MessageKey.of("prompt.search-cancelled"));
+                    messageService.sendPrefixedMessage(player, MessageKey.of(cancelKey));
                 } else {
-                    player.sendMessage(miniMessage.deserialize(DEFAULT_PREFIX + "<gray>Recipe search cancelled.</gray>"));
+                    player.sendMessage(miniMessage.deserialize(DEFAULT_PREFIX + fallbackMsg));
                 }
                 try {
                     player.playSound(player.getLocation(), "block.note_block.bass", 1.0f, 0.8f);

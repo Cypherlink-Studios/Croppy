@@ -188,6 +188,9 @@ prompt:
   search-prompt: "<yellow>Enter recipe search query in chat, or type </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Click to cancel'><red>'cancel'</red></hover></click><yellow> to abort (or </yellow><click:run_command:'/croppy recipes clear'><hover:show_text:'<gray>Click to clear filter'><aqua>'clear'</aqua></hover></click><yellow> to reset):</yellow>"
   search-timeout: "<gray>Recipe search timed out.</gray>"
   search-cancelled: "<gray>Recipe search cancelled.</gray>"
+  item-search-prompt: "<yellow>Enter item search query in chat, or type </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Click to cancel'><red>'cancel'</red></hover></click><yellow> to abort (or </yellow><click:run_command:'/croppy items clear'><hover:show_text:'<gray>Click to clear filter'><aqua>'clear'</aqua></hover></click><yellow> to reset):</yellow>"
+  item-search-timeout: "<gray>Item search timed out.</gray>"
+  item-search-cancelled: "<gray>Item search cancelled.</gray>"
 
 recipe:
   compendium_unavailable: "<red>The recipe compendium is currently unavailable.</red>"
@@ -201,3 +204,32 @@ recipe:
   fanfare:
     title: "<gold><bold>★ NEW RECIPE! ★</bold></gold>"
     subtitle: "<white><recipe></white>"
+
+catalog:
+  missing-config: "<red>Item catalog menu configuration is missing.</red>"
+  no-slots: "<red>No item display slots found in catalog menu layout.</red>"
+  filter:
+    search: "<green>Item filter applied: <yellow><query></yellow></green>"
+    cleared: "<green>Item filters have been cleared.</green>"
+  prompt:
+    search-title: "<aqua>Item Search</aqua>"
+    search-desc: "<gray>Type your search query in chat, or <red>cancel</red> to exit.</gray>"
+  shortcuts:
+    separator: "<dark_gray>------------------------</dark_gray>"
+    left-click: "<yellow>• Left-Click:</yellow> <gray>Give 1x</gray>"
+    right-click: "<yellow>• Right-Click:</yellow> <gray>Give 64x (Max Stack)</gray>"
+    shift-click: "<yellow>• Shift-Click:</yellow> <gray>Suggest /give command</gray>"
+    drop: "<yellow>• Drop [Q]:</yellow> <gray>Drop at feet</gray>"
+  feedback:
+    given: "<green>Spawned <white><amount>x</white> <item> into your inventory.</green>"
+    dropped: "<yellow>Dropped <white><amount>x</white> <item> at your feet.</yellow>"
+    command-suggest: "<gray>Command: <yellow><click:suggest_command:'/croppy item give <category> <item_id> 1'><hover:show_text:'<gray>Click to insert into chat</gray>'>/croppy item give <category> <item_id> 1</click></yellow></gray>"
+  categories:
+    all: "<gold>All Items</gold>"
+    seeds: "<green>Seeds</green>"
+    fertilizers: "<aqua>Fertilizers</aqua>"
+    watering_cans: "<blue>Watering Cans</blue>"
+    tools: "<yellow>Tools</yellow>"
+    ingredients: "<red>Ingredients</red>"
+    stations: "<gold>Stations</gold>"
+    misc: "<light_purple>Miscellaneous</light_purple>"

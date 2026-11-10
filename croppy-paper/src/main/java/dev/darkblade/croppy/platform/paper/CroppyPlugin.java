@@ -109,6 +109,7 @@ public class CroppyPlugin extends JavaPlugin {
     // Recipe & Discovery services
     private dev.darkblade.croppy.api.storage.RecipeKnowledgeStorage recipeStorage;
     private dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController compendiumController;
+    private dev.darkblade.croppy.platform.paper.menu.ItemCatalogController itemCatalogController;
     private dev.darkblade.croppy.platform.paper.menu.RecipeDetailMenuController recipeDetailController;
     private dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler;
     private dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackHelper feedbackHelper;
@@ -351,6 +352,15 @@ public class CroppyPlugin extends JavaPlugin {
         this.menuListener.setDiscoveryEngine(core.getRecipeDiscoveryEngine());
         this.menuListener.setRecipeDetailController(this.recipeDetailController);
         this.menuListener.setCompendiumController(this.compendiumController);
+        this.itemCatalogController = new dev.darkblade.croppy.platform.paper.menu.ItemCatalogController(
+                core.getMenuRegistry(),
+                core.getItemRegistry(),
+                core.getItemCategoryRegistry(),
+                this.itemFactory,
+                this.menuRenderer,
+                this.messageService,
+                this.chatPromptService);
+        this.menuListener.setItemCatalogController(this.itemCatalogController);
     }
 
     private void registerListeners() {
@@ -429,6 +439,7 @@ public class CroppyPlugin extends JavaPlugin {
         }
         saveResourceIfNotExists("menus/default_station.yml");
         saveResourceIfNotExists("menus/recipes_menu.yml");
+        saveResourceIfNotExists("menus/items_menu.yml");
         saveResourceIfNotExists("menus/recipe_detail_menu.yml");
         saveResourceIfNotExists("menus/stations/cooking_pot.yml");
         saveResourceIfNotExists("menus/stations/skillet.yml");
@@ -780,6 +791,8 @@ public class CroppyPlugin extends JavaPlugin {
                 this.compendiumController,
                 core.getRecipeCategoryRegistry());
         commands.setChatPromptService(this.chatPromptService);
+        commands.setItemCatalogController(this.itemCatalogController);
+        commands.setItemCategoryRegistry(this.core.getItemCategoryRegistry());
         commands.setAddonManager(this.addonManager);
         commands.setResourcePackService(this.resourcePackService);
         commands.setUpdateService(this.updateService);
@@ -793,6 +806,8 @@ public class CroppyPlugin extends JavaPlugin {
         setupLocalization();
         this.core.getSpeciesRegistry().clear();
         this.core.getItemRegistry().clear();
+        this.core.getItemCategoryRegistry().clear();
+        this.core.getItemCategoryRegistry().registerDefaults();
         this.core.getMenuRegistry().clear();
         this.core.getStationRegistry().clear();
         this.core.getInteractionRegistry().clear();
@@ -1046,6 +1061,10 @@ public class CroppyPlugin extends JavaPlugin {
 
     public ItemFactory getItemFactory() {
         return itemFactory;
+    }
+
+    public dev.darkblade.croppy.platform.paper.menu.ItemCatalogController getItemCatalogController() {
+        return itemCatalogController;
     }
 
     public FertilizerService getFertilizerService() {

@@ -68,6 +68,7 @@ public final class PaperMenuListener implements Listener {
     private RecipeDiscoveryEngine discoveryEngine;
     private RecipeDetailMenuController recipeDetailController;
     private CompendiumMenuController compendiumController;
+    private ItemCatalogController itemCatalogController;
 
     public PaperMenuListener(
             Plugin plugin,
@@ -115,6 +116,10 @@ public final class PaperMenuListener implements Listener {
         this.compendiumController = compendiumController;
     }
 
+    public void setItemCatalogController(ItemCatalogController itemCatalogController) {
+        this.itemCatalogController = itemCatalogController;
+    }
+
     public void setExperimentationHandler(dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler) {
         this.experimentationHandler = experimentationHandler;
     }
@@ -156,7 +161,7 @@ public final class PaperMenuListener implements Listener {
             // A. Passive / Indicator / Button slots
             if (type == SlotType.DECORATION || type == SlotType.STATUS) {
                 if (event.getWhoClicked() instanceof Player player) {
-                    handleSpecialMenuClick(player, holder, event.getCurrentItem());
+                    handleSpecialMenuClick(player, holder, event.getCurrentItem(), clickType);
                 }
                 event.setCancelled(true);
                 return;
@@ -242,7 +247,7 @@ public final class PaperMenuListener implements Listener {
         }
     }
 
-    private void handleSpecialMenuClick(Player player, PaperMenuHolder holder, ItemStack clicked) {
+    private void handleSpecialMenuClick(Player player, PaperMenuHolder holder, ItemStack clicked, ClickType clickType) {
         if (clicked == null || !clicked.hasItemMeta()) {
             return;
         }
@@ -269,6 +274,59 @@ public final class PaperMenuListener implements Listener {
             String action = pdc.get(new NamespacedKey("croppy", "action"), PersistentDataType.STRING);
             if ("compendium_back".equalsIgnoreCase(action) && compendiumController != null) {
                 compendiumController.backToCompendium(player);
+            }
+            return;
+        }
+
+        // 3. Item catalog interactions
+        if (ItemCatalogController.MENU_KEY.equals(holder.getMenu().getKey())) {
+            if (itemCatalogController == null) {
+                return;
+            }
+
+            // A. Category tab click
+            String catKeyStr = pdc.get(ItemCatalogController.CATEGORY_TAB_KEY, PersistentDataType.STRING);
+            if (catKeyStr != null) {
+                itemCatalogController.setCategory(player, Key.parse(catKeyStr));
+                return;
+            }
+
+            // B. Item card click (Administrative Spawner)
+            String itemIdStr = pdc.get(ItemCatalogController.CATALOG_ITEM_KEY, PersistentDataType.STRING);
+            if (itemIdStr != null) {
+                if (!player.hasPermission("croppy.admin.items")) {
+                    if (messageService != null) {
+                        messageService.sendPrefixedMessage(player, "command.no-permission");
+                    } else {
+                        player.sendMessage(miniMessage.deserialize("<red>You do not have permission to spawn items.</red>"));
+                    }
+                    return;
+                }
+
+                Key itemKey = Key.parse(itemIdStr);
+                itemFactory.getItemRegistry().get(itemKey).ifPresent(def -> {
+                    if (clickType.isShiftClick()) {
+                        itemCatalogController.handleCommandSuggest(player, def);
+                    } else if (clickType.isLeftClick()) {
+                        itemCatalogController.handleItemSpawn(player, def, 1);
+                    } else if (clickType.isRightClick()) {
+                        int maxStack = 64;
+                        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(def.materialKey());
+                        if (mat != null && mat.getMaxStackSize() > 0) {
+                            maxStack = mat.getMaxStackSize();
+                        }
+                        itemCatalogController.handleItemSpawn(player, def, maxStack);
+                    } else if (clickType == ClickType.DROP) {
+                        itemCatalogController.handleItemDrop(player, def, 1);
+                    } else if (clickType == ClickType.CONTROL_DROP) {
+                        int maxStack = 64;
+                        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(def.materialKey());
+                        if (mat != null && mat.getMaxStackSize() > 0) {
+                            maxStack = mat.getMaxStackSize();
+                        }
+                        itemCatalogController.handleItemDrop(player, def, maxStack);
+                    }
+                });
             }
         }
     }

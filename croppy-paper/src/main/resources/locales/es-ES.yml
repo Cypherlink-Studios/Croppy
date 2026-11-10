@@ -188,6 +188,9 @@ prompt:
   search-prompt: "<yellow>Introduce tu búsqueda de recetas en el chat, o escribe </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Clic para cancelar'><red>'cancel'</red></hover></click><yellow> para cancelar (o </yellow><click:run_command:'/croppy recipes clear'><hover:show_text:'<gray>Clic para reiniciar filtro'><aqua>'clear'</aqua></hover></click><yellow> para restablecer):</yellow>"
   search-timeout: "<gray>La búsqueda de recetas ha expirado.</gray>"
   search-cancelled: "<gray>Búsqueda de recetas cancelada.</gray>"
+  item-search-prompt: "<yellow>Introduce tu búsqueda de ítems en el chat, o escribe </yellow><click:suggest_command:cancel><hover:show_text:'<gray>Clic para cancelar'><red>'cancel'</red></hover></click><yellow> para cancelar (o </yellow><click:run_command:'/croppy items clear'><hover:show_text:'<gray>Clic para reiniciar filtro'><aqua>'clear'</aqua></hover></click><yellow> para restablecer):</yellow>"
+  item-search-timeout: "<gray>La búsqueda de ítems ha expirado.</gray>"
+  item-search-cancelled: "<gray>Búsqueda de ítems cancelada.</gray>"
 
 recipe:
   compendium_unavailable: "<red>El compendio de recetas no está disponible en este momento.</red>"
@@ -201,3 +204,32 @@ recipe:
   fanfare:
     title: "<gold><bold>★ ¡NUEVA RECETA! ★</bold></gold>"
     subtitle: "<white><recipe></white>"
+
+catalog:
+  missing-config: "<red>Falta la configuración del menú del catálogo de ítems.</red>"
+  no-slots: "<red>No se encontraron slots de ítems en el diseño del catálogo.</red>"
+  filter:
+    search: "<green>Filtro de ítems aplicado: <yellow><query></yellow></green>"
+    cleared: "<green>Se han limpiado los filtros de ítems.</green>"
+  prompt:
+    search-title: "<aqua>Búsqueda de Ítems</aqua>"
+    search-desc: "<gray>Escribe tu término de búsqueda en el chat, o <red>cancelar</red> para salir.</gray>"
+  shortcuts:
+    separator: "<dark_gray>------------------------</dark_gray>"
+    left-click: "<yellow>• Clic Izquierdo:</yellow> <gray>Obtener 1x</gray>"
+    right-click: "<yellow>• Clic Derecho:</yellow> <gray>Obtener 64x (Stack)</gray>"
+    shift-click: "<yellow>• Shift + Clic:</yellow> <gray>Sugerir comando /give</gray>"
+    drop: "<yellow>• Dropear [Q]:</yellow> <gray>Tirar a tus pies</gray>"
+  feedback:
+    given: "<green>¡Se añadió <white><amount>x</white> <item> a tu inventario!</green>"
+    dropped: "<yellow>¡Se soltó <white><amount>x</white> <item> a tus pies!</yellow>"
+    command-suggest: "<gray>Comando: <yellow><click:suggest_command:'/croppy item give <category> <item_id> 1'><hover:show_text:'<gray>Clic para insertar en el chat</gray>'>/croppy item give <category> <item_id> 1</click></yellow></gray>"
+  categories:
+    all: "<gold>Todos los Ítems</gold>"
+    seeds: "<green>Semillas</green>"
+    fertilizers: "<aqua>Fertilizantes</aqua>"
+    watering_cans: "<blue>Regaderas</blue>"
+    tools: "<yellow>Herramientas</yellow>"
+    ingredients: "<red>Ingredientes</red>"
+    stations: "<gold>Estaciones</gold>"
+    misc: "<light_purple>Misceláneos</light_purple>"

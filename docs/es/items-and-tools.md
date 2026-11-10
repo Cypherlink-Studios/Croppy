@@ -155,3 +155,26 @@ Cada ítem de Croppy almacena etiquetas seguras en su NBT/PDC:
 * **`croppy:fertilizer_type` / `croppy:speed_multiplier`**: Registra propiedades de fertilización en semillas y tierra tratada.
 
 Al residir directamente en la estructura nativa de Minecraft, estos datos sobreviven a reinicios del servidor, traslados entre cofres e interacciones con otros plugins sin desincronizarse.
+
+---
+
+## 6. Catálogo Interactivo de Ítems y Spawner Administrativo
+
+Los administradores pueden explorar, filtrar, buscar y obtener cualquier ítem registrado directamente mediante el menú interactivo `/croppy items`.
+
+```text
+/croppy items [categoría | search | clear]
+```
+
+### Características Principales
+* **Filtrado por Pestañas de Categoría**: Alterna entre las categorías predeterminadas (`seeds`, `fertilizers`, `watering_cans`, `tools`, `ingredients`, `stations`, `misc`, `all`) o categorías personalizadas registradas por addons.
+* **Paginación Horizontal de Categorías**: Si múltiples addons registran categorías adicionales que superan las ranuras disponibles en la fila superior, los botones de navegación horizontal permiten desplazarse entre páginas de pestañas.
+* **Búsqueda en Tiempo Real por Chat**: Clic en el botón de búsqueda o uso de `/croppy items search` para filtrar ítems al instante por nombre, material o clave con namespace.
+* **Controles Rápidos del Spawner**:
+  * **Clic Izquierdo**: Entrega 1 unidad del ítem al inventario.
+  * **Clic Derecho**: Entrega 1 stack completo (64x o el máximo del ítem).
+  * **Shift + Clic**: Sugiere el comando de obtención en el chat `/croppy item give <categoría> <id> 1`.
+  * **Tecla Q (Drop)**: Suelta 1 unidad directamente a los pies del jugador.
+  * **Control + Q**: Suelta 1 stack completo a los pies del jugador.
+  * **Caída Natural por Inventario Lleno**: Si el inventario del jugador está completo, los ítems sobrantes caen al suelo a sus pies sin perderse.
+

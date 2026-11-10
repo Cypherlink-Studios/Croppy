@@ -155,3 +155,26 @@ Every Croppy item embeds persistent tags within its PDC:
 * **`croppy:fertilizer_type` / `croppy:speed_multiplier`**: Tracks applied fertilizer properties.
 
 Because data is stored natively inside Minecraft's NBT/PDC structures, items survive server restarts, player inventory changes, and container movements without desynchronization.
+
+---
+
+## 6. Interactive Item Catalog & Administrative Spawner
+
+Administrators can browse, filter, search, and spawn any registered custom item directly in-game using the interactive catalog menu `/croppy items`.
+
+```text
+/croppy items [category | search | clear]
+```
+
+### Key Features
+* **Tabbed Category Filtering**: Filter across default categories (`seeds`, `fertilizers`, `watering_cans`, `tools`, `ingredients`, `stations`, `misc`, `all`) or custom addon categories.
+* **Horizontal Tab Pagination**: When multiple addons register custom categories exceeding available slots in the top row, next/prev arrow buttons navigate smoothly across category pages.
+* **Live Search Prompt**: Click the search button or run `/croppy items search` to filter items in real-time by name, material, or namespaced key.
+* **Administrative Spawner Controls**:
+  * **Left-Click**: Receive 1 unit of the item.
+  * **Right-Click**: Receive a maximum stack (64x or item max stack).
+  * **Shift-Click**: Suggest the give command `/croppy item give <category> <id> 1` into the chat box.
+  * **Drop Key [Q]**: Drop 1 unit naturally on the ground at feet.
+  * **Control + Q**: Drop a full stack naturally on the ground at feet.
+  * **Auto-Drop on Full Inventory**: If player inventory is full, spawned items drop safely at feet without vanishing.
+

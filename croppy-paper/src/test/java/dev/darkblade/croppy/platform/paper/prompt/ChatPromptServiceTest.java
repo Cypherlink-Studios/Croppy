@@ -173,4 +173,21 @@ class ChatPromptServiceTest {
         assertTrue(cancelled.get());
         assertFalse(service.hasActivePrompt(playerId));
     }
+
+    @Test
+    @DisplayName("Item search prompt captures query and handles cancel")
+    void testItemSearchPrompt() {
+        ChatPromptService service = new ChatPromptService(createMockPlugin());
+        UUID playerId = UUID.randomUUID();
+        Player player = createMockPlayer(playerId);
+
+        AtomicReference<String> captured = new AtomicReference<>();
+        service.startItemSearchPrompt(player, captured::set, () -> {});
+
+        assertTrue(service.hasActivePrompt(playerId));
+        boolean handled = service.processInput(player, "seed");
+        assertTrue(handled);
+        assertEquals("seed", captured.get());
+        assertFalse(service.hasActivePrompt(playerId));
+    }
 }
