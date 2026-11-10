@@ -1,0 +1,12 @@
+id: "croppy:golden_can"
+type: "shaped"
+group: "croppy_watering_cans"
+category: "equipment"
+result: "croppy:golden_can"
+shape:
+  - "G G"
+  - "GIG"
+  - " G "
+ingredients:
+  G: "minecraft:gold_ingot"
+  I: "croppy:iron_can"

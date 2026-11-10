@@ -1,0 +1,12 @@
+id: "croppy:skillet"
+type: "shaped"
+group: "croppy_stations"
+category: "misc"
+result: "croppy:skillet"
+shape:
+  - " I "
+  - " I "
+  - " S "
+ingredients:
+  I: "minecraft:iron_ingot"
+  S: "minecraft:stick"

@@ -1,0 +1,12 @@
+id: "croppy:iron_can"
+type: "shaped"
+group: "croppy_watering_cans"
+category: "equipment"
+result: "croppy:iron_can"
+shape:
+  - "I I"
+  - "ICI"
+  - " I "
+ingredients:
+  I: "minecraft:iron_ingot"
+  C: "croppy:copper_can"

@@ -1,0 +1,10 @@
+id: "croppy:hydrating_fertilizer"
+type: "shapeless"
+group: "croppy_fertilizers"
+category: "misc"
+result:
+  item: "croppy:hydrating_fertilizer"
+  amount: 2
+ingredients:
+  - "minecraft:bone_meal"
+  - "minecraft:clay_ball"

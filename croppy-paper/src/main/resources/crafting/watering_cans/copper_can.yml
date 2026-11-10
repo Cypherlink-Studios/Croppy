@@ -1,0 +1,12 @@
+id: "croppy:copper_can"
+type: "shaped"
+group: "croppy_watering_cans"
+category: "equipment"
+result: "croppy:copper_can"
+shape:
+  - "C C"
+  - "CWC"
+  - " C "
+ingredients:
+  C: "minecraft:copper_ingot"
+  W: "croppy:wooden_can"

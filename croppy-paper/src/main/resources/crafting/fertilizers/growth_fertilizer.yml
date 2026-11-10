@@ -1,0 +1,10 @@
+id: "croppy:growth_fertilizer"
+type: "shapeless"
+group: "croppy_fertilizers"
+category: "misc"
+result:
+  item: "croppy:growth_fertilizer"
+  amount: 2
+ingredients:
+  - "minecraft:bone_meal"
+  - "minecraft:rotten_flesh"

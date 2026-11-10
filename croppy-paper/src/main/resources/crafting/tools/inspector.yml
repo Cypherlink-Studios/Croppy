@@ -1,0 +1,13 @@
+id: "croppy:inspector"
+type: "shaped"
+group: "croppy_tools"
+category: "equipment"
+result: "croppy:inspection_tool"
+shape:
+  - " G "
+  - " C "
+  - " S "
+ingredients:
+  G: "minecraft:glass_pane"
+  C: "minecraft:compass"
+  S: "minecraft:stick"

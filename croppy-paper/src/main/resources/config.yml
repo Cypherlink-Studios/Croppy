@@ -109,3 +109,10 @@ compendium:
   # Maximum horizontal/vertical distance in blocks to consider a player near a compatible station
   station-proximity-distance: 5
 
+# ==============================================================================
+# Vanilla Crafting Table Integration
+# ==============================================================================
+crafting:
+  # Automatically unlocks all registered Croppy crafting recipes in player recipe books upon join
+  auto-discover-recipes: true
+

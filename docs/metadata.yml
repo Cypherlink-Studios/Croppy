@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.18"
+  - version: "0.5.19"
     releaseDate: "2026-11-10"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added declarative Bukkit crafting recipe system (crafting/) for standard crafting table crafting, supporting shaped and shapeless recipes, material/tag choices and ExactChoice PDC preservation for custom items, auto-discovery in recipe book, addon discovery, and 14 bundled starter recipes for stations, tools, watering cans, and fertilizers."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.18"
+    releaseDate: "2026-11-10"
+    reference: "b85a645"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Completed starter pack companion resource pack assets with custom 16x16 pixel-art textures and models for all 26 base items, fully isolated viticulture/vinery content to .internal/vinery/, and synchronized runtime resource extraction."
     minecraft:

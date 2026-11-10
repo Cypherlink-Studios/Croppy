@@ -41,6 +41,9 @@ public class PluginConfig {
     private boolean compendiumEnableDetailView = true;
     private int compendiumStationProximityDistance = 5;
 
+    // Crafting Settings
+    private boolean craftingAutoDiscoverRecipes = true;
+
     public void load(FileConfiguration config) {
         if (config == null) {
             return;
@@ -83,6 +86,13 @@ public class PluginConfig {
         this.compendiumShowUnknownRecipes = config.getBoolean("compendium.show-unknown-recipes", true);
         this.compendiumEnableDetailView = config.getBoolean("compendium.enable-detail-view", true);
         this.compendiumStationProximityDistance = Math.max(1, config.getInt("compendium.station-proximity-distance", 5));
+
+        // Crafting configuration
+        this.craftingAutoDiscoverRecipes = config.getBoolean("crafting.auto-discover-recipes", true);
+    }
+
+    public boolean isCraftingAutoDiscoverRecipes() {
+        return craftingAutoDiscoverRecipes;
     }
 
     public boolean isUpdatesEnabled() {

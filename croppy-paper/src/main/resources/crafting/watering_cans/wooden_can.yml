@@ -1,0 +1,12 @@
+id: "croppy:wooden_can"
+type: "shaped"
+group: "croppy_watering_cans"
+category: "equipment"
+result: "croppy:wooden_can"
+shape:
+  - "P  "
+  - "PBP"
+  - " P "
+ingredients:
+  P: "#minecraft:planks"
+  B: "minecraft:bowl"

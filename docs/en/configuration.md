@@ -113,6 +113,20 @@ For in-depth details on flags, placeholders, and adapter behavior, see the [Thir
 
 ---
 
-## 5. Custom Items & Inspection Tool Customization
+## 5. Crafting Table Recipes (`crafting`)
+
+Croppy supports native Bukkit crafting table recipes for cookware, tools, watering cans, and fertilizers:
+
+```yaml
+crafting:
+  # Automatically discover all registered custom recipes in the player's recipe book upon joining
+  auto-discover-recipes: true
+```
+
+* **`auto-discover-recipes`**: When set to `true`, players automatically unlock all registered Croppy crafting table recipes in their recipe book upon joining the server. For crafting recipe declarations, see the [Crafting Table Recipes Guide](./crafting-recipes.md).
+
+---
+
+## 6. Custom Items & Inspection Tool Customization
 
 The Crop Inspector tool (`croppy:inspection_tool`) is defined through Croppy's centralized **Item Registry** in `plugins/Croppy/items/tools/inspector.yml`. To customize its material, display name, item model, or lore, edit its YAML definition directly or consult the [Items & Tools Guide](./items-and-tools.md).

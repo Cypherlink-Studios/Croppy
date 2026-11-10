@@ -113,6 +113,20 @@ Para conocer a fondo todas las banderas y marcadores, consulta la [Guía de Inte
 
 ---
 
-## 5. Personalización de Herramientas y la Herramienta de Inspección
+## 5. Recetas de Mesa de Crafteo (`crafting`)
+
+Croppy soporta recetas de crafteo nativas de Bukkit para fabricar utensilios, herramientas, regaderas y fertilizantes en mesas de crafteo estándar:
+
+```yaml
+crafting:
+  # Descubrir automáticamente todas las recetas en el libro del jugador al entrar al servidor
+  auto-discover-recipes: true
+```
+
+* **`auto-discover-recipes`**: Si se activa (`true`), los jugadores desbloquean automáticamente todas las recetas registradas en su libro de recetas al entrar al servidor. Para la declaración de recetas de crafteo, consulta la [Guía de Recetas de Mesa de Crafteo](./crafting-recipes.md).
+
+---
+
+## 6. Personalización de Herramientas y la Herramienta de Inspección
 
 La herramienta de inspección (`croppy:inspection_tool`) se define de forma modular a través del **Registro de Ítems** en `plugins/Croppy/items/tools/inspector.yml`. Para personalizar su material, nombre visible, modelo 3D o lore, edita directamente su definición YAML o consulta la [Guía de Ítems y Herramientas](./items-and-tools.md).

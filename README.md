@@ -62,6 +62,10 @@ Built on modern Minecraft technical foundations, Croppy does not require client-
 |  All messages, action bars, tooltips, and item names render in each         |
 |  player's preferred client language using MiniMessage formatting.           |
 |                                                                             |
+|  [9. DECLARATIVE CRAFTING RECIPES]                                          |
+|  Forge stations, tools, tiered watering cans, and fertilizers natively at   |
+|  vanilla crafting tables via modular shaped/shapeless YAML definitions.     |
+|                                                                             |
 +-----------------------------------------------------------------------------+
 ```
 

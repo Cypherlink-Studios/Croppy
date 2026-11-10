@@ -1,0 +1,12 @@
+id: "croppy:cooking_pot"
+type: "shaped"
+group: "croppy_stations"
+category: "misc"
+result: "croppy:cooking_pot"
+shape:
+  - "I I"
+  - "ICI"
+  - " I "
+ingredients:
+  I: "minecraft:iron_ingot"
+  C: "minecraft:cauldron"

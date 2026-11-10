@@ -1,0 +1,8 @@
+id: "croppy:netherite_can"
+type: "shapeless"
+group: "croppy_watering_cans"
+category: "equipment"
+result: "croppy:netherite_can"
+ingredients:
+  - "minecraft:netherite_ingot"
+  - "croppy:diamond_can"

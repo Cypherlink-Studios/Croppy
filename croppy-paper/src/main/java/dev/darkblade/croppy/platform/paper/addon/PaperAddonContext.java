@@ -2,6 +2,7 @@ package dev.darkblade.croppy.platform.paper.addon;
 
 import dev.darkblade.croppy.api.addon.AddonContext;
 import dev.darkblade.croppy.api.addon.AddonDescription;
+import dev.darkblade.croppy.api.crafting.CraftingRecipeRegistry;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.growth.GrowthModifier;
 import dev.darkblade.croppy.api.identifier.Key;
@@ -54,6 +55,7 @@ public class PaperAddonContext implements AddonContext {
     private final Set<Key> registeredSpecies = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredItems = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredRecipes = ConcurrentHashMap.newKeySet();
+    private final Set<Key> registeredCraftingRecipes = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredCategories = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredItemCategories = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredProcesses = ConcurrentHashMap.newKeySet();
@@ -133,6 +135,11 @@ public class PaperAddonContext implements AddonContext {
     @Override
     public RecipeRegistry getRecipeRegistry() {
         return core != null ? core.getRecipeRegistry() : null;
+    }
+
+    @Override
+    public CraftingRecipeRegistry getCraftingRecipeRegistry() {
+        return core != null ? core.getCraftingRecipeRegistry() : null;
     }
 
     @Override
@@ -307,6 +314,10 @@ public class PaperAddonContext implements AddonContext {
         if (key != null) registeredRecipes.add(key);
     }
 
+    public void trackCraftingRecipe(Key key) {
+        if (key != null) registeredCraftingRecipes.add(key);
+    }
+
     public void trackCategory(Key key) {
         if (key != null) registeredCategories.add(key);
     }
@@ -353,6 +364,10 @@ public class PaperAddonContext implements AddonContext {
 
     public Set<Key> getRegisteredRecipes() {
         return Collections.unmodifiableSet(registeredRecipes);
+    }
+
+    public Set<Key> getRegisteredCraftingRecipes() {
+        return Collections.unmodifiableSet(registeredCraftingRecipes);
     }
 
     public Set<Key> getRegisteredCategories() {

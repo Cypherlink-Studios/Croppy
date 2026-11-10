@@ -1,0 +1,10 @@
+id: "croppy:quality_fertilizer"
+type: "shapeless"
+group: "croppy_fertilizers"
+category: "misc"
+result:
+  item: "croppy:quality_fertilizer"
+  amount: 2
+ingredients:
+  - "minecraft:bone_meal"
+  - "minecraft:glowstone_dust"

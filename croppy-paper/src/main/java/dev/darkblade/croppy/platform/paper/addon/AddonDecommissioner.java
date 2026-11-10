@@ -84,6 +84,14 @@ public final class AddonDecommissioner {
             for (Key key : context.getRegisteredRecipes()) {
                 core.getRecipeRegistry().unregister(key);
             }
+            if (core.getCraftingRecipeRegistry() != null) {
+                for (Key key : context.getRegisteredCraftingRecipes()) {
+                    core.getCraftingRecipeRegistry().unregister(key);
+                    try {
+                        org.bukkit.Bukkit.removeRecipe(new org.bukkit.NamespacedKey(key.namespace(), key.value()));
+                    } catch (Throwable ignored) {}
+                }
+            }
             for (Key key : context.getRegisteredProcesses()) {
                 core.getProcessRegistry().unregister(key);
             }

@@ -1,0 +1,13 @@
+id: "croppy:stove"
+type: "shaped"
+group: "croppy_stations"
+category: "misc"
+result: "croppy:stove"
+shape:
+  - "SSS"
+  - "B B"
+  - "BCB"
+ingredients:
+  S: "minecraft:smooth_stone_slab"
+  B: "minecraft:bricks"
+  C: "minecraft:campfire"

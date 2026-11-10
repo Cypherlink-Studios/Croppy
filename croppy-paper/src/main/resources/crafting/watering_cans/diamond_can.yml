@@ -1,0 +1,12 @@
+id: "croppy:diamond_can"
+type: "shaped"
+group: "croppy_watering_cans"
+category: "equipment"
+result: "croppy:diamond_can"
+shape:
+  - "D D"
+  - "DGD"
+  - " D "
+ingredients:
+  D: "minecraft:diamond"
+  G: "croppy:golden_can"

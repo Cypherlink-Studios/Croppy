@@ -1,0 +1,13 @@
+id: "croppy:thermometer"
+type: "shaped"
+group: "croppy_tools"
+category: "equipment"
+result: "croppy:thermometer"
+shape:
+  - " G "
+  - " R "
+  - " S "
+ingredients:
+  G: "minecraft:glass_pane"
+  R: "minecraft:redstone"
+  S: "minecraft:stick"

@@ -6,6 +6,7 @@ import dev.darkblade.croppy.api.addon.CroppyAddon;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.core.addon.AddonGraphValidator;
 import dev.darkblade.croppy.core.addon.DefaultAddonManager;
+import dev.darkblade.croppy.core.crafting.YamlCraftingRecipeLoader;
 import dev.darkblade.croppy.core.interaction.YamlInteractionLoader;
 import dev.darkblade.croppy.core.item.YamlItemLoader;
 import dev.darkblade.croppy.core.menu.YamlMenuLoader;
@@ -336,6 +337,28 @@ public class PaperAddonManager extends DefaultAddonManager {
                 logger.log(Level.WARNING, "Error scanning addon interactions directory: " + interactionsDir, e);
             }
         }
+
+        // 8. Load crafting recipes
+        Path craftingDir = root.resolve("crafting");
+        if (Files.exists(craftingDir) && Files.isDirectory(craftingDir)) {
+            YamlCraftingRecipeLoader craftingLoader = new YamlCraftingRecipeLoader();
+            try (Stream<Path> stream = Files.walk(craftingDir)) {
+                for (Path file : (Iterable<Path>) stream.filter(p -> p.toString().endsWith(".yml") || p.toString().endsWith(".yaml"))::iterator) {
+                    try (InputStream in = Files.newInputStream(file)) {
+                        dev.darkblade.croppy.api.crafting.CraftingRecipe recipe = craftingLoader.load(in, file.getFileName().toString());
+                        core.getCraftingRecipeRegistry().register(recipe);
+                        context.trackCraftingRecipe(recipe.getKey());
+                        if (plugin != null && plugin.getCraftingRecipeService() != null) {
+                            plugin.getCraftingRecipeService().registerRecipe(recipe);
+                        }
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Failed to load crafting recipe from " + file, e);
+                    }
+                }
+            } catch (IOException e) {
+                logger.log(Level.WARNING, "Error scanning addon crafting directory: " + craftingDir, e);
+            }
+        }
     }
 
     private void loadJarContent(PaperAddonContext context, Path jarPath) {
@@ -346,6 +369,7 @@ public class PaperAddonManager extends DefaultAddonManager {
         YamlProcessLoader processLoader = new YamlProcessLoader();
         YamlMenuLoader menuLoader = new YamlMenuLoader();
         YamlInteractionLoader interactionLoader = new YamlInteractionLoader();
+        YamlCraftingRecipeLoader craftingLoader = new YamlCraftingRecipeLoader();
 
         try (JarFile jar = new JarFile(jarPath.toFile())) {
             Enumeration<JarEntry> entries = jar.entries();
@@ -429,6 +453,19 @@ public class PaperAddonManager extends DefaultAddonManager {
                         }
                     } catch (Exception e) {
                         logger.log(Level.WARNING, "Failed to load interaction from " + name + " in " + jarPath.getFileName(), e);
+                    }
+                }
+                // 8. Crafting recipes
+                else if (name.startsWith("crafting/")) {
+                    try (InputStream in = jar.getInputStream(entry)) {
+                        dev.darkblade.croppy.api.crafting.CraftingRecipe recipe = craftingLoader.load(in, name);
+                        core.getCraftingRecipeRegistry().register(recipe);
+                        context.trackCraftingRecipe(recipe.getKey());
+                        if (plugin != null && plugin.getCraftingRecipeService() != null) {
+                            plugin.getCraftingRecipeService().registerRecipe(recipe);
+                        }
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Failed to load crafting recipe from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package dev.darkblade.croppy.api.addon;
 
+import dev.darkblade.croppy.api.crafting.CraftingRecipeRegistry;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
@@ -60,6 +61,11 @@ public interface AddonContext {
      * @return the global recipe registry
      */
     RecipeRegistry getRecipeRegistry();
+
+    /**
+     * @return the global crafting recipe registry
+     */
+    CraftingRecipeRegistry getCraftingRecipeRegistry();
 
     /**
      * @return the global recipe category registry

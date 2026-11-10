@@ -130,6 +130,11 @@ public class CroppyPlugin extends JavaPlugin {
     private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
     private dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService;
     private dev.darkblade.croppy.platform.paper.update.PaperUpdateService updateService;
+    private dev.darkblade.croppy.platform.paper.crafting.PaperCraftingRecipeService craftingRecipeService;
+
+    public dev.darkblade.croppy.platform.paper.crafting.PaperCraftingRecipeService getCraftingRecipeService() {
+        return craftingRecipeService;
+    }
 
     public dev.darkblade.croppy.platform.paper.addon.PaperAddonManager getAddonManager() {
         return addonManager;
@@ -193,6 +198,7 @@ public class CroppyPlugin extends JavaPlugin {
             setupStationDefinitions();
             setupInteractionDefinitions();
             setupRuleDefinitions();
+            setupCraftingRecipeDefinitions();
             setupMenuServices();
             setupGrowthSimulation();
             loadActiveChunkCrops();
@@ -424,6 +430,10 @@ public class CroppyPlugin extends JavaPlugin {
             pm.registerEvents(new dev.darkblade.croppy.platform.paper.update.listener.UpdateNotificationListener(
                     this.updateService, this.messageService), this);
         }
+        if (this.craftingRecipeService != null) {
+            pm.registerEvents(new dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeDiscoveryListener(
+                    this.craftingRecipeService, this.pluginConfig), this);
+        }
 
         getLogger().info(
                 "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
@@ -482,6 +492,49 @@ public class CroppyPlugin extends JavaPlugin {
         dev.darkblade.croppy.core.recipe.YamlRecipeLoader recipeLoader = new dev.darkblade.croppy.core.recipe.YamlRecipeLoader();
         int loaded = recipeLoader.loadAll(recipesDir, core.getRecipeRegistry(), getLogger());
         getLogger().info("Registered " + loaded + " recipe definitions into RecipeRegistry.");
+    }
+
+    private void setupCraftingRecipeDefinitions() {
+        Path craftingDir = getDataFolder().toPath().resolve("crafting");
+        if (!Files.exists(craftingDir)) {
+            try {
+                Files.createDirectories(craftingDir);
+            } catch (Exception ignored) {
+            }
+        }
+        // Stations
+        saveResourceIfNotExists("crafting/stations/cooking_pot.yml");
+        saveResourceIfNotExists("crafting/stations/stove.yml");
+        saveResourceIfNotExists("crafting/stations/skillet.yml");
+        // Tools
+        saveResourceIfNotExists("crafting/tools/inspector.yml");
+        saveResourceIfNotExists("crafting/tools/thermometer.yml");
+        // Watering Cans
+        saveResourceIfNotExists("crafting/watering_cans/wooden_can.yml");
+        saveResourceIfNotExists("crafting/watering_cans/copper_can.yml");
+        saveResourceIfNotExists("crafting/watering_cans/iron_can.yml");
+        saveResourceIfNotExists("crafting/watering_cans/golden_can.yml");
+        saveResourceIfNotExists("crafting/watering_cans/diamond_can.yml");
+        saveResourceIfNotExists("crafting/watering_cans/netherite_can.yml");
+        // Fertilizers
+        saveResourceIfNotExists("crafting/fertilizers/growth_fertilizer.yml");
+        saveResourceIfNotExists("crafting/fertilizers/hydrating_fertilizer.yml");
+        saveResourceIfNotExists("crafting/fertilizers/quality_fertilizer.yml");
+
+        dev.darkblade.croppy.core.crafting.YamlCraftingRecipeLoader loader = new dev.darkblade.croppy.core.crafting.YamlCraftingRecipeLoader();
+        int loaded = loader.loadAll(craftingDir, core.getCraftingRecipeRegistry(), getLogger());
+        getLogger().info("Registered " + loaded + " crafting recipe definitions into CraftingRecipeRegistry.");
+
+        dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeChoiceResolver choiceResolver =
+                new dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeChoiceResolver(this.itemFactory);
+        this.craftingRecipeService = new dev.darkblade.croppy.platform.paper.crafting.PaperCraftingRecipeService(
+                getServer(),
+                core.getCraftingRecipeRegistry(),
+                this.itemFactory,
+                choiceResolver,
+                getLogger()
+        );
+        this.craftingRecipeService.registerAll();
     }
 
     private void setupStationDefinitions() {
@@ -811,12 +864,17 @@ public class CroppyPlugin extends JavaPlugin {
         this.core.getRuleRegistry().clear();
         this.core.getRecipeRegistry().clear();
         this.core.getProcessRegistry().clear();
+        if (this.craftingRecipeService != null) {
+            this.craftingRecipeService.unregisterAll();
+        }
+        this.core.getCraftingRecipeRegistry().clear();
         this.fertilizerRegistry.clear();
         setupItemDefinitions();
         setupFertilizers();
         setupCropDefinitions();
         setupProcessDefinitions();
         setupRecipeDefinitions();
+        setupCraftingRecipeDefinitions();
         setupMenuDefinitions();
         setupStationDefinitions();
         setupInteractionDefinitions();
@@ -944,6 +1002,15 @@ public class CroppyPlugin extends JavaPlugin {
             } catch (Throwable t) {
                 getLogger().log(Level.WARNING, "Error unregistering station virtual interaction listener", t);
             }
+        }
+
+        if (this.craftingRecipeService != null) {
+            try {
+                this.craftingRecipeService.unregisterAll();
+            } catch (Throwable t) {
+                getLogger().log(Level.WARNING, "Error unregistering crafting recipes during shutdown", t);
+            }
+            this.craftingRecipeService = null;
         }
 
         if (this.storage != null) {
