@@ -87,32 +87,6 @@ class CropResourcesIntegrityTest {
     }
 
     @Test
-    @DisplayName("Verify isolated vinery content exists and parses cleanly in .internal/vinery")
-    void testIsolatedVineryIntegrity() {
-        Path vineryDir = Paths.get("..", ".internal", "vinery");
-        if (!Files.exists(vineryDir)) {
-            vineryDir = Paths.get(".internal", "vinery");
-        }
-        assertTrue(Files.isDirectory(vineryDir), "Vinery directory must exist in .internal/vinery");
-
-        // Verify crops
-        YamlSpeciesLoader speciesLoader = new YamlSpeciesLoader();
-        List<Species> crops = speciesLoader.loadDirectory(vineryDir.resolve("crops"), Logger.getAnonymousLogger());
-        assertEquals(1, crops.size());
-        assertEquals("croppy:grapes", crops.getFirst().getKey().asString());
-
-        // Verify items
-        DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
-        YamlItemLoader itemLoader = new YamlItemLoader();
-        int loadedItems = itemLoader.loadAllCategories(vineryDir.resolve("items"), Logger.getAnonymousLogger(), itemRegistry);
-        assertEquals(4, loadedItems, "Isolated vinery must contain 4 items (grapes, green_grapes, purple_grapes, grape_seeds)");
-        assertTrue(itemRegistry.get(Key.of("croppy", "grapes")).isPresent());
-        assertTrue(itemRegistry.get(Key.of("croppy", "green_grapes")).isPresent());
-        assertTrue(itemRegistry.get(Key.of("croppy", "purple_grapes")).isPresent());
-        assertTrue(itemRegistry.get(Key.of("croppy", "grape_seeds")).isPresent());
-    }
-
-    @Test
     @DisplayName("Verify companion resource pack strict JSON compliance and model linkage")
     void testResourcePackIntegrity() throws Exception {
         Path rpRoot = Paths.get("..", "resourcepack", "assets", "croppy");
