@@ -194,16 +194,6 @@ Croppy (Root)
 
 ---
 
-## Planned Ecosystem & Integrations
-
-While Croppy operates independently out of the box, integrations with popular server ecosystems are actively planned on the roadmap:
-
-- 🛡️ **Claim & Protection Systems**: Native hook support for **WorldGuard**, **Lands**, **Towny**, and **GriefPrevention** to enforce farmland trampling, harvesting, and workstation access permissions inside claims.
-- 💰 **Economy & Commerce**: **Vault** integration for agricultural trading, seed markets, restaurant commerce, and culinary dish valuation.
-- 📊 **PlaceholderAPI**: Placeholder expansion for player agricultural statistics, discovered recipes, and soil telemetry.
-
----
-
 ## Documentation
 
 Comprehensive guides, configuration references, and developer API documentation are available in the [documentation website](https://darkbladedev.vercel.app/en/docs/croppy/):
