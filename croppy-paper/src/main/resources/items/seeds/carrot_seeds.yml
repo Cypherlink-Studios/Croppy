@@ -1,6 +1,7 @@
 id: "croppy:carrot_seeds"
 category: "seeds"
 material: "CARROT"
+item-model: "croppy:carrot_seeds"
 name: "<gold>Carrot Seeds</gold>"
 lore:
   - "<gray>Plant in tilled soil to grow carrots.</gray>"

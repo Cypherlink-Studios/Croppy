@@ -95,3 +95,14 @@ The system SHALL support dispatching the compiled companion resource pack to con
 #### Scenario: Logging resource pack status telemetry
 - **WHEN** a player accepts, successfully downloads, or declines the resource pack prompt
 - **THEN** the system captures the event telemetry and logs diagnostic status without interrupting player gameplay
+
+### Requirement: Neutral Starter Pack Assets and Vinery Isolation
+The companion resource pack SHALL isolate viticulture and grape-specific assets (`plant/grape`, `purple_grapes`, `green_grapes`) into `.internal/resourcepack/` to maintain aesthetic neutrality, and SHALL supply dedicated textures and model geometries for all base starter-pack items (watering cans, fertilizers, tools, seeds, harvested produce, and miscellaneous culinary items) under `assets/croppy/models/item/` and `assets/croppy/textures/item/`.
+
+#### Scenario: Isolating vinery assets from core pack
+- **WHEN** the companion resource pack is inspected for theme neutrality
+- **THEN** grape plant stages and grape item assets are relocated to `.internal/resourcepack/vinery/` and are absent from `resourcepack/assets/croppy/`
+
+#### Scenario: Verifying dedicated custom assets for base items
+- **WHEN** a client renders any registered base starter-pack item
+- **THEN** the client resolves a custom pixel-art texture and model under `croppy:*` rather than falling back to vanilla hoes, sticks, or coal

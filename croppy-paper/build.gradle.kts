@@ -53,3 +53,12 @@ tasks {
         dependsOn(shadowJar)
     }
 }
+
+tasks.processResources {
+    val props = mapOf("version" to project.version)
+    inputs.properties(props)
+    filteringCharset = "UTF-8"
+    filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
+        expand(props)
+    }
+}

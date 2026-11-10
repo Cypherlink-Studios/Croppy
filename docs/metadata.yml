@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.5.18"
+    releaseDate: "2026-11-10"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Completed starter pack companion resource pack assets with custom 16x16 pixel-art textures and models for all 26 base items, fully isolated viticulture/vinery content to .internal/vinery/, and synchronized runtime resource extraction."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.5.17"
     releaseDate: "2026-11-09"
-    reference: "main"
+    reference: "eea8cf7"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added interactive item catalog GUI (/croppy items) with tabbed category filtering, horizontal category pagination, real-time chat search prompt, and multi-action administrative item spawner (1x, 64x, command suggestion, and ground drop)."
     minecraft:

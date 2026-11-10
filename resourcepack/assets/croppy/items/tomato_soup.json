@@ -1,0 +1,7 @@
+{
+  "oversized_in_gui": false,
+  "model": {
+    "type": "minecraft:model",
+    "model": "croppy:item/tomato_soup"
+  }
+}

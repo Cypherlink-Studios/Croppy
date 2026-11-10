@@ -1,6 +1,7 @@
 id: "croppy:potato_seeds"
 category: "seeds"
 material: "POTATO"
+item-model: "croppy:potato_seeds"
 name: "<yellow>Potato Seeds</yellow>"
 lore:
   - "<gray>Plant in tilled soil to grow potatoes.</gray>"

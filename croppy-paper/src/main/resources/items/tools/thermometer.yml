@@ -1,6 +1,7 @@
 id: "croppy:thermometer"
 category: "tools"
 material: "minecraft:stick"
+item-model: "croppy:thermometer"
 name: "<gradient:#55ffff:#ff5555>Culinary Thermometer</gradient>"
 lore:
   - "<gray>Measures the temperature of cookware</gray>"

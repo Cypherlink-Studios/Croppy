@@ -1,6 +1,7 @@
 id: "croppy:wheat_seeds"
 category: "seeds"
 material: "WHEAT_SEEDS"
+item-model: "croppy:wheat_seeds"
 name: "<green>Wheat Seeds</green>"
 lore:
   - "<gray>Plant in tilled soil to grow wheat.</gray>"

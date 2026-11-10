@@ -1,6 +1,7 @@
 id: "croppy:burnt_food"
 category: "misc"
 material: "minecraft:charcoal"
+item-model: "croppy:burnt_food"
 name: "<dark_gray>Burnt Food</dark_gray>"
 lore:
   - "<gray>Ruined and turned to ash from</gray>"

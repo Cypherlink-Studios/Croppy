@@ -1,6 +1,7 @@
 id: "croppy:tomato_seeds"
 category: "seeds"
 material: "PUMPKIN_SEEDS"
+item-model: "croppy:tomato_seeds"
 name: "<red>Tomato Seeds</red>"
 lore:
   - "<gray>Plant on farmland to grow juicy tomatoes.</gray>"

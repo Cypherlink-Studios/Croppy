@@ -511,7 +511,6 @@ public class CroppyPlugin extends JavaPlugin {
             saveResourceIfNotExists("interactions/cooking_pot_interactions.yml");
             saveResourceIfNotExists("interactions/skillet_interactions.yml");
             saveResourceIfNotExists("interactions/thermometer_inspect.yml");
-            saveResourceIfNotExists("interactions/crops/grapes.yml");
             saveResourceIfNotExists("interactions/crops/rice.yml");
         }
 
@@ -562,7 +561,6 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/seeds/carrot_seeds.yml");
         saveResourceIfNotExists("items/seeds/potato_seeds.yml");
         saveResourceIfNotExists("items/seeds/tomato_seeds.yml");
-        saveResourceIfNotExists("items/seeds/grape_seeds.yml");
         saveResourceIfNotExists("items/seeds/rice_seeds.yml");
         // Tools
         saveResourceIfNotExists("items/tools/inspector.yml");
@@ -575,7 +573,6 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/ingredients/tomato_soup.yml");
         saveResourceIfNotExists("items/ingredients/vegetable_stew.yml");
         saveResourceIfNotExists("items/ingredients/fried_egg.yml");
-        saveResourceIfNotExists("items/ingredients/grapes.yml");
         saveResourceIfNotExists("items/ingredients/rice_panicle.yml");
         // Watering Cans
         saveResourceIfNotExists("items/watering_cans/wooden_can.yml");
@@ -838,7 +835,6 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("crops/carrot.yml");
         saveResourceIfNotExists("crops/potato.yml");
         saveResourceIfNotExists("crops/tomato.yml");
-        saveResourceIfNotExists("crops/grapes.yml");
         saveResourceIfNotExists("crops/rice.yml");
 
         YamlSpeciesLoader loader = new YamlSpeciesLoader();
