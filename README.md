@@ -205,13 +205,7 @@ While Croppy operates independently out of the box, integrations with popular se
 
 ## Documentation
 
-Comprehensive guides, configuration references, and developer API documentation are available in the repository:
-
-- 📖 **[Getting Started Guide](docs/en/getting-started.md)**: Full walkthrough for server administrators.
-- 🌾 **[Crops & Species Configuration](docs/en/crops-and-species.md)**: YAML specification for custom plants and stages.
-- 🧪 **[Soil, Nutrients & Fertilizers](docs/en/soil-and-fertilizers.md)**: Mechanics of N-P-K depletion and compost.
-- 🍳 **[Workstations & Cooking Stations](docs/en/workstations-and-cooking.md)**: Thermal sources, skillets, and pots.
-- 🌐 **[Localization & Translations](docs/en/localization.md)**: Internationalization and MiniMessage styling.
+Comprehensive guides, configuration references, and developer API documentation are available in the [documentation website](https://darkbladedev.vercel.app/en/docs/croppy/):
 
 ---
 
