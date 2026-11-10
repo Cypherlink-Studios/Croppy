@@ -30,4 +30,20 @@ public record DisplayTransform(
     public static DisplayTransform of(double tx, double ty, double tz, float sx, float sy, float sz) {
         return new DisplayTransform(tx, ty, tz, 0.0f, 0.0f, 0.0f, sx, sy, sz);
     }
+
+    public static DisplayTransform of(double tx, double ty, double tz, float pitch, float yaw, float roll, float sx, float sy, float sz) {
+        return new DisplayTransform(tx, ty, tz, pitch, yaw, roll, sx, sy, sz);
+    }
+
+    public DisplayTransform withTranslation(double tx, double ty, double tz) {
+        return new DisplayTransform(tx, ty, tz, pitch, yaw, roll, scaleX, scaleY, scaleZ);
+    }
+
+    public DisplayTransform withScale(float sx, float sy, float sz) {
+        return new DisplayTransform(translationX, translationY, translationZ, pitch, yaw, roll, sx, sy, sz);
+    }
+
+    public DisplayTransform withRotation(float pitch, float yaw, float roll) {
+        return new DisplayTransform(translationX, translationY, translationZ, pitch, yaw, roll, scaleX, scaleY, scaleZ);
+    }
 }

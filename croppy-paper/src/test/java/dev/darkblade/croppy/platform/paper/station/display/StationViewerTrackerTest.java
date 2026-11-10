@@ -30,9 +30,43 @@ class StationViewerTrackerTest {
         int updateTextCallCount = 0;
         Component lastSpawnedText;
         Component lastUpdatedText;
+        int spawnBaseCallCount = 0;
+        dev.darkblade.croppy.api.station.visual.DisplayTransform lastSpawnBaseTransform;
+        int updateBaseCallCount = 0;
+        dev.darkblade.croppy.api.station.visual.DisplayTransform lastUpdateBaseTransform;
+        int spawnInteractionCallCount = 0;
+        dev.darkblade.croppy.api.station.visual.StationInteractionBox lastSpawnInteractionBox;
+        int updateInteractionCallCount = 0;
+        float lastUpdateInteractionWidth = 0.0f;
+        float lastUpdateInteractionHeight = 0.0f;
 
         public TestRenderer() {
             super(Logger.getLogger("test"));
+        }
+
+        @Override
+        public void spawnBaseModel(Player player, PacketStationDisplay display, dev.darkblade.croppy.api.station.visual.DisplayLayerConfig config, org.bukkit.inventory.ItemStack item, org.bukkit.block.data.BlockData blockData, dev.darkblade.croppy.api.station.visual.DisplayTransform transformOverride) {
+            spawnBaseCallCount++;
+            lastSpawnBaseTransform = transformOverride;
+        }
+
+        @Override
+        public void updateBaseModelMetadata(Player player, PacketStationDisplay display, dev.darkblade.croppy.api.station.visual.DisplayLayerConfig config, org.bukkit.inventory.ItemStack item, dev.darkblade.croppy.api.station.visual.DisplayTransform transformOverride) {
+            updateBaseCallCount++;
+            lastUpdateBaseTransform = transformOverride;
+        }
+
+        @Override
+        public void spawnInteraction(Player player, PacketStationDisplay display, dev.darkblade.croppy.api.station.visual.StationInteractionBox box) {
+            spawnInteractionCallCount++;
+            lastSpawnInteractionBox = box;
+        }
+
+        @Override
+        public void updateInteractionHitboxMetadata(Player player, PacketStationDisplay display, float width, float height) {
+            updateInteractionCallCount++;
+            lastUpdateInteractionWidth = width;
+            lastUpdateInteractionHeight = height;
         }
 
         @Override
@@ -287,5 +321,116 @@ class StationViewerTrackerTest {
         display.setDirty(true);
         tracker.syncStation(idleStation, dummyWorld, null);
         assertTrue(testRenderer.destroyCallCount > 0, "Text display must be destroyed when station cools to idle");
+    }
+
+    @Test
+    void testStationStateDynamicModelTransformAndHitboxSwitching() {
+        // Base config: transform (tx=0, ty=0.5, tz=0, sx=1, sy=1, sz=1), hitbox (0.8 x 0.8)
+        dev.darkblade.croppy.api.station.visual.DisplayTransform baseTransform =
+                dev.darkblade.croppy.api.station.visual.DisplayTransform.of(0.0, 0.5, 0.0, 1.0f, 1.0f, 1.0f);
+        dev.darkblade.croppy.api.station.visual.StationInteractionBox baseHitbox =
+                new dev.darkblade.croppy.api.station.visual.StationInteractionBox(0.8f, 0.8f);
+
+        dev.darkblade.croppy.api.station.visual.DisplayLayerConfig baseConfig =
+                new dev.darkblade.croppy.api.station.visual.DisplayLayerConfig(
+                        true, "ITEM", Key.of("croppy", "cooking_pot"), null,
+                        baseTransform, dev.darkblade.croppy.api.station.visual.BillboardMode.FIXED, 32, 0
+                );
+
+        // State "boiling": scale [1.5, 1.5, 1.5] and hitbox [1.2, 1.4]
+        dev.darkblade.croppy.api.station.visual.DisplayTransform boilingTransform =
+                baseTransform.withScale(1.5f, 1.5f, 1.5f);
+        dev.darkblade.croppy.api.station.visual.StationInteractionBox boilingHitbox =
+                new dev.darkblade.croppy.api.station.visual.StationInteractionBox(1.2f, 1.4f);
+
+        dev.darkblade.croppy.api.station.StationStateDefinition boilingState =
+                new dev.darkblade.croppy.api.station.StationStateDefinition(
+                        "boiling", 20, "temperature > 100",
+                        new dev.darkblade.croppy.api.station.visual.StationModelOverride(Key.of("croppy", "station/cooking_pot/boiling"), boilingTransform),
+                        boilingHitbox
+                );
+
+        StationDefinition stateDef = new StationDefinition(
+                Key.of("croppy", "cooking_pot"),
+                "Cooking Pot",
+                "cauldron",
+                StationInteractionType.HYBRID,
+                6, 2, null, true,
+                List.of(), Map.of(),
+                new dev.darkblade.croppy.api.station.visual.StationVisualDefinition(
+                        baseConfig, null, null, false, baseHitbox
+                ),
+                dev.darkblade.croppy.api.species.RotationMode.CARDINAL_4,
+                List.of(boilingState)
+        );
+
+        DefaultStationInstance potInstance = new DefaultStationInstance(stateDef.key(), new BlockPosition("world", 10, 64, 20), stateDef);
+        dev.darkblade.croppy.core.station.component.DefaultDisplayComponent display =
+                new dev.darkblade.croppy.core.station.component.DefaultDisplayComponent();
+        potInstance.setComponent(dev.darkblade.croppy.api.station.component.DisplayComponent.class, display);
+
+        dev.darkblade.croppy.core.station.component.DefaultThermalComponent thermal =
+                new dev.darkblade.croppy.core.station.component.DefaultThermalComponent(20.0, 20.0, false);
+        potInstance.setComponent(dev.darkblade.croppy.api.station.component.ThermalComponent.class, thermal);
+
+        UUID playerId = UUID.randomUUID();
+        Player dummyPlayer = (Player) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{Player.class},
+                (proxy, method, args) -> {
+                    if ("getUniqueId".equals(method.getName())) return playerId;
+                    if ("getLocation".equals(method.getName())) return new org.bukkit.Location(null, 10.5, 64.0, 20.5);
+                    return null;
+                }
+        );
+
+        org.bukkit.World dummyWorld = (org.bukkit.World) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{org.bukkit.World.class},
+                (proxy, method, args) -> {
+                    if ("getPlayers".equals(method.getName())) return List.of(dummyPlayer);
+                    if ("getName".equals(method.getName())) return "world";
+                    return null;
+                }
+        );
+
+        // 1. Initial sync at 20°C: not boiling -> spawns with base transform and base hitbox
+        tracker.syncStation(potInstance, dummyWorld, null);
+        assertEquals(1, testRenderer.spawnBaseCallCount);
+        assertEquals(baseTransform, testRenderer.lastSpawnBaseTransform);
+        assertEquals(1, testRenderer.spawnInteractionCallCount);
+        assertEquals(baseHitbox, testRenderer.lastSpawnInteractionBox);
+        assertEquals("default", potInstance.getActiveStateId());
+
+        // 2. Heat station to 120°C: transitions to "boiling" state
+        thermal.setTemperature(120.0);
+        tracker.syncStation(potInstance, dummyWorld, null);
+
+        assertEquals("boiling", potInstance.getActiveStateId());
+        // Verify base model transform was updated via PacketEvents metadata
+        assertEquals(1, testRenderer.updateBaseCallCount);
+        assertNotNull(testRenderer.lastUpdateBaseTransform);
+        assertEquals(1.5f, testRenderer.lastUpdateBaseTransform.scaleX(), 0.001f);
+        assertEquals(1.5f, testRenderer.lastUpdateBaseTransform.scaleY(), 0.001f);
+        assertEquals(0.5, testRenderer.lastUpdateBaseTransform.translationY(), 0.001);
+
+        // Verify interaction entity bounding box was updated via PacketEvents metadata
+        assertEquals(1, testRenderer.updateInteractionCallCount);
+        assertEquals(1.2f, testRenderer.lastUpdateInteractionWidth, 0.001f);
+        assertEquals(1.4f, testRenderer.lastUpdateInteractionHeight, 0.001f);
+
+        // 3. Cool station back down to 20°C: transitions back to fallback default state
+        thermal.setTemperature(20.0);
+        tracker.syncStation(potInstance, dummyWorld, null);
+
+        assertEquals("default", potInstance.getActiveStateId());
+        // Verify base model transform restored to baseConfig.transform()
+        assertEquals(2, testRenderer.updateBaseCallCount);
+        assertEquals(baseTransform, testRenderer.lastUpdateBaseTransform);
+
+        // Verify interaction hitbox restored to baseHitbox dimensions (0.8 x 0.8)
+        assertEquals(2, testRenderer.updateInteractionCallCount);
+        assertEquals(0.8f, testRenderer.lastUpdateInteractionWidth, 0.001f);
+        assertEquals(0.8f, testRenderer.lastUpdateInteractionHeight, 0.001f);
     }
 }

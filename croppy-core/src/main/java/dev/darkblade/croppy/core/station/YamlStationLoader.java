@@ -1,14 +1,19 @@
 package dev.darkblade.croppy.core.station;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.process.PhaseEffects;
+import dev.darkblade.croppy.api.process.PhaseParticle;
+import dev.darkblade.croppy.api.process.PhaseSound;
 import dev.darkblade.croppy.api.species.RotationMode;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInteractionType;
 import dev.darkblade.croppy.api.station.StationRegistry;
+import dev.darkblade.croppy.api.station.StationStateDefinition;
 import dev.darkblade.croppy.api.station.visual.BillboardMode;
 import dev.darkblade.croppy.api.station.visual.DisplayLayerConfig;
 import dev.darkblade.croppy.api.station.visual.DisplayTransform;
 import dev.darkblade.croppy.api.station.visual.StationInteractionBox;
+import dev.darkblade.croppy.api.station.visual.StationModelOverride;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 import dev.darkblade.croppy.api.station.visual.TextDisplayTemplate;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -140,6 +145,15 @@ public final class YamlStationLoader {
             }
         }
 
+        // 12. States
+        DisplayTransform baseTransform = (visualDefinition != null)
+                ? visualDefinition.getBaseModel().map(DisplayLayerConfig::transform).orElse(DisplayTransform.DEFAULT)
+                : DisplayTransform.DEFAULT;
+        StationInteractionBox baseHitbox = (visualDefinition != null)
+                ? visualDefinition.getInteractionBox().orElse(null)
+                : null;
+        List<StationStateDefinition> states = parseStates(root, baseTransform, baseHitbox);
+
         return new StationDefinition(
                 key,
                 displayName,
@@ -152,7 +166,8 @@ public final class YamlStationLoader {
                 allowedRecipes,
                 properties,
                 visualDefinition,
-                rotationMode
+                rotationMode,
+                states
         );
     }
 
@@ -401,5 +416,224 @@ public final class YamlStationLoader {
             return Boolean.parseBoolean(val.toString().trim());
         }
         return def;
+    }
+
+    List<StationStateDefinition> parseStates(Map<String, Object> root) {
+        return parseStates(root, null, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    List<StationStateDefinition> parseStates(Map<String, Object> root, DisplayTransform baseTransform, StationInteractionBox baseHitbox) {
+        Object rawStates = root.get("states");
+        if (!(rawStates instanceof List<?> list)) {
+            return List.of();
+        }
+
+        List<StationStateDefinition> states = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> rawMap)) {
+                continue;
+            }
+            Map<String, Object> sMap = (Map<String, Object>) rawMap;
+            String id = getString(sMap, "id", null);
+            if (id == null || id.isBlank()) {
+                continue;
+            }
+
+            int priority = getInt(sMap, "priority", 0);
+            String condition = getString(sMap, "when", getString(sMap, "condition", null));
+
+            StationModelOverride model = null;
+            Object rawModel = sMap.get("model");
+            if (rawModel instanceof Map<?, ?> mMap) {
+                Map<String, Object> modelMap = (Map<String, Object>) mMap;
+                Key itemModel = null;
+                Object rawItemModel = modelMap.get("item_model");
+                if (rawItemModel == null) {
+                    rawItemModel = modelMap.get("model");
+                }
+                if (rawItemModel != null && !rawItemModel.toString().isBlank()) {
+                    String imStr = rawItemModel.toString().trim();
+                    itemModel = imStr.contains(":") ? Key.parse(imStr) : Key.of("croppy", imStr);
+                }
+                int customModelData = getInt(modelMap, "custom_model_data", getInt(modelMap, "cmd", 0));
+                DisplayTransform transform = parseTransformOverride(modelMap, baseTransform);
+                if (itemModel != null || customModelData > 0 || transform != null) {
+                    model = new StationModelOverride(itemModel, customModelData, transform);
+                }
+            }
+
+            StationInteractionBox hitbox = parseHitboxOverride(
+                    sMap.containsKey("hitbox") ? sMap.get("hitbox") : (sMap.containsKey("interaction") ? sMap.get("interaction") : sMap.get("interaction_box")),
+                    baseHitbox
+            );
+
+            PhaseEffects effects = parseEffects(sMap.get("effects"));
+
+            states.add(new StationStateDefinition(id, priority, condition, model, hitbox, effects));
+        }
+
+        return states;
+    }
+
+    private DisplayTransform parseTransformOverride(Map<String, Object> map, DisplayTransform base) {
+        if (map == null) {
+            return null;
+        }
+
+        boolean hasTranslation = map.containsKey("translation") || map.containsKey("translation_x")
+                || map.containsKey("translation_y") || map.containsKey("translation_z")
+                || map.containsKey("tx") || map.containsKey("ty") || map.containsKey("tz");
+
+        boolean hasScale = map.containsKey("scale") || map.containsKey("scale_x")
+                || map.containsKey("scale_y") || map.containsKey("scale_z");
+
+        boolean hasRotation = map.containsKey("rotation") || map.containsKey("rotation_pitch")
+                || map.containsKey("rotation_yaw") || map.containsKey("rotation_roll")
+                || map.containsKey("pitch") || map.containsKey("yaw") || map.containsKey("roll");
+
+        if (!hasTranslation && !hasScale && !hasRotation) {
+            return null;
+        }
+
+        DisplayTransform fallback = (base != null) ? base : DisplayTransform.DEFAULT;
+
+        double tx = fallback.translationX();
+        double ty = fallback.translationY();
+        double tz = fallback.translationZ();
+
+        if (hasTranslation) {
+            Object transObj = map.get("translation");
+            if (transObj instanceof List<?> list && list.size() >= 3) {
+                tx = parseDouble(list.get(0), tx);
+                ty = parseDouble(list.get(1), ty);
+                tz = parseDouble(list.get(2), tz);
+            } else {
+                tx = parseDouble(map.get("translation_x"), parseDouble(map.get("tx"), tx));
+                ty = parseDouble(map.get("translation_y"), parseDouble(map.get("ty"), ty));
+                tz = parseDouble(map.get("translation_z"), parseDouble(map.get("tz"), tz));
+            }
+        }
+
+        float sx = fallback.scaleX();
+        float sy = fallback.scaleY();
+        float sz = fallback.scaleZ();
+
+        if (hasScale) {
+            Object scaleObj = map.get("scale");
+            if (scaleObj instanceof List<?> list && list.size() >= 3) {
+                sx = (float) parseDouble(list.get(0), sx);
+                sy = (float) parseDouble(list.get(1), sy);
+                sz = (float) parseDouble(list.get(2), sz);
+            } else if (scaleObj instanceof Number n) {
+                sx = sy = sz = n.floatValue();
+            } else {
+                sx = (float) parseDouble(map.get("scale_x"), sx);
+                sy = (float) parseDouble(map.get("scale_y"), sy);
+                sz = (float) parseDouble(map.get("scale_z"), sz);
+            }
+        }
+
+        float pitch = fallback.pitch();
+        float yaw = fallback.yaw();
+        float roll = fallback.roll();
+
+        if (hasRotation) {
+            Object rotObj = map.get("rotation");
+            if (rotObj instanceof List<?> list && list.size() >= 3) {
+                pitch = (float) Math.toRadians(parseDouble(list.get(0), Math.toDegrees(pitch)));
+                yaw = (float) Math.toRadians(parseDouble(list.get(1), Math.toDegrees(yaw)));
+                roll = (float) Math.toRadians(parseDouble(list.get(2), Math.toDegrees(roll)));
+            } else {
+                if (map.containsKey("rotation_pitch")) {
+                    pitch = (float) Math.toRadians(parseDouble(map.get("rotation_pitch"), Math.toDegrees(pitch)));
+                } else if (map.containsKey("pitch")) {
+                    pitch = (float) Math.toRadians(parseDouble(map.get("pitch"), Math.toDegrees(pitch)));
+                }
+                if (map.containsKey("rotation_yaw")) {
+                    yaw = (float) Math.toRadians(parseDouble(map.get("rotation_yaw"), Math.toDegrees(yaw)));
+                } else if (map.containsKey("yaw")) {
+                    yaw = (float) Math.toRadians(parseDouble(map.get("yaw"), Math.toDegrees(yaw)));
+                }
+                if (map.containsKey("rotation_roll")) {
+                    roll = (float) Math.toRadians(parseDouble(map.get("rotation_roll"), Math.toDegrees(roll)));
+                } else if (map.containsKey("roll")) {
+                    roll = (float) Math.toRadians(parseDouble(map.get("roll"), Math.toDegrees(roll)));
+                }
+            }
+        }
+
+        return new DisplayTransform(tx, ty, tz, pitch, yaw, roll, sx, sy, sz);
+    }
+
+    private StationInteractionBox parseHitboxOverride(Object rawHitbox, StationInteractionBox baseBox) {
+        if (rawHitbox == null) {
+            return null;
+        }
+
+        float defaultWidth = (baseBox != null) ? baseBox.width() : 0.8f;
+        float defaultHeight = (baseBox != null) ? baseBox.height() : 0.8f;
+
+        if (rawHitbox instanceof Map<?, ?> hMap) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> hitboxMap = (Map<String, Object>) hMap;
+            double width = getDouble(hitboxMap, "width", defaultWidth);
+            double height = getDouble(hitboxMap, "height", defaultHeight);
+            return new StationInteractionBox((float) width, (float) height);
+        } else if (rawHitbox instanceof List<?> list && list.size() >= 2) {
+            double width = parseDouble(list.get(0), defaultWidth);
+            double height = parseDouble(list.get(1), defaultHeight);
+            return new StationInteractionBox((float) width, (float) height);
+        } else if (rawHitbox instanceof Number n) {
+            float size = n.floatValue();
+            return new StationInteractionBox(size, size);
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private PhaseEffects parseEffects(Object effectsObj) {
+        if (!(effectsObj instanceof Map<?, ?> rawEffects)) {
+            return PhaseEffects.EMPTY;
+        }
+
+        Map<String, Object> effectsMap = (Map<String, Object>) rawEffects;
+        PhaseParticle particle = null;
+        PhaseSound sound = null;
+
+        Object partObj = effectsMap.get("particle");
+        if (partObj == null) {
+            partObj = effectsMap.get("particles");
+        }
+        if (partObj instanceof Map<?, ?> rawPart) {
+            Map<String, Object> partMap = (Map<String, Object>) rawPart;
+            String type = getString(partMap, "type", getString(partMap, "particle", null));
+            if (type != null && !type.isBlank()) {
+                int count = getInt(partMap, "count", 2);
+                double ox = 0.15, oy = 0.05, oz = 0.15, speed = 0.02;
+                Object offsetObj = partMap.get("offset");
+                if (offsetObj instanceof List<?> list && list.size() >= 3) {
+                    ox = parseDouble(list.get(0), 0.15);
+                    oy = parseDouble(list.get(1), 0.05);
+                    oz = parseDouble(list.get(2), 0.15);
+                }
+                speed = parseDouble(partMap.get("speed"), 0.02);
+                particle = new PhaseParticle(type, count, ox, oy, oz, speed);
+            }
+        }
+
+        Object soundObj = effectsMap.get("sound");
+        if (soundObj instanceof Map<?, ?> rawSound) {
+            Map<String, Object> soundMap = (Map<String, Object>) rawSound;
+            String soundName = getString(soundMap, "sound", getString(soundMap, "name", null));
+            if (soundName != null && !soundName.isBlank()) {
+                int interval = getInt(soundMap, "interval_ticks", getInt(soundMap, "interval", 40));
+                float volume = (float) parseDouble(soundMap.get("volume"), 1.0);
+                float pitch = (float) parseDouble(soundMap.get("pitch"), 1.0);
+                sound = new PhaseSound(soundName, interval, volume, pitch);
+            }
+        }
+
+        return new PhaseEffects(particle, sound);
     }
 }

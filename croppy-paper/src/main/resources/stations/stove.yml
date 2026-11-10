@@ -12,7 +12,7 @@ visual:
   interaction:
     width: 1.01
     height: 1.01
-    
+
   base_model:
     enabled: true
     type: "ITEM"
@@ -23,6 +23,34 @@ visual:
     billboard: "FIXED"
     view_distance: 48
     interpolation_duration: 0
+
+states:
+  - id: "lit"
+    priority: 10
+    when: "fuel_ticks > 0"
+    model:
+      item_model: "croppy:station/stove/lit"
+      translation: [0.0, 0.5, 0.0]
+      scale: [2.0, 2.0, 2.0]
+      rotation: [0.0, 0.0, 0.0]
+    effects:
+      particle:
+        type: "CAMPFIRE_COSY_SMOKE"
+        count: 1
+        offset: [0.15, 0.55, 0.15]
+        speed: 0.01
+      sound:
+        sound: "block.fire.ambient"
+        interval_ticks: 40
+        volume: 0.7
+        pitch: 1.0
+  - id: "unlit"
+    priority: 0
+    model:
+      item_model: "croppy:stove"
+      translation: [0.0, 0.5, 0.0]
+      scale: [2.0, 2.0, 2.0]
+      rotation: [0.0, 0.0, 0.0]
 
 properties:
   heat_source: "true"

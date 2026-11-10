@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.5.19"
+  - version: "0.6.0"
     releaseDate: "2026-11-10"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added declarative Station States system for workstations: reactive runtime evaluation from physical components, hot 3D model display and PacketEvents metadata synchronization (item_model, custom_model_data, spatial translation/scale/rotation), dynamic interaction hitbox bounding boxes, ambient sensory particles and audio loops, 3D block models (cooking_pot_water, cooking_pot_cooking, cooking_pot_boiling, skillet_hot), hand-crafted pixel-art textures, and 1.21.8 item definition JSONs."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.5.19"
+    releaseDate: "2026-11-10"
+    reference: "f53cd0c"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added declarative Bukkit crafting recipe system (crafting/) for standard crafting table crafting, supporting shaped and shapeless recipes, material/tag choices and ExactChoice PDC preservation for custom items, auto-discovery in recipe book, addon discovery, and 14 bundled starter recipes for stations, tools, watering cans, and fertilizers."
     minecraft:

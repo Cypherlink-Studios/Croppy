@@ -25,6 +25,7 @@ import java.util.Optional;
  * @param properties        arbitrary configuration properties
  * @param visualDefinition  optional visual layers and packet display configuration
  * @param rotationMode      spatial placement rotation mode (defaults to CARDINAL_4)
+ * @param states            declarative state definitions with condition-driven overrides
  */
 public record StationDefinition(
         Key key,
@@ -38,7 +39,8 @@ public record StationDefinition(
         List<Key> allowedRecipes,
         Map<String, String> properties,
         StationVisualDefinition visualDefinition,
-        RotationMode rotationMode
+        RotationMode rotationMode,
+        List<StationStateDefinition> states
 ) implements Keyed {
 
     public static final Key DEFAULT_MENU_KEY = Key.of("croppy", "default_station");
@@ -52,10 +54,31 @@ public record StationDefinition(
         allowedRecipes = (allowedRecipes == null) ? List.of() : List.copyOf(allowedRecipes);
         properties = (properties == null) ? Map.of() : Map.copyOf(properties);
         rotationMode = (rotationMode == null) ? RotationMode.CARDINAL_4 : rotationMode;
+        states = (states == null) ? List.of() : List.copyOf(states);
     }
 
     /**
-     * Backward-compatible constructor defaulting {@code rotationMode} to {@link RotationMode#CARDINAL_4}.
+     * Backward-compatible constructor defaulting {@code states} to empty list.
+     */
+    public StationDefinition(
+            Key key,
+            String displayName,
+            String baseBlockMaterial,
+            StationInteractionType interactionType,
+            int inputCapacity,
+            int outputCapacity,
+            Key menuKey,
+            boolean hasDisplay,
+            List<Key> allowedRecipes,
+            Map<String, String> properties,
+            StationVisualDefinition visualDefinition,
+            RotationMode rotationMode
+    ) {
+        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, menuKey, hasDisplay, allowedRecipes, properties, visualDefinition, rotationMode, List.of());
+    }
+
+    /**
+     * Backward-compatible constructor defaulting {@code rotationMode} to {@link RotationMode#CARDINAL_4} and {@code states} to empty.
      */
     public StationDefinition(
             Key key,
@@ -70,11 +93,11 @@ public record StationDefinition(
             Map<String, String> properties,
             StationVisualDefinition visualDefinition
     ) {
-        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, menuKey, hasDisplay, allowedRecipes, properties, visualDefinition, RotationMode.CARDINAL_4);
+        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, menuKey, hasDisplay, allowedRecipes, properties, visualDefinition, RotationMode.CARDINAL_4, List.of());
     }
 
     /**
-     * Backward-compatible constructor defaulting {@code visualDefinition} to null.
+     * Backward-compatible constructor defaulting {@code visualDefinition} to null and {@code states} to empty.
      */
     public StationDefinition(
             Key key,
@@ -88,11 +111,11 @@ public record StationDefinition(
             List<Key> allowedRecipes,
             Map<String, String> properties
     ) {
-        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, menuKey, hasDisplay, allowedRecipes, properties, null);
+        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, menuKey, hasDisplay, allowedRecipes, properties, null, RotationMode.CARDINAL_4, List.of());
     }
 
     /**
-     * Backward-compatible constructor defaulting {@code menuKey} to {@link #DEFAULT_MENU_KEY} and {@code visualDefinition} to null.
+     * Backward-compatible constructor defaulting {@code menuKey} to {@link #DEFAULT_MENU_KEY}, {@code visualDefinition} to null, and {@code states} to empty.
      */
     public StationDefinition(
             Key key,
@@ -105,7 +128,7 @@ public record StationDefinition(
             List<Key> allowedRecipes,
             Map<String, String> properties
     ) {
-        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, DEFAULT_MENU_KEY, hasDisplay, allowedRecipes, properties, null);
+        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, DEFAULT_MENU_KEY, hasDisplay, allowedRecipes, properties, null, RotationMode.CARDINAL_4, List.of());
     }
 
     @Override

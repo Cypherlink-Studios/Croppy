@@ -64,4 +64,19 @@ public interface StationInstance {
      */
     default void setYaw(float yaw) {
     }
+
+    /**
+     * @return the resolved active state identifier of this station (e.g. "lit", "boiling", "default")
+     */
+    default String getActiveStateId() {
+        return "default";
+    }
+
+    /**
+     * Sets the resolved active state identifier of this station.
+     *
+     * @param stateId active state identifier
+     */
+    default void setActiveStateId(String stateId) {
+    }
 }

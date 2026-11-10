@@ -22,6 +22,7 @@ public final class DefaultStationInstance implements StationInstance {
     private final StationDefinition definition;
     private final Map<Class<? extends StationComponent>, StationComponent> components = new ConcurrentHashMap<>();
     private volatile float yaw;
+    private volatile String activeStateId = "default";
 
     public DefaultStationInstance(Key stationKey, BlockPosition position, StationDefinition definition, float yaw) {
         this.stationKey = Objects.requireNonNull(stationKey, "stationKey cannot be null");
@@ -79,5 +80,15 @@ public final class DefaultStationInstance implements StationInstance {
     @Override
     public void setYaw(float yaw) {
         this.yaw = yaw;
+    }
+
+    @Override
+    public String getActiveStateId() {
+        return activeStateId;
+    }
+
+    @Override
+    public void setActiveStateId(String activeStateId) {
+        this.activeStateId = (activeStateId == null || activeStateId.isBlank()) ? "default" : activeStateId;
     }
 }

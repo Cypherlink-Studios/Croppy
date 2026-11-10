@@ -6,6 +6,7 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.station.StoredItem;
+import dev.darkblade.croppy.api.station.visual.StationModelOverride;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -171,6 +172,77 @@ public class ItemFactory {
 
     public ItemStack createRawVanillaItemStack(Material material, int amount) {
         return new ItemStack(material, amount);
+    }
+
+    /**
+     * Creates or updates an ItemStack applying the specified station model override
+     * (item_model and/or custom_model_data).
+     *
+     * @param baseItem      the base ItemStack to copy or adapt
+     * @param modelOverride the model override specification
+     * @return a new or modified ItemStack with the model override applied
+     */
+    public ItemStack applyModelOverride(ItemStack baseItem, StationModelOverride modelOverride) {
+        if (modelOverride == null) {
+            return baseItem;
+        }
+
+        ItemStack item = baseItem;
+        if (baseItem != null) {
+            try {
+                item = baseItem.clone();
+            } catch (Throwable ignored) {
+                item = baseItem;
+            }
+        } else {
+            item = new ItemStack(Material.PAPER, 1);
+        }
+
+        ItemMeta meta = null;
+        try {
+            meta = item.getItemMeta();
+        } catch (Throwable ignored) {}
+
+        if (meta == null) {
+            return item;
+        }
+
+        if (modelOverride.getItemModel().isPresent()) {
+            Key imKey = modelOverride.getItemModel().get();
+            meta.setItemModel(new NamespacedKey(imKey.namespace(), imKey.value()));
+        }
+
+        if (modelOverride.hasCustomModelData()) {
+            meta.setCustomModelData(modelOverride.customModelData());
+        }
+
+        try {
+            item.setItemMeta(meta);
+        } catch (Throwable ignored) {}
+
+        return item;
+    }
+
+    /**
+     * Creates an ItemStack for a station base model, applying an optional state model override.
+     *
+     * @param baseItemKey   optional base item key
+     * @param modelOverride optional state model override
+     * @return constructed ItemStack for ItemDisplay
+     */
+    public ItemStack createStationModelItem(Key baseItemKey, StationModelOverride modelOverride) {
+        ItemStack baseItem = null;
+        if (baseItemKey != null) {
+            Optional<ItemDefinition> defOpt = itemRegistry.get(baseItemKey);
+            baseItem = defOpt.map(this::createItemStack).orElseGet(() -> {
+                Material mat = resolveMaterial(baseItemKey.asString());
+                return new ItemStack(mat != Material.AIR ? mat : Material.PAPER, 1);
+            });
+        }
+        if (baseItem == null) {
+            baseItem = new ItemStack(Material.PAPER, 1);
+        }
+        return applyModelOverride(baseItem, modelOverride);
     }
 
     /**

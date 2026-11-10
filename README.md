@@ -46,9 +46,10 @@ Built on modern Minecraft technical foundations, Croppy does not require client-
 |  Supports vertical footprint crops (such as 2-block sweet grape trellises)  |
 |  with clearance checks, immediate chunk-load visual sync, and regrowth.     |
 |                                                                             |
-|  [5. 3D PHYSICAL WORKSTATIONS]                                              |
+|  [5. 3D PHYSICAL WORKSTATIONS & DYNAMIC STATES]                             |
 |  Place skillets, stoves, and cooking pots directly in the world with        |
-|  virtual 3D block displays, timed simmering, and thermal burn mechanics.    |
+|  virtual 3D block displays, reactive states, dynamic model transforms,      |
+|  resizing interaction hitboxes, and ambient sensory effects.                 |
 |                                                                             |
 |  [6. VARIABLE HEAT SOURCES & FUELS]                                         |
 |  Stoves and fire pits consume solid fuels to generate temperature curves    |
@@ -130,7 +131,7 @@ Croppy (Root)
 
 ### 1. Installation
 1. Install `packetevents-spigot.jar` into your server's `plugins/` directory.
-2. Download the latest `Croppy-paper-0.5.18.jar` from [Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it in `plugins/`.
+2. Download the latest `Croppy-paper-0.6.0.jar` from [Releases](https://github.com/Cypherlink-Studios/Croppy/releases) and place it in `plugins/`.
 3. Provide the **Croppy Companion Resource Pack** (`resourcepack/`) to your players via `server.properties` or server resource pack hosting.
 4. Start your server.
 

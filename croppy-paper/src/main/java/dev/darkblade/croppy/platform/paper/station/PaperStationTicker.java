@@ -26,6 +26,7 @@ import dev.darkblade.croppy.core.process.ProcessEngine;
 import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.rule.RuleExecution;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
+import dev.darkblade.croppy.core.station.StationStateEvaluator;
 import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.platform.paper.growth.PaperDisplaySynchronizer;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
@@ -271,6 +272,13 @@ public final class PaperStationTicker implements Runnable {
                 }
             });
         }
+
+        // State-configured ambient sensory feedback
+        StationStateEvaluator.evaluate(station, process).ifPresent(stateDef -> {
+            stateDef.getEffects().ifPresent(effects -> {
+                renderPhaseEffects(world, pos, effects, world.getTime());
+            });
+        });
 
         // Pot boiling/simmering effects
         if (stationType.contains("pot") && temp >= 75.0) {

@@ -9,6 +9,7 @@ import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.process.ProcessState;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
+import dev.darkblade.croppy.api.station.StationStateDefinition;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
@@ -16,9 +17,11 @@ import dev.darkblade.croppy.api.station.visual.BillboardMode;
 import dev.darkblade.croppy.api.station.visual.DisplayLayerConfig;
 import dev.darkblade.croppy.api.station.visual.DisplayTransform;
 import dev.darkblade.croppy.api.station.visual.StationInteractionBox;
+import dev.darkblade.croppy.api.station.visual.StationModelOverride;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 import dev.darkblade.croppy.api.station.visual.TextDisplayTemplate;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.core.station.StationStateEvaluator;
 import dev.darkblade.croppy.core.station.visual.StationPlaceholderFormatter;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import net.kyori.adventure.text.Component;
@@ -274,6 +277,31 @@ public class StationViewerTracker {
         Location blockLoc = hideBaseBlock ? new Location(world, pos.x(), pos.y(), pos.z()) : null;
         BlockData barrierData = hideBaseBlock ? resolveBarrierBlockData() : null;
 
+        // Station State evaluation
+        Optional<StationStateDefinition> activeStateOpt = StationStateEvaluator.evaluate(station, process);
+        String activeStateId = activeStateOpt.map(StationStateDefinition::id).orElse("default");
+        String previousStateId = station.getActiveStateId();
+        boolean stateChanged = !Objects.equals(previousStateId, activeStateId);
+        if (stateChanged) {
+            station.setActiveStateId(activeStateId);
+        }
+
+        StationModelOverride modelOverride = activeStateOpt.flatMap(StationStateDefinition::getModel).orElse(null);
+        DisplayTransform effectiveBaseTransform = (modelOverride != null && modelOverride.transform() != null)
+                ? modelOverride.transform()
+                : (baseConfig != null ? baseConfig.transform() : DisplayTransform.DEFAULT);
+
+        ItemStack activeBaseItem = null;
+        if (baseConfig != null && baseConfig.enabled()) {
+            if (modelOverride != null && (modelOverride.getItemModel().isPresent() || modelOverride.hasCustomModelData())) {
+                activeBaseItem = itemFactory.createStationModelItem(baseConfig.getItemKey().orElse(null), modelOverride);
+            } else {
+                activeBaseItem = baseConfig.getItemKey().map(this::resolveItemStack).orElse(null);
+            }
+        }
+
+        StationInteractionBox effectiveInteractBox = activeStateOpt.flatMap(StationStateDefinition::getHitbox).orElse(interactBox);
+
         Collection<? extends Player> players = world.getPlayers();
         for (Player player : players) {
             UUID playerId = player.getUniqueId();
@@ -288,9 +316,8 @@ public class StationViewerTracker {
                 boolean viewing = display.isViewing(VisualTier.BASE_MODEL, playerId);
                 if (inRange && !viewing) {
                     display.addViewer(VisualTier.BASE_MODEL, playerId);
-                    ItemStack baseItem = baseConfig.getItemKey().map(this::resolveItemStack).orElse(null);
                     BlockData blockData = resolveBlockData(baseConfig.getBlockState().orElse(null));
-                    renderer.spawnBaseModel(player, display, baseConfig, baseItem, blockData);
+                    renderer.spawnBaseModel(player, display, baseConfig, activeBaseItem, blockData, effectiveBaseTransform);
                     if (hideBaseBlock && barrierData != null && blockLoc != null) {
                         player.sendBlockChange(blockLoc, barrierData);
                     }
@@ -300,6 +327,8 @@ public class StationViewerTracker {
                     if (hideBaseBlock && blockLoc != null) {
                         player.sendBlockChange(blockLoc, world.getBlockAt(pos.x(), pos.y(), pos.z()).getBlockData());
                     }
+                } else if (inRange && viewing && (stateChanged || isDirty)) {
+                    renderer.updateBaseModelMetadata(player, display, baseConfig, activeBaseItem, effectiveBaseTransform);
                 }
             }
 
@@ -340,13 +369,13 @@ public class StationViewerTracker {
             }
 
             // 4. Interaction Tier
-            if (interactBox != null) {
+            if (effectiveInteractBox != null) {
                 int interactDist = (baseConfig != null) ? baseConfig.viewDistance() : 32;
                 boolean inRange = distSq <= ((long) interactDist * interactDist);
                 boolean viewing = display.isViewing(VisualTier.INTERACTION, playerId);
                 if (inRange && !viewing) {
                     display.addViewer(VisualTier.INTERACTION, playerId);
-                    renderer.spawnInteraction(player, display, interactBox);
+                    renderer.spawnInteraction(player, display, effectiveInteractBox);
                     if (hideBaseBlock && barrierData != null && blockLoc != null) {
                         player.sendBlockChange(blockLoc, barrierData);
                     }
@@ -356,6 +385,14 @@ public class StationViewerTracker {
                     if (hideBaseBlock && blockLoc != null && (baseConfig == null || !display.isViewing(VisualTier.BASE_MODEL, playerId))) {
                         player.sendBlockChange(blockLoc, world.getBlockAt(pos.x(), pos.y(), pos.z()).getBlockData());
                     }
+                } else if (inRange && viewing && (stateChanged || isDirty)) {
+                    renderer.updateInteractionHitboxMetadata(player, display, effectiveInteractBox.width(), effectiveInteractBox.height());
+                }
+            } else if (display.isViewing(VisualTier.INTERACTION, playerId)) {
+                display.removeViewer(VisualTier.INTERACTION, playerId);
+                renderer.destroyEntities(player, display.getEntityId(VisualTier.INTERACTION));
+                if (hideBaseBlock && blockLoc != null && (baseConfig == null || !display.isViewing(VisualTier.BASE_MODEL, playerId))) {
+                    player.sendBlockChange(blockLoc, world.getBlockAt(pos.x(), pos.y(), pos.z()).getBlockData());
                 }
             }
         }

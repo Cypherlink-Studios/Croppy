@@ -37,6 +37,35 @@ visual:
       <gradient:#ffaa00:#ff3300><bold>{recipe_name}</bold></gradient>
       {progress_bar} <white>{progress_percent}%</white>
       <gray>Temp: <gold>{temperature_c}</gold> (<yellow>{thermal_zone}</yellow>)</gray>
+
+states:
+  - id: "sizzling"
+    priority: 20
+    when: "temperature >= 120.0 && has_inputs == true"
+    model:
+      item_model: "croppy:station/skillet/hot"
+      translation: [0.0, 0.5, 0.0]
+      rotation_pitch: 0.0
+      scale: [1.2, 1.0, 1.2]
+    effects:
+      particle:
+        type: "SMOKE"
+        count: 2
+        offset: [0.1, 0.15, 0.1]
+        speed: 0.01
+      sound:
+        sound: "block.fire.extinguish"
+        interval_ticks: 35
+        volume: 0.3
+        pitch: 1.5
+  - id: "idle"
+    priority: 0
+    model:
+      item_model: "croppy:skillet"
+      translation: [0.0, 0.5, 0.0]
+      rotation_pitch: 0.0
+      scale: [1.2, 1.0, 1.2]
+
 properties:
   thermal: "true"
   has_thermal: "true"

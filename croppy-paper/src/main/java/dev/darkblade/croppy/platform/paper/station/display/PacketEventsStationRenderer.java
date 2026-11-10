@@ -76,6 +76,13 @@ public class PacketEventsStationRenderer {
      * Spawns the base model virtual display entity (Item or Block Display) for a player.
      */
     public void spawnBaseModel(Player player, PacketStationDisplay display, DisplayLayerConfig config, ItemStack item, BlockData blockData) {
+        spawnBaseModel(player, display, config, item, blockData, null);
+    }
+
+    /**
+     * Spawns the base model virtual display entity (Item or Block Display) for a player with optional transform override.
+     */
+    public void spawnBaseModel(Player player, PacketStationDisplay display, DisplayLayerConfig config, ItemStack item, BlockData blockData, DisplayTransform transformOverride) {
         if (!config.enabled()) return;
 
         BlockPosition pos = display.getPosition();
@@ -99,12 +106,40 @@ public class PacketEventsStationRenderer {
         sendPacket(player, spawnPacket);
 
         List<EntityData<?>> metadata = new ArrayList<>();
-        applyTransformMetadata(metadata, config.transform(), config.billboard(), config.interpolationDuration(), display.getStation().getYaw());
+        DisplayTransform effectiveTransform = (transformOverride != null) ? transformOverride : config.transform();
+        applyTransformMetadata(metadata, effectiveTransform, config.billboard(), config.interpolationDuration(), display.getStation().getYaw());
 
         if (isBlock && blockData != null) {
             int blockStateId = SpigotConversionUtil.fromBukkitBlockData(blockData).getGlobalId();
             metadata.add(new EntityData(INDEX_BLOCK_STATE, EntityDataTypes.BLOCK_STATE, blockStateId));
         } else if (item != null) {
+            metadata.add(new EntityData(INDEX_ITEM, EntityDataTypes.ITEMSTACK, SpigotConversionUtil.fromBukkitItemStack(item)));
+            metadata.add(new EntityData(INDEX_ITEM_TRANSFORM, EntityDataTypes.BYTE, (byte) 8)); // FIXED
+        }
+
+        WrapperPlayServerEntityMetadata metaPacket = new WrapperPlayServerEntityMetadata(entityId, metadata);
+        sendPacket(player, metaPacket);
+    }
+
+    /**
+     * Updates the base model display metadata (item stack and spatial transform) without despawning.
+     *
+     * @param player            target player
+     * @param display           station display container
+     * @param config            base model configuration layer
+     * @param item              new item stack to display (nullable if block or unmodified)
+     * @param transformOverride optional transform overrides (or null to keep config.transform())
+     */
+    public void updateBaseModelMetadata(Player player, PacketStationDisplay display, DisplayLayerConfig config, ItemStack item, DisplayTransform transformOverride) {
+        if (!config.enabled()) return;
+
+        int entityId = display.getEntityId(VisualTier.BASE_MODEL);
+        List<EntityData<?>> metadata = new ArrayList<>();
+
+        DisplayTransform effectiveTransform = (transformOverride != null) ? transformOverride : config.transform();
+        applyTransformMetadata(metadata, effectiveTransform, config.billboard(), config.interpolationDuration(), display.getStation().getYaw());
+
+        if (item != null) {
             metadata.add(new EntityData(INDEX_ITEM, EntityDataTypes.ITEMSTACK, SpigotConversionUtil.fromBukkitItemStack(item)));
             metadata.add(new EntityData(INDEX_ITEM_TRANSFORM, EntityDataTypes.BYTE, (byte) 8)); // FIXED
         }
@@ -280,6 +315,24 @@ public class PacketEventsStationRenderer {
         metadata.add(new EntityData(INDEX_INTERACTION_WIDTH, EntityDataTypes.FLOAT, box.width()));
         metadata.add(new EntityData(INDEX_INTERACTION_HEIGHT, EntityDataTypes.FLOAT, box.height()));
         metadata.add(new EntityData(INDEX_INTERACTION_RESPONSE, EntityDataTypes.BOOLEAN, true));
+
+        WrapperPlayServerEntityMetadata metaPacket = new WrapperPlayServerEntityMetadata(entityId, metadata);
+        sendPacket(player, metaPacket);
+    }
+
+    /**
+     * Updates the virtual interaction entity's bounding box dimensions via packet metadata.
+     *
+     * @param player  target player
+     * @param display station display container
+     * @param width   new hitbox width
+     * @param height  new hitbox height
+     */
+    public void updateInteractionHitboxMetadata(Player player, PacketStationDisplay display, float width, float height) {
+        int entityId = display.getEntityId(VisualTier.INTERACTION);
+        List<EntityData<?>> metadata = new ArrayList<>();
+        metadata.add(new EntityData(INDEX_INTERACTION_WIDTH, EntityDataTypes.FLOAT, width));
+        metadata.add(new EntityData(INDEX_INTERACTION_HEIGHT, EntityDataTypes.FLOAT, height));
 
         WrapperPlayServerEntityMetadata metaPacket = new WrapperPlayServerEntityMetadata(entityId, metadata);
         sendPacket(player, metaPacket);

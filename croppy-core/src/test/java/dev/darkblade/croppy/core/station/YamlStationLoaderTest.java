@@ -268,4 +268,202 @@ class YamlStationLoaderTest {
         assertEquals(0.8f, visual.getInteractionBox().get().width(), 0.001f);
         assertEquals(0.25f, visual.getInteractionBox().get().height(), 0.001f);
     }
+
+    @Test
+    void testLoadStationStates() {
+        String yaml = """
+                id: "croppy:stove"
+                block: "barrier"
+                states:
+                  - id: "lit"
+                    priority: 20
+                    when: "fuel_ticks > 0"
+                    model:
+                      item_model: "croppy:station/stove/lit"
+                      custom_model_data: 1005
+                      scale: [1.0, 1.2, 1.0]
+                    hitbox:
+                      width: 0.9
+                      height: 0.8
+                    effects:
+                      particle:
+                        type: "CAMPFIRE_COSY_SMOKE"
+                        count: 3
+                        offset: [0.1, 0.4, 0.1]
+                        speed: 0.01
+                      sound:
+                        sound: "block.fire.ambient"
+                        interval_ticks: 30
+                        volume: 0.8
+                        pitch: 1.0
+                  - id: "unlit"
+                    priority: 0
+                    model:
+                      item_model: "croppy:station/stove/unlit"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        StationDefinition def = loader.load(in, "stove-states.yml");
+
+        assertEquals(2, def.states().size());
+
+        var litState = def.states().get(0);
+        assertEquals("lit", litState.id());
+        assertEquals(20, litState.priority());
+        assertTrue(litState.getCondition().isPresent());
+        assertEquals("fuel_ticks > 0", litState.getCondition().get());
+
+        assertTrue(litState.getModel().isPresent());
+        var model = litState.getModel().get();
+        assertTrue(model.getItemModel().isPresent());
+        assertEquals(Key.of("croppy", "station/stove/lit"), model.getItemModel().get());
+        assertEquals(1005, model.customModelData());
+        assertEquals(1.2f, model.transform().scaleY(), 0.001f);
+
+        assertTrue(litState.getHitbox().isPresent());
+        assertEquals(0.9f, litState.getHitbox().get().width(), 0.001f);
+        assertEquals(0.8f, litState.getHitbox().get().height(), 0.001f);
+
+        assertTrue(litState.getEffects().isPresent());
+        var effects = litState.getEffects().get();
+        assertTrue(effects.hasParticle());
+        assertEquals("CAMPFIRE_COSY_SMOKE", effects.particle().type());
+        assertEquals(3, effects.particle().count());
+        assertTrue(effects.hasSound());
+        assertEquals("block.fire.ambient", effects.sound().sound());
+        assertEquals(30, effects.sound().intervalTicks());
+
+        var unlitState = def.states().get(1);
+        assertEquals("unlit", unlitState.id());
+        assertEquals(0, unlitState.priority());
+        assertTrue(unlitState.getCondition().isEmpty());
+        assertTrue(unlitState.getModel().isPresent());
+        assertEquals(Key.of("croppy", "station/stove/unlit"), unlitState.getModel().get().getItemModel().get());
+    }
+
+    @Test
+    void testStationStateModelTransformOverridesAndInheritance() {
+        String yaml = """
+                id: "croppy:pot"
+                block: "cauldron"
+                visual:
+                  base_model:
+                    item: "croppy:pot"
+                    translation: [0.0, 0.5, 0.0]
+                    scale: [2.0, 2.0, 2.0]
+                    rotation: [0.0, 45.0, 0.0]
+                states:
+                  - id: "lifted"
+                    when: "temp > 100"
+                    model:
+                      translation: [0.0, 0.75, 0.0]
+                  - id: "scaled_and_rotated"
+                    when: "temp > 200"
+                    model:
+                      item_model: "croppy:station/cooking_pot/boiling"
+                      scale: [2.5, 2.5, 2.5]
+                      rotation: [15.0, 90.0, 0.0]
+                  - id: "no_transform"
+                    when: "temp == 0"
+                    model:
+                      item_model: "croppy:station/cooking_pot/cold"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        StationDefinition def = loader.load(in, "pot-transforms.yml");
+
+        assertEquals(3, def.states().size());
+
+        // State 0: overrides translation, inherits base scale [2.0, 2.0, 2.0] and base yaw 45 deg
+        var state0 = def.states().get(0);
+        assertTrue(state0.getModel().isPresent());
+        var model0 = state0.getModel().get();
+        assertTrue(model0.getItemModel().isEmpty()); // no item model override
+        assertTrue(model0.hasTransform());
+        var t0 = model0.transform();
+        assertEquals(0.75, t0.translationY(), 0.001);
+        assertEquals(2.0f, t0.scaleX(), 0.001f);
+        assertEquals(2.0f, t0.scaleY(), 0.001f);
+        assertEquals(2.0f, t0.scaleZ(), 0.001f);
+        assertEquals(Math.toRadians(45.0), t0.yaw(), 0.001);
+
+        // State 1: overrides item_model, scale, and rotation, inherits base translation Y 0.5
+        var state1 = def.states().get(1);
+        assertTrue(state1.getModel().isPresent());
+        var model1 = state1.getModel().get();
+        assertEquals(Key.of("croppy", "station/cooking_pot/boiling"), model1.getItemModel().get());
+        assertTrue(model1.hasTransform());
+        var t1 = model1.transform();
+        assertEquals(0.5, t1.translationY(), 0.001);
+        assertEquals(2.5f, t1.scaleX(), 0.001f);
+        assertEquals(Math.toRadians(15.0), t1.pitch(), 0.001);
+        assertEquals(Math.toRadians(90.0), t1.yaw(), 0.001);
+
+        // State 2: only item_model, no transform override -> transform is null (preserves base)
+        var state2 = def.states().get(2);
+        assertTrue(state2.getModel().isPresent());
+        var model2 = state2.getModel().get();
+        assertEquals(Key.of("croppy", "station/cooking_pot/cold"), model2.getItemModel().get());
+        assertFalse(model2.hasTransform());
+        assertNull(model2.transform());
+    }
+
+    @Test
+    void testStationStateHitboxOverridesAndFormats() {
+        String yaml = """
+                id: "croppy:skillet"
+                block: "iron_block"
+                visual:
+                  interaction:
+                    width: 0.8
+                    height: 0.3
+                states:
+                  - id: "map_hitbox"
+                    hitbox:
+                      width: 1.2
+                      height: 0.5
+                  - id: "partial_hitbox"
+                    hitbox:
+                      width: 1.5
+                  - id: "list_hitbox"
+                    hitbox: [1.1, 0.4]
+                  - id: "scalar_hitbox"
+                    hitbox: 0.9
+                  - id: "no_hitbox"
+                    priority: 0
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        StationDefinition def = loader.load(in, "skillet-hitbox.yml");
+
+        assertEquals(5, def.states().size());
+
+        // State 0: map hitbox
+        var state0 = def.states().get(0);
+        assertTrue(state0.getHitbox().isPresent());
+        assertEquals(1.2f, state0.getHitbox().get().width(), 0.001f);
+        assertEquals(0.5f, state0.getHitbox().get().height(), 0.001f);
+
+        // State 1: partial hitbox overrides width, inherits base height 0.3
+        var state1 = def.states().get(1);
+        assertTrue(state1.getHitbox().isPresent());
+        assertEquals(1.5f, state1.getHitbox().get().width(), 0.001f);
+        assertEquals(0.3f, state1.getHitbox().get().height(), 0.001f);
+
+        // State 2: list format [1.1, 0.4]
+        var state2 = def.states().get(2);
+        assertTrue(state2.getHitbox().isPresent());
+        assertEquals(1.1f, state2.getHitbox().get().width(), 0.001f);
+        assertEquals(0.4f, state2.getHitbox().get().height(), 0.001f);
+
+        // State 3: scalar number 0.9 -> width=0.9, height=0.9
+        var state3 = def.states().get(3);
+        assertTrue(state3.getHitbox().isPresent());
+        assertEquals(0.9f, state3.getHitbox().get().width(), 0.001f);
+        assertEquals(0.9f, state3.getHitbox().get().height(), 0.001f);
+
+        // State 4: no hitbox override -> empty Optional
+        var state4 = def.states().get(4);
+        assertTrue(state4.getHitbox().isEmpty());
+    }
 }

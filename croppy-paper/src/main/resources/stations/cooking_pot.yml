@@ -36,6 +36,60 @@ visual:
       <gradient:#ffaa00:#ff5555><bold>{recipe_name}</bold></gradient>
       {progress_bar} <white>{progress_percent}%</white>
       <gray>Heat: <aqua>{temperature_c}</aqua> (<gold>{thermal_zone}</gold>)</gray>
+
+states:
+  - id: "boiling"
+    priority: 30
+    when: "temperature >= 100.0 && process_state == 'RUNNING'"
+    model:
+      item_model: "croppy:station/cooking_pot/boiling"
+      translation: [0.0, 0.5, 0.0]
+      rotation_pitch: 0.0
+      scale: [1.0, 1.0, 1.0]
+    hitbox:
+      width: 1.01
+      height: 1.1
+    effects:
+      particle:
+        type: "SPLASH"
+        count: 3
+        offset: [0.15, 0.45, 0.15]
+        speed: 0.02
+      sound:
+        sound: "block.bubble_column.upwards_inside"
+        interval_ticks: 30
+        volume: 0.6
+        pitch: 1.2
+  - id: "cooking"
+    priority: 20
+    when: "process_state == 'RUNNING'"
+    model:
+      item_model: "croppy:station/cooking_pot/cooking"
+      translation: [0.0, 0.5, 0.0]
+      rotation_pitch: 0.0
+      scale: [1.0, 1.0, 1.0]
+    effects:
+      particle:
+        type: "SMOKE"
+        count: 2
+        offset: [0.1, 0.5, 0.1]
+        speed: 0.01
+  - id: "has_liquid"
+    priority: 10
+    when: "has_inputs == true"
+    model:
+      item_model: "croppy:station/cooking_pot/water"
+      translation: [0.0, 0.5, 0.0]
+      rotation_pitch: 0.0
+      scale: [1.0, 1.0, 1.0]
+  - id: "idle"
+    priority: 0
+    model:
+      item_model: "croppy:cooking_pot"
+      translation: [0.0, 0.5, 0.0]
+      rotation_pitch: 0.0
+      scale: [1.0, 1.0, 1.0]
+
 properties:
   thermal: "true"
   has_thermal: "true"
