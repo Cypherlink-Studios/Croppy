@@ -408,7 +408,7 @@ public class CroppyPlugin extends JavaPlugin {
 
         this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
                 this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer, getProtectionPort(),
-                this.itemFactory);
+                this.itemFactory, this.inspectorService);
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.virtualInteractionListener);
 
@@ -843,6 +843,10 @@ public class CroppyPlugin extends JavaPlugin {
         commands.setChatPromptService(this.chatPromptService);
         commands.setItemCatalogController(this.itemCatalogController);
         commands.setItemCategoryRegistry(this.core.getItemCategoryRegistry());
+        commands.setTargetResolver(new dev.darkblade.croppy.platform.paper.service.CropTargetResolver(
+                this.core.getCropManager(), this.virtualBlockDisplayTracker));
+        commands.setSpeciesRegistry(this.core.getSpeciesRegistry());
+        commands.setDisplaySynchronizer(this.displaySynchronizer);
         commands.setAddonManager(this.addonManager);
         commands.setResourcePackService(this.resourcePackService);
         commands.setUpdateService(this.updateService);

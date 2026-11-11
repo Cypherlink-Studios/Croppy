@@ -52,7 +52,7 @@ The system SHALL capture the player's yaw orientation upon planting or placing a
 - **THEN** the system SHALL apply a randomized angle offset within plus or minus 15 degrees to the base placement yaw
 
 ### Requirement: Inbound Packet Click Routing
-The system SHALL intercept client entity interaction packets targeting virtual Interaction entities and route them to corresponding crop and block handlers on the server main thread.
+The system SHALL intercept client entity interaction packets targeting virtual Interaction entities and route them to corresponding crop and block handlers on the server main thread, including specialized inspection tool handling.
 
 #### Scenario: Left-click attack packet routes to break or punch
 - **WHEN** a client sends an interact entity packet with action ATTACK targeting a registered virtual Interaction entity
@@ -61,6 +61,10 @@ The system SHALL intercept client entity interaction packets targeting virtual I
 #### Scenario: Right-click interact packet routes to tool and harvest actions
 - **WHEN** a client sends an interact entity packet with action INTERACT targeting a registered virtual Interaction entity
 - **THEN** the system SHALL dispatch the interaction to the main thread to evaluate tool usage, watering, or crop harvesting
+
+#### Scenario: Right-click interact packet with inspection tool routes to inspection
+- **WHEN** a client sends an interact entity packet with action INTERACT targeting a registered virtual Interaction entity while holding `croppy:inspection_tool`
+- **THEN** the system SHALL dispatch the interaction to the crop inspection service to display the crop status card without harvesting the crop
 
 ### Requirement: Dynamic Player Viewer Range Tracking
 The system SHALL continuously evaluate player proximity to active virtual 3D crop displays, sending spawn packets to newly approaching players and destroy packets to departing players.
@@ -72,3 +76,14 @@ The system SHALL continuously evaluate player proximity to active virtual 3D cro
 #### Scenario: Player moves outside viewing distance of active crop
 - **WHEN** a tracked player moves beyond the configured viewing distance of an active 3D crop
 - **THEN** the system SHALL unregister the player as a viewer and dispatch virtual entity destroy packets
+
+### Requirement: Virtual Entity Line-of-Sight Raytracing
+The system SHALL provide spatial line-of-sight raytracing against active virtual Interaction entity bounding boxes derived from developmental stage hitbox dimensions, enabling command resolution for 3D crops with minimal or passable base blocks.
+
+#### Scenario: Player ray intersects virtual interaction entity
+- **WHEN** a player executes a targeted command pointing at a virtual Interaction entity within reach distance without intervening solid block occlusion
+- **THEN** the system SHALL resolve the underlying crop instance corresponding to that virtual display
+
+#### Scenario: Player ray occluded by solid obstacle
+- **WHEN** a solid opaque block intervenes between the player's eye location and the virtual Interaction entity along the ray vector
+- **THEN** the system SHALL reject the virtual entity hit and resolve only unoccluded targets

@@ -5,6 +5,7 @@ import dev.darkblade.croppy.api.discovery.DiscoveryResult;
 import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
 import dev.darkblade.croppy.api.fertilizer.Fertilizer;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
+import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
 import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemCategory;
@@ -16,6 +17,7 @@ import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.species.Species;
+import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.api.storage.RecipeKnowledgeStorage;
 import dev.darkblade.croppy.api.world.BlockPosition;
@@ -27,11 +29,13 @@ import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController;
 import dev.darkblade.croppy.platform.paper.menu.ItemCatalogController;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
+import dev.darkblade.croppy.platform.paper.service.CropTargetResolver;
 import dev.darkblade.croppy.platform.paper.watering.WateringCanService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -87,6 +91,55 @@ public class CroppyCommands {
     private dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager;
     private dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService resourcePackService;
     private dev.darkblade.croppy.api.update.UpdateService updateService;
+    private CropTargetResolver targetResolver;
+    private SpeciesRegistry speciesRegistry;
+    private DisplaySynchronizer displaySynchronizer;
+
+    public void setTargetResolver(CropTargetResolver targetResolver) {
+        this.targetResolver = targetResolver;
+    }
+
+    public void setSpeciesRegistry(SpeciesRegistry speciesRegistry) {
+        this.speciesRegistry = speciesRegistry;
+    }
+
+    public void setDisplaySynchronizer(DisplaySynchronizer displaySynchronizer) {
+        this.displaySynchronizer = displaySynchronizer;
+    }
+
+    public CropTargetResolver getTargetResolver() {
+        if (this.targetResolver != null) {
+            return this.targetResolver;
+        }
+        if (plugin != null && plugin.getCore() != null) {
+            this.targetResolver = new CropTargetResolver(
+                    plugin.getCore().getCropManager(),
+                    plugin.getVirtualBlockDisplayTracker()
+            );
+            return this.targetResolver;
+        }
+        return null;
+    }
+
+    private SpeciesRegistry getSpeciesRegistry() {
+        if (this.speciesRegistry != null) {
+            return this.speciesRegistry;
+        }
+        if (plugin != null && plugin.getCore() != null) {
+            return plugin.getCore().getSpeciesRegistry();
+        }
+        return null;
+    }
+
+    private DisplaySynchronizer getDisplaySynchronizer() {
+        if (this.displaySynchronizer != null) {
+            return this.displaySynchronizer;
+        }
+        if (plugin != null) {
+            return plugin.getDisplaySynchronizer();
+        }
+        return null;
+    }
 
     public void setChatPromptService(dev.darkblade.croppy.platform.paper.prompt.ChatPromptService chatPromptService) {
         this.chatPromptService = chatPromptService;
@@ -158,6 +211,48 @@ public class CroppyCommands {
             PluginConfig pluginConfig
     ) {
         this(plugin, inspectorService, pluginConfig, null, null, null, null, null);
+    }
+
+    public CroppyCommands(
+            CroppyPlugin plugin,
+            CropInspectorService inspectorService,
+            PluginConfig pluginConfig,
+            WateringCanService wateringCanService,
+            FertilizerService fertilizerService,
+            FertilizerRegistry fertilizerRegistry,
+            ItemFactory itemFactory,
+            ItemRegistry itemRegistry,
+            CropTargetResolver targetResolver
+    ) {
+        this(plugin, inspectorService, pluginConfig, wateringCanService, fertilizerService, fertilizerRegistry, itemFactory, itemRegistry);
+        this.targetResolver = targetResolver;
+    }
+
+    private Optional<CropTargetResolver.TargetResult> resolveTargetCrop(Player player) {
+        CropTargetResolver resolver = getTargetResolver();
+        if (resolver != null) {
+            return resolver.resolveTarget(player);
+        }
+        Block target = player.getTargetBlockExact(5);
+        if (target == null) {
+            return Optional.empty();
+        }
+        World world = target.getWorld();
+        BlockPosition pos = BlockPosition.of(world.getName(), target.getX(), target.getY(), target.getZ());
+        Optional<CropInstance> cropOpt = (plugin != null && plugin.getCore() != null)
+                ? plugin.getCore().getCropManager().getCropAt(pos)
+                : Optional.empty();
+        if (cropOpt.isEmpty()) {
+            BlockPosition above = BlockPosition.of(world.getName(), target.getX(), target.getY() + 1, target.getZ());
+            cropOpt = (plugin != null && plugin.getCore() != null)
+                    ? plugin.getCore().getCropManager().getCropAt(above)
+                    : Optional.empty();
+            if (cropOpt.isPresent()) {
+                return Optional.of(new CropTargetResolver.TargetResult(above, cropOpt.get(), CropTargetResolver.TargetResult.TargetType.SUPPORTING_SOIL));
+            }
+            return Optional.empty();
+        }
+        return Optional.of(new CropTargetResolver.TargetResult(pos, cropOpt.get(), CropTargetResolver.TargetResult.TargetType.PHYSICAL_BLOCK));
     }
 
     public void setRecipeServices(
@@ -485,13 +580,13 @@ public class CroppyCommands {
             return;
         }
 
-        Block target = player.getTargetBlockExact(5);
-        if (target == null) {
+        Optional<CropTargetResolver.TargetResult> targetOpt = resolveTargetCrop(player);
+        if (targetOpt.isEmpty()) {
             sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
-        BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
+        BlockPosition pos = targetOpt.get().cropPosition();
         Optional<Component> card = inspectorService.inspect(pos, player);
         if (card.isPresent()) {
             player.sendMessage(card.get());
@@ -543,35 +638,29 @@ public class CroppyCommands {
             return;
         }
 
-        Block target = player.getTargetBlockExact(5);
-        if (target == null) {
+        Optional<CropTargetResolver.TargetResult> targetOpt = resolveTargetCrop(player);
+        if (targetOpt.isEmpty()) {
             sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
-        BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCropAt(pos);
-        if (cropOpt.isEmpty()) {
-            cropOpt = plugin.getCore().getCropManager().getCropAt(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
-        }
+        CropTargetResolver.TargetResult target = targetOpt.get();
+        CropInstance crop = target.crop();
+        BlockPosition pos = target.cropPosition();
+        World world = player.getWorld();
 
-        if (cropOpt.isEmpty()) {
-            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
-            return;
-        }
-
-        long currentDay = target.getWorld().getFullTime() / 24000L;
-        CropInstance crop = cropOpt.get();
+        long currentDay = world.getFullTime() / 24000L;
         crop.setLastWateredDay(currentDay);
 
-        Block blockBelow = target.getWorld().getBlockAt(crop.getPosition().x(), crop.getPosition().y() - 1, crop.getPosition().z());
+        Block blockBelow = world.getBlockAt(crop.getPosition().x(), crop.getPosition().y() - 1, crop.getPosition().z());
         if (blockBelow.getType() == Material.FARMLAND && blockBelow.getBlockData() instanceof Farmland farmland) {
             farmland.setMoisture(7);
             blockBelow.setBlockData(farmland, false);
         }
 
-        target.getWorld().spawnParticle(Particle.SPLASH, target.getLocation().add(0.5, 0.5, 0.5), 15, 0.2, 0.2, 0.2, 0.1);
-        player.playSound(target.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.8f, 1.2f);
+        Location particleLoc = new Location(world, pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+        world.spawnParticle(Particle.SPLASH, particleLoc, 15, 0.2, 0.2, 0.2, 0.1);
+        player.playSound(particleLoc, Sound.ITEM_BUCKET_EMPTY, 0.8f, 1.2f);
         sendPrefixed(player, MessageKey.of("command.water.success"));
     }
 
@@ -587,28 +676,22 @@ public class CroppyCommands {
             return;
         }
 
-        Block target = player.getTargetBlockExact(5);
-        if (target == null) {
+        Optional<CropTargetResolver.TargetResult> targetOpt = resolveTargetCrop(player);
+        if (targetOpt.isEmpty()) {
             sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
-        BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCropAt(pos);
-        if (cropOpt.isEmpty()) {
-            cropOpt = plugin.getCore().getCropManager().getCropAt(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
-        }
+        CropTargetResolver.TargetResult target = targetOpt.get();
+        CropInstance crop = target.crop();
+        BlockPosition pos = target.cropPosition();
+        World world = player.getWorld();
 
-        if (cropOpt.isEmpty()) {
-            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
-            return;
-        }
-
-        CropInstance crop = cropOpt.get();
         crop.setFertilizerKey(fertilizerKey);
 
-        target.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, target.getLocation().add(0.5, 0.5, 0.5), 12, 0.2, 0.2, 0.2, 0.1);
-        player.playSound(target.getLocation(), Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.1f);
+        Location particleLoc = new Location(world, pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+        world.spawnParticle(Particle.HAPPY_VILLAGER, particleLoc, 12, 0.2, 0.2, 0.2, 0.1);
+        player.playSound(particleLoc, Sound.ITEM_BONE_MEAL_USE, 0.8f, 1.1f);
         sendPrefixed(player, MessageKey.of("command.fertilize.success"), "fertilizer", fertilizerKey.asString());
     }
 
@@ -624,24 +707,15 @@ public class CroppyCommands {
             return;
         }
 
-        Block target = player.getTargetBlockExact(5);
-        if (target == null) {
+        Optional<CropTargetResolver.TargetResult> targetOpt = resolveTargetCrop(player);
+        if (targetOpt.isEmpty()) {
             sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
-        BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCropAt(pos);
-        if (cropOpt.isEmpty()) {
-            cropOpt = plugin.getCore().getCropManager().getCropAt(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
-        }
-        if (cropOpt.isEmpty()) {
-            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
-            return;
-        }
-
-        CropInstance crop = cropOpt.get();
-        Optional<Species> speciesOpt = plugin.getCore().getSpeciesRegistry().get(crop.getSpeciesKey());
+        CropInstance crop = targetOpt.get().crop();
+        SpeciesRegistry registry = getSpeciesRegistry();
+        Optional<Species> speciesOpt = (registry != null) ? registry.get(crop.getSpeciesKey()) : Optional.empty();
         if (speciesOpt.isEmpty()) {
             sendPrefixed(player, MessageKey.of("command.state.species-not-found"));
             return;
@@ -656,7 +730,10 @@ public class CroppyCommands {
         crop.setStageIndex(stageIndex);
         crop.setProgress(0.0);
         StageDefinition stage = species.getStage(stageIndex);
-        plugin.getDisplaySynchronizer().synchronizeDisplay(crop, species, stage);
+        DisplaySynchronizer synchronizer = getDisplaySynchronizer();
+        if (synchronizer != null) {
+            synchronizer.synchronizeDisplay(crop, species, stage);
+        }
 
         sendPrefixed(player, MessageKey.of("command.state.stage-updated"), "stage", stageIndex);
     }
@@ -673,23 +750,13 @@ public class CroppyCommands {
             return;
         }
 
-        Block target = player.getTargetBlockExact(5);
-        if (target == null) {
+        Optional<CropTargetResolver.TargetResult> targetOpt = resolveTargetCrop(player);
+        if (targetOpt.isEmpty()) {
             sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
             return;
         }
 
-        BlockPosition pos = BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY(), target.getZ());
-        Optional<CropInstance> cropOpt = plugin.getCore().getCropManager().getCropAt(pos);
-        if (cropOpt.isEmpty()) {
-            cropOpt = plugin.getCore().getCropManager().getCropAt(BlockPosition.of(target.getWorld().getName(), target.getX(), target.getY() + 1, target.getZ()));
-        }
-        if (cropOpt.isEmpty()) {
-            sendPrefixed(player, MessageKey.of("command.inspect.no-crop-found"));
-            return;
-        }
-
-        CropInstance crop = cropOpt.get();
+        CropInstance crop = targetOpt.get().crop();
         crop.setProgress(Math.max(0.0, progress));
 
         sendPrefixed(player, MessageKey.of("command.state.progress-updated"), "progress", String.format(Locale.ROOT, "%.1f", crop.getProgress()));

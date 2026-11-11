@@ -19,6 +19,7 @@ import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.platform.paper.event.CropBreakEvent;
 import dev.darkblade.croppy.platform.paper.event.CropHarvestEvent;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
+import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -53,6 +54,27 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
     private final DisplaySynchronizer displaySynchronizer;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
     private final ItemFactory itemFactory;
+    private final CropInspectorService inspectorService;
+
+    public VirtualInteractionPacketListener(
+            Plugin plugin,
+            CroppyCore core,
+            VirtualBlockDisplayTracker displayTracker,
+            Logger logger,
+            DisplaySynchronizer displaySynchronizer,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
+            ItemFactory itemFactory,
+            CropInspectorService inspectorService
+    ) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.core = Objects.requireNonNull(core, "core cannot be null");
+        this.displayTracker = Objects.requireNonNull(displayTracker, "displayTracker cannot be null");
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.displaySynchronizer = displaySynchronizer;
+        this.protectionPort = protectionPort;
+        this.itemFactory = (itemFactory != null) ? itemFactory : new ItemFactory(plugin, core.getItemRegistry());
+        this.inspectorService = inspectorService;
+    }
 
     public VirtualInteractionPacketListener(
             Plugin plugin,
@@ -63,13 +85,7 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
             ItemFactory itemFactory
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.core = Objects.requireNonNull(core, "core cannot be null");
-        this.displayTracker = Objects.requireNonNull(displayTracker, "displayTracker cannot be null");
-        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
-        this.displaySynchronizer = displaySynchronizer;
-        this.protectionPort = protectionPort;
-        this.itemFactory = (itemFactory != null) ? itemFactory : new ItemFactory(plugin, core.getItemRegistry());
+        this(plugin, core, displayTracker, logger, displaySynchronizer, protectionPort, itemFactory, null);
     }
 
     public VirtualInteractionPacketListener(
@@ -80,7 +96,7 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             DisplaySynchronizer displaySynchronizer,
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
     ) {
-        this(plugin, core, displayTracker, logger, displaySynchronizer, protectionPort, null);
+        this(plugin, core, displayTracker, logger, displaySynchronizer, protectionPort, null, null);
     }
 
     public VirtualInteractionPacketListener(
@@ -90,11 +106,11 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             Logger logger,
             DisplaySynchronizer displaySynchronizer
     ) {
-        this(plugin, core, displayTracker, logger, displaySynchronizer, null, null);
+        this(plugin, core, displayTracker, logger, displaySynchronizer, null, null, null);
     }
 
     public VirtualInteractionPacketListener(Plugin plugin, CroppyCore core, VirtualBlockDisplayTracker displayTracker, Logger logger) {
-        this(plugin, core, displayTracker, logger, null, null, null);
+        this(plugin, core, displayTracker, logger, null, null, null, null);
     }
 
     @Override
@@ -144,6 +160,22 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             return;
         }
 
+        ItemStack itemInHand = player.getInventory().getItemInMainHand();
+
+        // Read-only inspection tool check runs before harvest/break region protection
+        if (action != WrapperPlayClientInteractEntity.InteractAction.ATTACK && CropInspectorService.isInspectionTool(itemInHand, plugin)) {
+            CropInspectorService inspector = resolveInspectorService();
+            if (inspector != null) {
+                Optional<net.kyori.adventure.text.Component> card = inspector.inspect(pos, player);
+                if (card.isPresent()) {
+                    player.sendMessage(card.get());
+                } else if (plugin instanceof dev.darkblade.croppy.platform.paper.CroppyPlugin cp && cp.getMessageService() != null) {
+                    cp.getMessageService().sendPrefixedMessage(player, dev.darkblade.croppy.api.i18n.MessageKey.of("command.inspect.no-crop-found"));
+                }
+            }
+            return;
+        }
+
         dev.darkblade.croppy.api.protection.ProtectionAction protAction =
                 (action == WrapperPlayClientInteractEntity.InteractAction.ATTACK)
                         ? dev.darkblade.croppy.api.protection.ProtectionAction.BREAK
@@ -173,7 +205,6 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             trigger = player.isSneaking() ? InteractionTrigger.SNEAK_RIGHT_CLICK : InteractionTrigger.RIGHT_CLICK;
         }
 
-        ItemStack itemInHand = player.getInventory().getItemInMainHand();
         boolean emptyHand = itemInHand.getType().isAir();
         String handMaterial = emptyHand ? null : itemInHand.getType().getKey().toString();
         Key handItemKey = null;
@@ -366,5 +397,15 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         } else {
             performDismantle(player, crop, species);
         }
+    }
+
+    private CropInspectorService resolveInspectorService() {
+        if (this.inspectorService != null) {
+            return this.inspectorService;
+        }
+        if (plugin instanceof dev.darkblade.croppy.platform.paper.CroppyPlugin cp) {
+            return cp.getInspectorService();
+        }
+        return null;
     }
 }
