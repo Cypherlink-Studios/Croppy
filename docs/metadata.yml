@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.7.0"
+    releaseDate: "2026-11-11"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Unified line-of-sight crop raytracing (CropTargetResolver) across /croppy inspect, water, fertilize, setstage, and setprogress to target virtual 3D Interaction entity hitboxes, physical blocks, and supporting farmland with solid-block occlusion; routed virtual Interaction entity right-clicks with croppy:inspection_tool directly to read-only inspection cards (even inside protected regions); and refreshed the companion resource pack icon."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.6.0"
     releaseDate: "2026-11-10"
-    reference: "main"
+    reference: "v0.6.0"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added declarative Station States system for workstations: reactive runtime evaluation from physical components, hot 3D model display and PacketEvents metadata synchronization (item_model, custom_model_data, spatial translation/scale/rotation), dynamic interaction hitbox bounding boxes, ambient sensory particles and audio loops, 3D block models (cooking_pot_water, cooking_pot_cooking, cooking_pot_boiling, skillet_hot), hand-crafted pixel-art textures, and 1.21.8 item definition JSONs."
     minecraft:
