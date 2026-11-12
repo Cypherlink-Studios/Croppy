@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.8.1"
+    releaseDate: "2026-11-12"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Fixed MiniMessage tag rendering in Culinary Compendium lore and discovery hint chat feedback by parsing category display names and hint descriptions into Adventure Components; added content.category.<namespace>.<value>.name translation overrides; and localized yield and category lines in recipe detail inspection cards."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.8.0"
     releaseDate: "2026-11-11"
-    reference: "main"
+    reference: "v0.8.0"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Added a pure Java 21 domain logging port (CroppyLogger, LogLevel, LogChannel) across croppy-api, croppy-core, and croppy-integrations; introduced PaperCroppyLogger with zero-allocation lazy suppliers, isolated AddonContext JUL bridging, and instrumented hot-path trace diagnostics; added ConsoleLifecycleReporter with configurable RICH/COMPACT console startup, reload, and shutdown summaries; and added /croppy debug <status|toggle|enable|disable|all|off> runtime channel management with reload reset semantics."
     minecraft:
