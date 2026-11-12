@@ -15,6 +15,7 @@ import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.platform.paper.station.display.PacketStationDisplay;
 import dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
@@ -39,6 +40,25 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
     private final StationInteractListener interactListener;
     private final CroppyLogger logger;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+    private final DefaultStationManager stationManager;
+
+    public StationVirtualInteractionPacketListener(
+            Plugin plugin,
+            StationViewerTracker viewerTracker,
+            StationBlockListener blockListener,
+            StationInteractListener interactListener,
+            CroppyLogger logger,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
+            DefaultStationManager stationManager
+    ) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.viewerTracker = Objects.requireNonNull(viewerTracker, "viewerTracker cannot be null");
+        this.blockListener = Objects.requireNonNull(blockListener, "blockListener cannot be null");
+        this.interactListener = Objects.requireNonNull(interactListener, "interactListener cannot be null");
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.protectionPort = protectionPort;
+        this.stationManager = stationManager;
+    }
 
     public StationVirtualInteractionPacketListener(
             Plugin plugin,
@@ -48,12 +68,7 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
             CroppyLogger logger,
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.viewerTracker = Objects.requireNonNull(viewerTracker, "viewerTracker cannot be null");
-        this.blockListener = Objects.requireNonNull(blockListener, "blockListener cannot be null");
-        this.interactListener = Objects.requireNonNull(interactListener, "interactListener cannot be null");
-        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
-        this.protectionPort = protectionPort;
+        this(plugin, viewerTracker, blockListener, interactListener, logger, protectionPort, null);
     }
 
     public StationVirtualInteractionPacketListener(
@@ -63,7 +78,27 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
             StationInteractListener interactListener,
             CroppyLogger logger
     ) {
-        this(plugin, viewerTracker, blockListener, interactListener, logger, null);
+        this(plugin, viewerTracker, blockListener, interactListener, logger, null, null);
+    }
+
+    public StationVirtualInteractionPacketListener(
+            Plugin plugin,
+            StationViewerTracker viewerTracker,
+            StationBlockListener blockListener,
+            StationInteractListener interactListener,
+            Logger logger,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
+            DefaultStationManager stationManager
+    ) {
+        this(
+                plugin,
+                viewerTracker,
+                blockListener,
+                interactListener,
+                new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")),
+                protectionPort,
+                stationManager
+        );
     }
 
     public StationVirtualInteractionPacketListener(
@@ -80,7 +115,8 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
                 blockListener,
                 interactListener,
                 new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")),
-                protectionPort
+                protectionPort,
+                null
         );
     }
 
@@ -91,7 +127,7 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
             StationInteractListener interactListener,
             Logger logger
     ) {
-        this(plugin, viewerTracker, blockListener, interactListener, logger, null);
+        this(plugin, viewerTracker, blockListener, interactListener, logger, null, null);
     }
 
     @Override
@@ -170,6 +206,19 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
         }
     }
 
+    Optional<StationInstance> resolveStation(BlockPosition blockPos) {
+        return (stationManager != null)
+                ? stationManager.getStation(blockPos)
+                : viewerTracker.getDisplay(blockPos).map(PacketStationDisplay::getStation);
+    }
+
+    boolean shouldMaskBaseBlock(BlockPosition blockPos) {
+        return resolveStation(blockPos)
+                .flatMap(s -> s.getDefinition().getVisualDefinition())
+                .map(StationVisualDefinition::hideBaseBlock)
+                .orElse(false);
+    }
+
     private void handleBlockChange(PacketSendEvent event) {
         WrapperPlayServerBlockChange packet = new WrapperPlayServerBlockChange(event);
         Vector3i pos = packet.getBlockPosition();
@@ -181,26 +230,16 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
         }
 
         BlockPosition blockPos = new BlockPosition(player.getWorld().getName(), pos.getX(), pos.getY(), pos.getZ());
-        Optional<PacketStationDisplay> displayOpt = viewerTracker.getDisplay(blockPos);
-        if (displayOpt.isEmpty()) {
+        if (!shouldMaskBaseBlock(blockPos)) {
             event.setLastUsedWrapper(null);
             return;
         }
 
-        StationInstance station = displayOpt.get().getStation();
-        boolean hideBaseBlock = station.getDefinition().getVisualDefinition()
-                .map(StationVisualDefinition::hideBaseBlock)
-                .orElse(false);
-
-        if (hideBaseBlock) {
-            BlockData barrierData = viewerTracker.resolveBarrierBlockData();
-            if (barrierData != null) {
-                int barrierGlobalId = SpigotConversionUtil.fromBukkitBlockData(barrierData).getGlobalId();
-                packet.setBlockID(barrierGlobalId);
-                event.markForReEncode(true);
-            } else {
-                event.setLastUsedWrapper(null);
-            }
+        BlockData barrierData = viewerTracker.resolveBarrierBlockData();
+        if (barrierData != null) {
+            int barrierGlobalId = SpigotConversionUtil.fromBukkitBlockData(barrierData).getGlobalId();
+            packet.setBlockID(barrierGlobalId);
+            event.markForReEncode(true);
         } else {
             event.setLastUsedWrapper(null);
         }
@@ -226,24 +265,16 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
 
         for (WrapperPlayServerMultiBlockChange.EncodedBlock block : blocks) {
             BlockPosition blockPos = new BlockPosition(player.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-            Optional<PacketStationDisplay> displayOpt = viewerTracker.getDisplay(blockPos);
-            if (displayOpt.isPresent()) {
-                StationInstance station = displayOpt.get().getStation();
-                boolean hideBaseBlock = station.getDefinition().getVisualDefinition()
-                        .map(StationVisualDefinition::hideBaseBlock)
-                        .orElse(false);
-
-                if (hideBaseBlock) {
-                    if (barrierGlobalId == null) {
-                        barrierData = viewerTracker.resolveBarrierBlockData();
-                        if (barrierData != null) {
-                            barrierGlobalId = SpigotConversionUtil.fromBukkitBlockData(barrierData).getGlobalId();
-                        }
+            if (shouldMaskBaseBlock(blockPos)) {
+                if (barrierGlobalId == null) {
+                    barrierData = viewerTracker.resolveBarrierBlockData();
+                    if (barrierData != null) {
+                        barrierGlobalId = SpigotConversionUtil.fromBukkitBlockData(barrierData).getGlobalId();
                     }
-                    if (barrierGlobalId != null) {
-                        block.setBlockId(barrierGlobalId);
-                        modified = true;
-                    }
+                }
+                if (barrierGlobalId != null) {
+                    block.setBlockId(barrierGlobalId);
+                    modified = true;
                 }
             }
         }

@@ -14,6 +14,7 @@ import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StationStateDefinition;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
+import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.station.visual.BillboardMode;
@@ -24,12 +25,15 @@ import dev.darkblade.croppy.api.station.visual.StationModelOverride;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 import dev.darkblade.croppy.api.station.visual.TextDisplayTemplate;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.api.world.ChunkPosition;
+import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.StationStateEvaluator;
 import dev.darkblade.croppy.core.station.visual.StationPlaceholderFormatter;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Server;
@@ -44,6 +48,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -340,6 +345,9 @@ public class StationViewerTracker {
                     }
                 } else if (inRange && viewing && (stateChanged || isDirty)) {
                     renderer.updateBaseModelMetadata(player, display, baseConfig, activeBaseItem, effectiveBaseTransform);
+                    if (hideBaseBlock && barrierData != null && blockLoc != null) {
+                        player.sendBlockChange(blockLoc, barrierData);
+                    }
                 }
             }
 
@@ -455,6 +463,72 @@ public class StationViewerTracker {
         for (BlockPosition pos : activeDisplays.keySet()) {
             if (pos.worldName().equals(worldName) && (pos.x() >> 4) == chunkX && (pos.z() >> 4) == chunkZ) {
                 destroyStation(pos);
+            }
+        }
+    }
+
+    /**
+     * Immediately evaluates station proximity and synchronizes virtual display packets
+     * for a player (e.g., on player join or teleport) without waiting for the recurring ticker.
+     *
+     * @param player         the joining/moving player
+     * @param stationManager the station manager tracking in-world stations
+     */
+    public void tickPlayer(Player player, DefaultStationManager stationManager) {
+        if (player == null || !player.isOnline() || stationManager == null) return;
+        World world = player.getWorld();
+        Location playerLoc = player.getLocation();
+        double px = playerLoc.getX();
+        double py = playerLoc.getY();
+        double pz = playerLoc.getZ();
+        double maxDist = 48.0;
+        double maxDistSq = maxDist * maxDist;
+
+        for (StationInstance station : stationManager.getAllStations()) {
+            BlockPosition pos = station.getPosition();
+            if (!pos.worldName().equals(world.getName())) {
+                continue;
+            }
+            double dx = (pos.x() + 0.5) - px;
+            double dy = (pos.y() + 0.5) - py;
+            double dz = (pos.z() + 0.5) - pz;
+            if (dx * dx + dy * dy + dz * dz <= maxDistSq) {
+                Optional<ProcessComponent> procOpt = station.getComponent(ProcessComponent.class);
+                ProcessInstance proc = procOpt.flatMap(ProcessComponent::getActiveProcess).orElse(null);
+                syncStation(station, world, proc);
+            }
+        }
+    }
+
+    /**
+     * Masks the base block of all stations in the given chunk as BARRIER for a player receiving that chunk.
+     *
+     * @param player         the player receiving the chunk
+     * @param chunk          the chunk loaded for the player
+     * @param stationManager the station manager
+     */
+    public void maskStationsInChunk(Player player, Chunk chunk, DefaultStationManager stationManager) {
+        if (player == null || !player.isOnline() || chunk == null || stationManager == null) return;
+        ChunkPosition chunkPos = new ChunkPosition(chunk.getWorld().getName(), chunk.getX(), chunk.getZ());
+        Set<StationInstance> stations = stationManager.getStationsInChunk(chunkPos);
+        if (stations == null || stations.isEmpty()) return;
+
+        BlockData barrierData = null;
+        for (StationInstance station : stations) {
+            boolean hideBaseBlock = station.getDefinition().getVisualDefinition()
+                    .map(StationVisualDefinition::hideBaseBlock)
+                    .orElse(false);
+            if (hideBaseBlock) {
+                if (barrierData == null) {
+                    barrierData = resolveBarrierBlockData();
+                    if (barrierData == null) return;
+                }
+                BlockPosition pos = station.getPosition();
+                try {
+                    player.sendBlockChange(new Location(chunk.getWorld(), pos.x(), pos.y(), pos.z()), barrierData);
+                } catch (Exception ex) {
+                    logger.trace(LogChannel.DISPLAY, () -> "Failed to mask station in chunk for " + player.getName(), ex);
+                }
             }
         }
     }

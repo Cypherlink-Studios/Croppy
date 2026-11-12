@@ -540,7 +540,7 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(this.stationInteractListener, this);
         pm.registerEvents(this.stationBlockListener, this);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.station.listener.StationPlayerConnectionListener(
-                this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
+                this.stationViewerTracker, this.virtualBlockDisplayTracker, core.getStationManager()), this);
 
         this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
                 this, core, this.virtualBlockDisplayTracker, this.croppyLogger, this.displaySynchronizer,
@@ -550,7 +550,7 @@ public class CroppyPlugin extends JavaPlugin {
 
         this.stationVirtualInteractionListener = new dev.darkblade.croppy.platform.paper.station.listener.StationVirtualInteractionPacketListener(
                 this, this.stationViewerTracker, this.stationBlockListener, this.stationInteractListener,
-                this.croppyLogger, getProtectionPort());
+                this.croppyLogger, getProtectionPort(), core.getStationManager());
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.stationVirtualInteractionListener);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.BukkitRecipeDiscoveryListener(
