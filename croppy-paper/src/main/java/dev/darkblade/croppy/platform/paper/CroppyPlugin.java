@@ -488,7 +488,8 @@ public class CroppyPlugin extends JavaPlugin {
                 this.menuRenderer,
                 this.messageService,
                 this.compendiumController,
-                this.pluginConfig.getCompendiumStationProximityDistance());
+                this.pluginConfig.getCompendiumStationProximityDistance(),
+                core.getRecipeCategoryRegistry());
         this.menuListener.setRecipeRegistry(core.getRecipeRegistry());
         this.menuListener.setDiscoveryEngine(core.getRecipeDiscoveryEngine());
         this.menuListener.setRecipeDetailController(this.recipeDetailController);

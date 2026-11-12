@@ -5,8 +5,12 @@ import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.recipe.HintDefinition;
+import dev.darkblade.croppy.api.recipe.RecipeCategory;
+import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.core.i18n.DefaultMessageCatalog;
+import dev.darkblade.croppy.core.recipe.DefaultRecipeCategoryRegistry;
+import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -46,6 +50,65 @@ class PaperMessageServiceTest {
         ));
 
         messageService = new PaperMessageService(catalog, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
+    }
+
+    @Test
+    void testResolveCategoryDisplayNameParsesMiniMessageAndPreservesTags() {
+        RecipeCategoryRegistry categoryRegistry = new DefaultRecipeCategoryRegistry();
+
+        Component byKey = messageService.resolveCategoryDisplayName(Audience.empty(), Key.croppy("soups"), categoryRegistry);
+        Component byRecord = messageService.resolveCategoryDisplayName(Audience.empty(), RecipeCategory.SOUPS);
+
+        assertEquals("Soups & Stews", PlainTextComponentSerializer.plainText().serialize(byKey));
+        assertEquals("Soups & Stews", PlainTextComponentSerializer.plainText().serialize(byRecord));
+
+        String mini = MiniMessage.miniMessage().serialize(byKey);
+        assertFalse(mini.contains("\\<aqua>"), "Should parse MiniMessage tags instead of escaping them: " + mini);
+        assertTrue(mini.contains("<aqua>Soups & Stews"), "Should preserve aqua styling, got: " + mini);
+
+        assertEquals(Component.empty(), messageService.resolveCategoryDisplayName(Audience.empty(), null));
+        assertEquals(Component.empty(), messageService.resolveCategoryDisplayName(Audience.empty(), null, categoryRegistry));
+    }
+
+    @Test
+    void testResolveCategoryDisplayNameUsesLocaleOverride() {
+        RecipeCategoryRegistry categoryRegistry = new DefaultRecipeCategoryRegistry();
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, Map.of(
+                        "content.category.croppy.soups.name", "<gold><bold>Hot Soups</bold></gold>"
+                )
+        ));
+
+        Component byKey = messageService.resolveCategoryDisplayName(Audience.empty(), Key.croppy("soups"), categoryRegistry);
+        Component byRecord = messageService.resolveCategoryDisplayName(Audience.empty(), RecipeCategory.SOUPS);
+
+        assertEquals("Hot Soups", PlainTextComponentSerializer.plainText().serialize(byKey));
+        assertEquals("Hot Soups", PlainTextComponentSerializer.plainText().serialize(byRecord));
+
+        String mini = MiniMessage.miniMessage().serialize(byKey);
+        assertTrue(mini.contains("<gold>") && mini.contains("<bold>") && mini.contains("Hot Soups"),
+                "Override styling should be preserved: " + mini);
+    }
+
+    @Test
+    void testResolveCategoryDisplayNameFallsBackForUnregisteredKeys() {
+        RecipeCategoryRegistry categoryRegistry = new DefaultRecipeCategoryRegistry();
+        Key customKey = Key.of("custom", "street_food");
+
+        Component unregistered = messageService.resolveCategoryDisplayName(Audience.empty(), customKey, categoryRegistry);
+        Component nullRegistry = messageService.resolveCategoryDisplayName(Audience.empty(), Key.croppy("soups"), null);
+
+        assertEquals("street_food", PlainTextComponentSerializer.plainText().serialize(unregistered));
+        assertEquals("soups", PlainTextComponentSerializer.plainText().serialize(nullRegistry));
+
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, Map.of(
+                        "content.category.custom.street_food.name", "<green>Street Food</green>"
+                )
+        ));
+        Component overriddenUnregistered = messageService.resolveCategoryDisplayName(Audience.empty(), customKey, categoryRegistry);
+        assertEquals("Street Food", PlainTextComponentSerializer.plainText().serialize(overriddenUnregistered));
+        assertTrue(MiniMessage.miniMessage().serialize(overriddenUnregistered).contains("<green>Street Food"));
     }
 
     @Test

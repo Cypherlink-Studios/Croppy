@@ -8,6 +8,7 @@ import dev.darkblade.croppy.api.process.PhaseDefinition;
 import dev.darkblade.croppy.api.process.PhaseType;
 import dev.darkblade.croppy.api.process.ProcessDefinition;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
+import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationRegistry;
@@ -50,6 +51,7 @@ public class RecipeDetailMenuController {
     private final PaperMessageService messageService;
     private final CompendiumMenuController compendiumController;
     private final int stationProximityDistance;
+    private final RecipeCategoryRegistry categoryRegistry;
 
     public RecipeDetailMenuController(
             MenuRegistry menuRegistry,
@@ -61,6 +63,20 @@ public class RecipeDetailMenuController {
             CompendiumMenuController compendiumController,
             int stationProximityDistance
     ) {
+        this(menuRegistry, processRegistry, stationRegistry, itemFactory, renderer, messageService, compendiumController, stationProximityDistance, null);
+    }
+
+    public RecipeDetailMenuController(
+            MenuRegistry menuRegistry,
+            ProcessRegistry processRegistry,
+            StationRegistry stationRegistry,
+            ItemFactory itemFactory,
+            PaperMenuRenderer renderer,
+            PaperMessageService messageService,
+            CompendiumMenuController compendiumController,
+            int stationProximityDistance,
+            RecipeCategoryRegistry categoryRegistry
+    ) {
         this.menuRegistry = Objects.requireNonNull(menuRegistry, "menuRegistry cannot be null");
         this.processRegistry = processRegistry;
         this.stationRegistry = stationRegistry;
@@ -69,6 +85,7 @@ public class RecipeDetailMenuController {
         this.messageService = messageService;
         this.compendiumController = compendiumController;
         this.stationProximityDistance = Math.max(1, stationProximityDistance);
+        this.categoryRegistry = categoryRegistry;
     }
 
     /**
@@ -184,9 +201,18 @@ public class RecipeDetailMenuController {
                 : recipeName.decoration(TextDecoration.BOLD, true).decoration(TextDecoration.ITALIC, false);
         meta.displayName(name);
 
+        meta.lore(buildResultLore(player, recipe));
+        stack.setItemMeta(meta);
+        return stack;
+    }
+
+    List<Component> buildResultLore(Player player, RecipeDefinition recipe) {
         List<Component> lore = new ArrayList<>();
-        lore.add(miniMessage.deserialize("<gray>Yields: <yellow>" + recipe.resultAmount() + "x</yellow></gray>"));
-        lore.add(miniMessage.deserialize("<gray>Category: <yellow>" + recipe.categoryKey().value() + "</yellow></gray>"));
+        lore.add((messageService != null)
+                ? messageService.render(player, "compendium.gui.yields", "amount", recipe.resultAmount())
+                : miniMessage.deserialize("<gray>Yields: <yellow>" + recipe.resultAmount() + "x</yellow></gray>"));
+        lore.add(CompendiumMenuController.buildCategoryLoreLine(
+                player, recipe.categoryKey(), messageService, categoryRegistry, miniMessage));
 
         if (!recipe.properties().isEmpty()) {
             lore.add(Component.empty());
@@ -195,9 +221,7 @@ public class RecipeDetailMenuController {
             }
         }
 
-        meta.lore(lore);
-        stack.setItemMeta(meta);
-        return stack;
+        return lore;
     }
 
     protected ItemStack renderStationCard(Player player, Key stationKey, String stationName) {

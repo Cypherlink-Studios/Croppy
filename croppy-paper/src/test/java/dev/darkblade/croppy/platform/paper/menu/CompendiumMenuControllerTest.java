@@ -1,19 +1,28 @@
 package dev.darkblade.croppy.platform.paper.menu;
 
 import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
+import dev.darkblade.croppy.api.i18n.LocaleRef;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.menu.MenuDefinition;
 import dev.darkblade.croppy.api.menu.SlotDefinition;
 import dev.darkblade.croppy.api.recipe.HintDefinition;
 import dev.darkblade.croppy.api.recipe.KnowledgeState;
 import dev.darkblade.croppy.api.recipe.RecipeCategory;
+import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.station.StoredItem;
+import dev.darkblade.croppy.core.i18n.DefaultMessageCatalog;
 import dev.darkblade.croppy.core.item.DefaultItemRegistry;
 import dev.darkblade.croppy.core.menu.DefaultMenuRegistry;
 import dev.darkblade.croppy.core.menu.YamlMenuLoader;
+import dev.darkblade.croppy.core.recipe.DefaultRecipeCategoryRegistry;
 import dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry;
+import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -119,6 +128,8 @@ class CompendiumMenuControllerTest {
                     } else if ("openInventory".equals(name)) {
                         inventoryOpened.set(true);
                         return null;
+                    } else if ("locale".equals(name)) {
+                        return Locale.US;
                     } else if ("sendMessage".equals(name)) {
                         return null;
                     }
@@ -429,5 +440,169 @@ class CompendiumMenuControllerTest {
         // withCategoryPage updates category page
         CompendiumMenuController.CompendiumSession catPageChanged = initial.withCategoryPage(2);
         assertEquals(2, catPageChanged.categoryPage());
+    }
+
+    @Test
+    @DisplayName("DISCOVERED, HINTED, and UNKNOWN lore render MiniMessage category and hint tags cleanly")
+    void testLoreRendersMiniMessageCategoryAndHintWithMessageService() {
+        DefaultMessageCatalog catalog = new DefaultMessageCatalog(LocaleRef.EN_US, LocaleRef.EN_US);
+        catalog.setCatalogs(Map.of(
+                LocaleRef.EN_US, Map.of(
+                        "compendium.gui.category", "<gray>Category: <yellow><category></yellow></gray>",
+                        "compendium.gui.station-away", "<gray>Station: <station> <gray>(✖ Not nearby)</gray></gray>",
+                        "compendium.gui.required-ingredients", "<yellow>Required Ingredients:</yellow>",
+                        "compendium.gui.status-discovered", "<dark_green>Status: Discovered</dark_green>",
+                        "compendium.gui.click-to-inspect", "<yellow>▶ Click to inspect cooking steps</yellow>",
+                        "compendium.gui.clue-title", "<aqua><bold>Culinary Clue:</bold></aqua>",
+                        "compendium.gui.clue-hint", "<gray><hint></gray>",
+                        "compendium.gui.unknown-experiment", "<gray>Experiment in crafting stations to discover this dish!</gray>"
+                )
+        ));
+        PaperMessageService messageService = new PaperMessageService(catalog, NoOpCroppyLogger.INSTANCE);
+        RecipeCategoryRegistry categoryRegistry = new DefaultRecipeCategoryRegistry();
+
+        CompendiumMenuController localizedController = new CompendiumMenuController(
+                menuRegistry, recipeRegistry, discoveryEngine, mockRenderer, itemFactory,
+                messageService, categoryRegistry, null, null, null, true, 5
+        );
+
+        RecipeDefinition soupRecipe = new RecipeDefinition(
+                Key.of("croppy", "tomato_soup"),
+                "Tomato Soup",
+                RecipeCategory.SOUPS.getKey(),
+                Key.of("croppy", "cooking_pot"),
+                Key.of("croppy", "simmer_soup"),
+                List.of(),
+                Key.of("minecraft", "beetroot_soup"),
+                1,
+                new HintDefinition("<gray>Simmer <aqua>tomatoes</aqua> cleanly</gray>", List.of(), true, Map.of()),
+                false,
+                List.of(),
+                Map.of()
+        );
+
+        PlainTextComponentSerializer plain = PlainTextComponentSerializer.plainText();
+        MiniMessage mm = MiniMessage.miniMessage();
+
+        List<Component> discoveredLore = localizedController.buildDiscoveredLore(mockPlayer, soupRecipe);
+        assertEquals("Category: Soups & Stews", plain.serialize(discoveredLore.getFirst()));
+        String discoveredCategoryMini = mm.serialize(discoveredLore.getFirst());
+        assertFalse(discoveredCategoryMini.contains("\\<aqua>"), "Discovered category escaped MiniMessage tags: " + discoveredCategoryMini);
+        assertTrue(discoveredCategoryMini.contains("<aqua>Soups & Stews"), "Discovered category missing aqua style: " + discoveredCategoryMini);
+
+        List<Component> hintedLore = localizedController.buildHintedLore(mockPlayer, soupRecipe);
+        assertEquals("Category: Soups & Stews", plain.serialize(hintedLore.getFirst()));
+        assertTrue(mm.serialize(hintedLore.getFirst()).contains("<aqua>Soups & Stews"));
+        assertEquals("Simmer tomatoes cleanly", plain.serialize(hintedLore.get(3)));
+        String hintMini = mm.serialize(hintedLore.get(3));
+        assertFalse(hintMini.contains("\\<aqua>") || hintMini.contains("\\<gray>"), "Hint escaped MiniMessage tags: " + hintMini);
+        assertTrue(hintMini.contains("<aqua>tomatoes"), "Hint should preserve inner aqua style: " + hintMini);
+
+        List<Component> unknownLore = localizedController.buildUnknownLore(mockPlayer, soupRecipe);
+        assertEquals("Category: Soups & Stews", plain.serialize(unknownLore.getFirst()));
+        assertTrue(mm.serialize(unknownLore.getFirst()).contains("<aqua>Soups & Stews"));
+    }
+
+    @Test
+    @DisplayName("Null messageService and unregistered category keys fall back cleanly without raw tag leakage")
+    void testLoreFallbacksForNullMessageServiceAndUnregisteredCategory() {
+        RecipeCategoryRegistry categoryRegistry = new DefaultRecipeCategoryRegistry();
+        CompendiumMenuController fallbackController = new CompendiumMenuController(
+                menuRegistry, recipeRegistry, discoveryEngine, mockRenderer, itemFactory,
+                null, categoryRegistry, null, null, null, true, 5
+        );
+
+        RecipeDefinition soupRecipe = new RecipeDefinition(
+                Key.of("croppy", "tomato_soup"),
+                "Tomato Soup",
+                RecipeCategory.SOUPS.getKey(),
+                Key.of("croppy", "cooking_pot"),
+                Key.of("croppy", "simmer_soup"),
+                List.of(),
+                Key.of("minecraft", "beetroot_soup"),
+                1,
+                HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        );
+
+        RecipeDefinition customCategoryRecipe = new RecipeDefinition(
+                Key.of("croppy", "mystery_tart"),
+                "Mystery Tart",
+                Key.of("custom", "artisan_tarts"),
+                Key.of("croppy", "oven"),
+                Key.of("croppy", "bake_tart"),
+                List.of(),
+                Key.of("minecraft", "pumpkin_pie"),
+                1,
+                HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        );
+
+        PlainTextComponentSerializer plain = PlainTextComponentSerializer.plainText();
+        MiniMessage mm = MiniMessage.miniMessage();
+
+        // Registered category under null messageService
+        Component discCat = fallbackController.buildDiscoveredLore(mockPlayer, soupRecipe).getFirst();
+        assertEquals("Category: Soups & Stews", plain.serialize(discCat));
+        assertTrue(mm.serialize(discCat).contains("<aqua>Soups & Stews"));
+
+        List<Component> hintedLore = fallbackController.buildHintedLore(mockPlayer, soupRecipe);
+        assertEquals("Category: Soups & Stews", plain.serialize(hintedLore.getFirst()));
+        assertTrue(mm.serialize(hintedLore.getFirst()).contains("<aqua>Soups & Stews"));
+        assertEquals("A culinary mystery waiting to be unraveled...", plain.serialize(hintedLore.get(3)));
+        assertFalse(plain.serialize(hintedLore.get(3)).contains("<gray>"));
+
+        Component unknownCat = fallbackController.buildUnknownLore(mockPlayer, soupRecipe).getFirst();
+        assertEquals("Category: Soups & Stews", plain.serialize(unknownCat));
+        assertTrue(mm.serialize(unknownCat).contains("<aqua>Soups & Stews"));
+
+        // Unregistered category falls back to categoryKey.value()
+        assertEquals("Category: artisan_tarts", plain.serialize(fallbackController.buildDiscoveredLore(mockPlayer, customCategoryRecipe).getFirst()));
+        assertEquals("Category: artisan_tarts", plain.serialize(fallbackController.buildHintedLore(mockPlayer, customCategoryRecipe).getFirst()));
+        assertEquals("Category: artisan_tarts", plain.serialize(fallbackController.buildUnknownLore(mockPlayer, customCategoryRecipe).getFirst()));
+    }
+
+    @Test
+    @DisplayName("openCompendium passes resolved MiniMessage category display name in menu evaluation context")
+    void testOpenCompendiumResolvesCategoryContext() {
+        DefaultMessageCatalog catalog = new DefaultMessageCatalog(LocaleRef.EN_US, LocaleRef.EN_US);
+        catalog.setCatalogs(Map.of(LocaleRef.EN_US, Map.of()));
+        PaperMessageService messageService = new PaperMessageService(catalog, NoOpCroppyLogger.INSTANCE);
+        RecipeCategoryRegistry categoryRegistry = new DefaultRecipeCategoryRegistry();
+
+        final dev.darkblade.croppy.api.expression.EvaluationContext[] capturedContext = new dev.darkblade.croppy.api.expression.EvaluationContext[1];
+        PaperMenuRenderer capturingRenderer = new PaperMenuRenderer(itemFactory) {
+            @Override
+            public Inventory createInventory(PaperMenuHolder holder) {
+                capturedContext[0] = holder.getContext();
+                return mockRenderer.createInventory(holder);
+            }
+        };
+
+        CompendiumMenuController capturingController = new CompendiumMenuController(
+                menuRegistry, recipeRegistry, discoveryEngine, capturingRenderer, itemFactory,
+                messageService, categoryRegistry, null, null, null, true, 5
+        ) {
+            @Override
+            public ItemStack renderRecipeCard(Player player, RecipeDefinition recipe, KnowledgeState state) {
+                try {
+                    return (TestItemStack) UNSAFE.allocateInstance(TestItemStack.class);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+
+        capturingController.openCompendium(mockPlayer, RecipeCategory.SOUPS.getKey(), 1);
+        assertNotNull(capturedContext[0]);
+        assertEquals("<aqua>Soups & Stews", capturedContext[0].getVariable("category").orElse(null));
+        String renderedLine = PaperMenuRenderer.replacePlaceholders("- <gray>Category: <yellow>{category}</yellow></gray>", capturedContext[0]);
+        Component renderedComp = MiniMessage.miniMessage().deserialize(renderedLine);
+        assertEquals("- Category: Soups & Stews", PlainTextComponentSerializer.plainText().serialize(renderedComp));
+        assertTrue(MiniMessage.miniMessage().serialize(renderedComp).contains("<aqua>Soups & Stews"));
     }
 }

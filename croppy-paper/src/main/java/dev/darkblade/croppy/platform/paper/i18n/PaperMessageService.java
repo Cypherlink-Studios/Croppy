@@ -7,6 +7,8 @@ import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.logging.CroppyLogger;
 import dev.darkblade.croppy.api.logging.JulCroppyLogger;
 import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.recipe.RecipeCategory;
+import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.core.i18n.DefaultMessageCatalog;
@@ -279,6 +281,47 @@ public class PaperMessageService {
             return miniMessage.deserialize(template.get());
         }
         return miniMessage.deserialize(recipe.displayName());
+    }
+
+    /**
+     * Resolves the localized display name for a recipe category, falling back to its MiniMessage display name.
+     */
+    public Component resolveCategoryDisplayName(Audience audience, RecipeCategory category) {
+        if (category == null) {
+            return Component.empty();
+        }
+        Optional<Component> override = resolveCategoryOverride(audience, category.key());
+        if (override.isPresent()) {
+            return override.get();
+        }
+        String displayName = category.displayName();
+        return displayName != null && !displayName.isBlank()
+                ? miniMessage.deserialize(displayName)
+                : Component.text(category.key().value());
+    }
+
+    /**
+     * Resolves the localized display name for a recipe category key via registry lookup and locale overrides,
+     * falling back to the plain category key value when unregistered.
+     */
+    public Component resolveCategoryDisplayName(Audience audience, Key categoryKey, RecipeCategoryRegistry categoryRegistry) {
+        if (categoryKey == null) {
+            return Component.empty();
+        }
+        if (categoryRegistry != null) {
+            Optional<RecipeCategory> category = categoryRegistry.get(categoryKey);
+            if (category.isPresent()) {
+                return resolveCategoryDisplayName(audience, category.get());
+            }
+        }
+        return resolveCategoryOverride(audience, categoryKey)
+                .orElseGet(() -> Component.text(categoryKey.value()));
+    }
+
+    private Optional<Component> resolveCategoryOverride(Audience audience, Key categoryKey) {
+        LocaleRef locale = resolveLocale(audience);
+        MessageKey overrideKey = MessageKey.of("content.category." + categoryKey.asString().replace(':', '.') + ".name");
+        return catalog.getTemplate(locale, overrideKey).map(miniMessage::deserialize);
     }
 
     // ---------------------------------------------------------------------------------------------

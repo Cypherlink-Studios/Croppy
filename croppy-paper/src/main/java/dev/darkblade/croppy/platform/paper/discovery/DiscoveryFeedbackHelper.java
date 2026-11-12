@@ -80,13 +80,20 @@ public final class DiscoveryFeedbackHelper implements DiscoveryFeedbackProvider 
             player.spawnParticle(Particle.ENCHANT, loc.clone().add(0, 1.2, 0), 10, 0.3, 0.3, 0.3, 0.05);
         } catch (Throwable ignored) {}
 
+        player.sendMessage(buildHintFeedbackMessage(player, hint));
+    }
+
+    Component buildHintFeedbackMessage(Player player, String hint) {
+        String rawHint = (hint != null && !hint.isBlank()) ? hint : "You noticed something curious...";
+        Component hintComp = miniMessage.deserialize(rawHint);
         if (messageService != null) {
             Component clueTitle = messageService.render(player, "compendium.gui.clue-title");
-            Component clueText = messageService.render(player, "compendium.gui.clue-hint", "hint", (hint != null ? hint : "You noticed something curious..."));
-            player.sendMessage(clueTitle.append(Component.space()).append(clueText));
-        } else {
-            Component msg = miniMessage.deserialize("<aqua><bold>Culinary Clue:</bold></aqua> <gray>" + (hint != null ? hint : "You noticed something curious...") + "</gray>");
-            player.sendMessage(msg);
+            Component clueText = messageService.render(player, "compendium.gui.clue-hint", "hint", hintComp);
+            return clueTitle.append(Component.space()).append(clueText);
         }
+        return miniMessage.deserialize(
+                "<aqua><bold>Culinary Clue:</bold></aqua> <gray><hint></gray>",
+                net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.component("hint", hintComp)
+        );
     }
 }
