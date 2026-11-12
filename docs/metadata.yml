@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.8.1"
+  - version: "0.8.2"
     releaseDate: "2026-11-12"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Fixed physical base block rendering and z-fighting on crafting stations upon player join by listening to Paper's PlayerChunkLoadEvent to mask base blocks with invisible barriers; evaluated and projected nearby station displays immediately upon player login; and queried DefaultStationManager directly in packet rewrite interceptors."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.8.1"
+    releaseDate: "2026-11-12"
+    reference: "v0.8.1"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Fixed MiniMessage tag rendering in Culinary Compendium lore and discovery hint chat feedback by parsing category display names and hint descriptions into Adventure Components; added content.category.<namespace>.<value>.name translation overrides; and localized yield and category lines in recipe detail inspection cards."
     minecraft:
