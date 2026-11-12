@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
-  - version: "0.7.0"
+  - version: "0.8.0"
     releaseDate: "2026-11-11"
     reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added a pure Java 21 domain logging port (CroppyLogger, LogLevel, LogChannel) across croppy-api, croppy-core, and croppy-integrations; introduced PaperCroppyLogger with zero-allocation lazy suppliers, isolated AddonContext JUL bridging, and instrumented hot-path trace diagnostics; added ConsoleLifecycleReporter with configurable RICH/COMPACT console startup, reload, and shutdown summaries; and added /croppy debug <status|toggle|enable|disable|all|off> runtime channel management with reload reset semantics."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
+  - version: "0.7.0"
+    releaseDate: "2026-11-11"
+    reference: "v0.7.0"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Unified line-of-sight crop raytracing (CropTargetResolver) across /croppy inspect, water, fertilize, setstage, and setprogress to target virtual 3D Interaction entity hitboxes, physical blocks, and supporting farmland with solid-block occlusion; routed virtual Interaction entity right-clicks with croppy:inspection_tool directly to read-only inspection cards (even inside protected regions); and refreshed the companion resource pack icon."
     minecraft:
