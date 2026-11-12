@@ -1,6 +1,9 @@
 package dev.darkblade.croppy.core.recipe;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.recipe.HintDefinition;
 import dev.darkblade.croppy.api.recipe.RecipeCategory;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
@@ -15,7 +18,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -179,6 +181,11 @@ public final class YamlRecipeLoader {
      * @return total count of registered recipes
      */
     public int loadAll(Path directory, RecipeRegistry registry, Logger logger) {
+        Objects.requireNonNull(logger, "logger cannot be null");
+        return loadAll(directory, registry, new JulCroppyLogger(logger));
+    }
+
+    public int loadAll(Path directory, RecipeRegistry registry, CroppyLogger logger) {
         Objects.requireNonNull(directory, "directory cannot be null");
         Objects.requireNonNull(registry, "registry cannot be null");
         Objects.requireNonNull(logger, "logger cannot be null");
@@ -198,12 +205,13 @@ public final class YamlRecipeLoader {
                     RecipeDefinition recipe = load(in, file.getFileName().toString());
                     registry.register(recipe);
                     loadedCount++;
+                    logger.debug(LogChannel.LOADER, () -> "Loaded recipe definition: " + recipe.getKey() + " from " + file.getFileName());
                 } catch (Exception e) {
-                    logger.log(Level.SEVERE, "Failed to load recipe YAML definition from: " + file, e);
+                    logger.error(LogChannel.LOADER, "Failed to load recipe YAML definition from: " + file, e);
                 }
             }
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Failed to walk recipe definitions directory: " + directory, e);
+            logger.error(LogChannel.LOADER, "Failed to walk recipe definitions directory: " + directory, e);
         }
 
         return loadedCount;

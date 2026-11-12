@@ -9,6 +9,11 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.LogLevel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.menu.MenuRegistry;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
@@ -22,6 +27,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,7 +36,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 /**
@@ -44,6 +52,7 @@ public class PaperAddonContext implements AddonContext {
     private final Path addonSourcePath;
     private ClassLoader addonClassLoader;
     private final Logger logger;
+    private final CroppyLogger croppyLogger;
     private final Plugin hostPlugin;
     private final CroppyCore core;
     private final ExecutorService managedExecutor;
@@ -66,6 +75,37 @@ public class PaperAddonContext implements AddonContext {
 
     public PaperAddonContext(AddonDescription description,
                              Path dataFolder,
+                             CroppyLogger croppyLogger,
+                             Plugin hostPlugin,
+                             CroppyCore core) {
+        this(description, dataFolder, null, null, croppyLogger, hostPlugin, core);
+    }
+
+    public PaperAddonContext(AddonDescription description,
+                             Path dataFolder,
+                             Path addonSourcePath,
+                             ClassLoader addonClassLoader,
+                             CroppyLogger croppyLogger,
+                             Plugin hostPlugin,
+                             CroppyCore core) {
+        this.description = Objects.requireNonNull(description, "description cannot be null");
+        this.dataFolder = Objects.requireNonNull(dataFolder, "dataFolder cannot be null");
+        this.addonSourcePath = addonSourcePath;
+        this.addonClassLoader = addonClassLoader;
+        CroppyLogger baseLogger = croppyLogger != null ? croppyLogger : NoOpCroppyLogger.INSTANCE;
+        this.croppyLogger = baseLogger.scoped("Addon:" + this.description.id());
+        this.logger = createBridgedJulLogger(this.description.id(), this.croppyLogger);
+        this.hostPlugin = hostPlugin;
+        this.core = core;
+        this.managedExecutor = Executors.newCachedThreadPool(r -> {
+            Thread t = new Thread(r, "CroppyAddon-" + description.id() + "-Worker");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
+    public PaperAddonContext(AddonDescription description,
+                             Path dataFolder,
                              Logger logger,
                              Plugin hostPlugin,
                              CroppyCore core) {
@@ -84,6 +124,7 @@ public class PaperAddonContext implements AddonContext {
         this.addonSourcePath = addonSourcePath;
         this.addonClassLoader = addonClassLoader;
         this.logger = logger != null ? logger : Logger.getLogger("Croppy-" + description.id());
+        this.croppyLogger = new JulCroppyLogger(this.logger);
         this.hostPlugin = hostPlugin;
         this.core = core;
         this.managedExecutor = Executors.newCachedThreadPool(r -> {
@@ -91,6 +132,82 @@ public class PaperAddonContext implements AddonContext {
             t.setDaemon(true);
             return t;
         });
+    }
+
+    private static Logger createBridgedJulLogger(String addonId, CroppyLogger scopedLogger) {
+        Logger bridged = new Logger("Croppy-" + addonId, null) {};
+        bridged.setUseParentHandlers(false);
+        bridged.setLevel(Level.ALL);
+        bridged.addHandler(new CroppyBridgeHandler(scopedLogger));
+        return bridged;
+    }
+
+    private static final class CroppyBridgeHandler extends Handler {
+        private final CroppyLogger target;
+
+        private CroppyBridgeHandler(CroppyLogger target) {
+            this.target = Objects.requireNonNull(target, "target cannot be null");
+            setLevel(Level.ALL);
+        }
+
+        @Override
+        public void publish(LogRecord record) {
+            if (record == null || !isLoggable(record)) {
+                return;
+            }
+            LogLevel level = mapLevel(record.getLevel());
+            String message = formatRecordMessage(record);
+            Throwable thrown = record.getThrown();
+            if (thrown != null) {
+                target.log(level, LogChannel.ADDON, () -> message, thrown);
+            } else {
+                target.log(level, LogChannel.ADDON, () -> message);
+            }
+        }
+
+        @Override
+        public void flush() {
+        }
+
+        @Override
+        public void close() throws SecurityException {
+        }
+
+        private static LogLevel mapLevel(Level julLevel) {
+            if (julLevel == null) {
+                return LogLevel.INFO;
+            }
+            int value = julLevel.intValue();
+            if (value >= Level.SEVERE.intValue()) {
+                return LogLevel.ERROR;
+            }
+            if (value >= Level.WARNING.intValue()) {
+                return LogLevel.WARN;
+            }
+            if (value >= Level.INFO.intValue()) {
+                return LogLevel.INFO;
+            }
+            if (value >= Level.FINE.intValue()) {
+                return LogLevel.DEBUG;
+            }
+            return LogLevel.TRACE;
+        }
+
+        private static String formatRecordMessage(LogRecord record) {
+            String raw = record.getMessage();
+            if (raw == null) {
+                return "";
+            }
+            Object[] params = record.getParameters();
+            if (params == null || params.length == 0) {
+                return raw;
+            }
+            try {
+                return MessageFormat.format(raw, params);
+            } catch (IllegalArgumentException ignored) {
+                return raw;
+            }
+        }
     }
 
     public void setAddonClassLoader(ClassLoader addonClassLoader) {
@@ -105,6 +222,11 @@ public class PaperAddonContext implements AddonContext {
     @Override
     public Logger getLogger() {
         return logger;
+    }
+
+    @Override
+    public CroppyLogger getCroppyLogger() {
+        return croppyLogger;
     }
 
     @Override
@@ -202,10 +324,10 @@ public class PaperAddonContext implements AddonContext {
         if (config == null) {
             Path configFile = dataFolder.resolve("config.yml");
             try {
-                this.config = new PaperAddonConfig(configFile, logger);
+                this.config = new PaperAddonConfig(configFile, croppyLogger);
             } catch (Throwable t) {
                 // Fallback to pure core YamlAddonConfig if Bukkit runtime is absent in tests
-                this.config = new dev.darkblade.croppy.core.addon.YamlAddonConfig(configFile);
+                this.config = new dev.darkblade.croppy.core.addon.YamlAddonConfig(configFile, croppyLogger);
             }
         }
         return config;
@@ -247,7 +369,7 @@ public class PaperAddonContext implements AddonContext {
                         in = new java.io.ByteArrayInputStream(bytes);
                     }
                 } catch (java.io.IOException e) {
-                    logger.log(Level.WARNING, "Failed to read config.yml from JAR " + addonSourcePath, e);
+                    croppyLogger.warn(LogChannel.ADDON, "Failed to read config.yml from JAR " + addonSourcePath, e);
                 }
             } else if (java.nio.file.Files.isDirectory(addonSourcePath) && !addonSourcePath.equals(dataFolder)) {
                 Path src = addonSourcePath.resolve("config.yml");
@@ -256,7 +378,7 @@ public class PaperAddonContext implements AddonContext {
                         byte[] bytes = java.nio.file.Files.readAllBytes(src);
                         in = new java.io.ByteArrayInputStream(bytes);
                     } catch (java.io.IOException e) {
-                        logger.log(Level.WARNING, "Failed to read config.yml from " + src, e);
+                        croppyLogger.warn(LogChannel.ADDON, "Failed to read config.yml from " + src, e);
                     }
                 }
             }
@@ -273,12 +395,13 @@ public class PaperAddonContext implements AddonContext {
                     java.nio.file.Files.createDirectories(targetFile.getParent());
                 }
                 java.nio.file.Files.copy(stream, targetFile);
-                logger.info("Extracted default config.yml for addon '" + description.id() + "' to " + targetFile);
+                croppyLogger.debug(LogChannel.ADDON, () ->
+                        "Extracted default config.yml for addon '" + description.id() + "' to " + targetFile);
                 if (config != null) {
                     config.reload();
                 }
             } catch (java.io.IOException e) {
-                logger.log(Level.SEVERE, "Failed to extract default config.yml for addon '" + description.id() + "'", e);
+                croppyLogger.error(LogChannel.ADDON, "Failed to extract default config.yml for addon '" + description.id() + "'", e);
             }
         }
     }
@@ -409,7 +532,7 @@ public class PaperAddonContext implements AddonContext {
         managedExecutor.shutdownNow();
         try {
             if (!managedExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
-                logger.warning("Managed executor for addon '" + description.id() + "' did not terminate within timeout.");
+                croppyLogger.warn(LogChannel.ADDON, "Managed executor for addon '" + description.id() + "' did not terminate within timeout.");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

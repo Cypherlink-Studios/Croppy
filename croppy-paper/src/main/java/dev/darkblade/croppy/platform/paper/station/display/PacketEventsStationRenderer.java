@@ -11,6 +11,9 @@ import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.station.visual.BillboardMode;
 import dev.darkblade.croppy.api.station.visual.DisplayLayerConfig;
 import dev.darkblade.croppy.api.station.visual.DisplayTransform;
@@ -30,7 +33,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -66,9 +68,13 @@ public class PacketEventsStationRenderer {
     static final int INDEX_INTERACTION_HEIGHT = 9;
     static final int INDEX_INTERACTION_RESPONSE = 10;
 
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     public PacketEventsStationRenderer(Logger logger) {
+        this(new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")));
+    }
+
+    public PacketEventsStationRenderer(CroppyLogger logger) {
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
     }
 
@@ -352,7 +358,7 @@ public class PacketEventsStationRenderer {
         try {
             PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
         } catch (Exception ex) {
-            logger.log(Level.FINE, "Failed to send PacketEvents packet to player " + player.getName(), ex);
+            logger.trace(LogChannel.PACKET, () -> "Failed to send PacketEvents packet to player " + player.getName(), ex);
         }
     }
 

@@ -1,6 +1,7 @@
 package dev.darkblade.croppy.core.i18n;
 
 import dev.darkblade.croppy.api.i18n.LocaleRef;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -71,7 +72,7 @@ class YamlLocaleLoaderTest {
         Files.writeString(enFile, "hello: \"Hello\"\nworld: \"World\"\n");
         Files.writeString(esFile, "hello: \"Hola\"\nworld: \"Mundo\"\n");
 
-        Map<LocaleRef, Map<String, String>> loaded = loader.loadDirectory(tempDir, null);
+        Map<LocaleRef, Map<String, String>> loaded = loader.loadDirectory(tempDir, NoOpCroppyLogger.INSTANCE);
 
         assertEquals(2, loaded.size());
         assertTrue(loaded.containsKey(LocaleRef.EN_US));

@@ -1,5 +1,9 @@
 package dev.darkblade.croppy.platform.paper.resourcepack;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.resourcepack.PackBuildResult;
 import dev.darkblade.croppy.api.resourcepack.ResourcePackCompiler;
 import dev.darkblade.croppy.api.resourcepack.ResourcePackService;
@@ -33,8 +37,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Paper platform implementation of {@link ResourcePackService} that manages asynchronous
@@ -45,7 +47,7 @@ public class PaperResourcePackService implements ResourcePackService, Listener {
     private final CroppyPlugin plugin;
     private final PluginConfig config;
     private final ResourcePackCompiler compiler;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     private final Path exportsDir;
     private final Path outputZipFile;
@@ -56,10 +58,17 @@ public class PaperResourcePackService implements ResourcePackService, Listener {
     private EmbeddedPackHttpServer httpServer;
 
     public PaperResourcePackService(CroppyPlugin plugin, PluginConfig config) {
+        this(plugin, config,
+                Objects.requireNonNull(plugin, "plugin cannot be null").getLogger() != null
+                        ? new JulCroppyLogger(plugin.getLogger())
+                        : NoOpCroppyLogger.INSTANCE);
+    }
+
+    public PaperResourcePackService(CroppyPlugin plugin, PluginConfig config, CroppyLogger logger) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
         this.config = Objects.requireNonNull(config, "config cannot be null");
-        this.compiler = new DefaultResourcePackCompiler();
-        this.logger = plugin.getLogger();
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.compiler = new DefaultResourcePackCompiler(this.logger);
 
         Path dataPath = plugin.getDataFolder().toPath();
         this.exportsDir = dataPath.resolve("exports");
@@ -84,7 +93,7 @@ public class PaperResourcePackService implements ResourcePackService, Listener {
             try {
                 Files.createDirectories(exportsDir);
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Failed to create exports directory: " + e.getMessage(), e);
+                logger.warn(LogChannel.PACK, "Failed to create exports directory: " + e.getMessage(), e);
             }
         }
 
@@ -93,10 +102,10 @@ public class PaperResourcePackService implements ResourcePackService, Listener {
             try {
                 PackBuildResult loaded = computeExistingPackResult(outputZipFile);
                 activePack.set(loaded);
-                logger.info(String.format("Loaded existing companion resource pack (Size: %.2f MB, SHA-1: %s)",
+                logger.debug(LogChannel.PACK, () -> String.format("Loaded existing companion resource pack (Size: %.2f MB, SHA-1: %s)",
                         loaded.sizeBytes() / (1024.0 * 1024.0), loaded.sha1Hex()));
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Failed to inspect existing resource pack archive: " + e.getMessage());
+                logger.warn(LogChannel.PACK, "Failed to inspect existing resource pack archive: " + e.getMessage());
             }
         }
 
@@ -137,7 +146,7 @@ public class PaperResourcePackService implements ResourcePackService, Listener {
                 activePack.set(result);
                 future.complete(result);
             } catch (Throwable t) {
-                logger.log(Level.SEVERE, "Failed to build unified companion resource pack: " + t.getMessage(), t);
+                logger.error(LogChannel.PACK, "Failed to build unified companion resource pack: " + t.getMessage(), t);
                 future.completeExceptionally(t);
             }
         });
@@ -224,7 +233,7 @@ public class PaperResourcePackService implements ResourcePackService, Listener {
                 }
             }
         } catch (IOException e) {
-            logger.log(Level.WARNING, "Error scanning addons directory for assets: " + e.getMessage());
+            logger.warn(LogChannel.PACK, "Error scanning addons directory for assets: " + e.getMessage());
         }
 
         return sources;
@@ -271,11 +280,11 @@ public class PaperResourcePackService implements ResourcePackService, Listener {
         PlayerResourcePackStatusEvent.Status status = event.getStatus();
 
         if (status == PlayerResourcePackStatusEvent.Status.DECLINED) {
-            logger.info(String.format("Player %s declined companion resource pack download.", player.getName()));
+            logger.debug(LogChannel.PACK, () -> String.format("Player %s declined companion resource pack download.", player.getName()));
         } else if (status == PlayerResourcePackStatusEvent.Status.FAILED_DOWNLOAD) {
-            logger.warning(String.format("Player %s failed to download companion resource pack.", player.getName()));
+            logger.warn(LogChannel.PACK, String.format("Player %s failed to download companion resource pack.", player.getName()));
         } else if (status == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
-            logger.fine(String.format("Player %s successfully applied companion resource pack.", player.getName()));
+            logger.debug(LogChannel.PACK, () -> String.format("Player %s successfully applied companion resource pack.", player.getName()));
         }
     }
 }

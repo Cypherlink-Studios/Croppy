@@ -65,7 +65,8 @@ class CraftingRecipeDiscoveryListenerTest {
                 }
         );
 
-        recipeService = new PaperCraftingRecipeService(mockServer, craftingRegistry, itemFactory, choiceResolver, null);
+        recipeService = new PaperCraftingRecipeService(mockServer, craftingRegistry, itemFactory, choiceResolver,
+                dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
 
         // Pre-register one recipe in the service
         CraftingRecipe recipe = CraftingRecipe.shapeless(

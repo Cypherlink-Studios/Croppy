@@ -5,6 +5,10 @@ import com.destroystokyo.paper.profile.ProfileProperty;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.visual.StationModelOverride;
 import net.kyori.adventure.text.Component;
@@ -30,7 +34,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 /**
  * Platform service responsible for constructing and inspecting Bukkit {@link ItemStack}s
@@ -47,20 +50,31 @@ public class ItemFactory {
     private final NamespacedKey itemIdKey;
     private final NamespacedKey categoryKey;
     private final MiniMessage miniMessage;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     public ItemFactory(Plugin plugin, ItemRegistry itemRegistry) {
         this(plugin, (plugin != null ? plugin.getServer() : null), itemRegistry);
     }
 
+    public ItemFactory(Plugin plugin, ItemRegistry itemRegistry, CroppyLogger logger) {
+        this(plugin, (plugin != null ? plugin.getServer() : null), itemRegistry, logger);
+    }
+
     public ItemFactory(Plugin plugin, Server server, ItemRegistry itemRegistry) {
+        this(plugin, server, itemRegistry,
+                (plugin != null && plugin.getLogger() != null)
+                        ? new JulCroppyLogger(plugin.getLogger())
+                        : NoOpCroppyLogger.INSTANCE);
+    }
+
+    public ItemFactory(Plugin plugin, Server server, ItemRegistry itemRegistry, CroppyLogger logger) {
         this.plugin = plugin;
         this.server = server;
         this.itemRegistry = Objects.requireNonNull(itemRegistry, "itemRegistry cannot be null");
         this.itemIdKey = new NamespacedKey("croppy", ITEM_ID_KEY_NAME);
         this.categoryKey = new NamespacedKey("croppy", CATEGORY_KEY_NAME);
         this.miniMessage = MiniMessage.miniMessage();
-        this.logger = (plugin != null) ? plugin.getLogger() : Logger.getLogger(ItemFactory.class.getName());
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     /**
@@ -296,7 +310,7 @@ public class ItemFactory {
             return Optional.ofNullable(createRawVanillaItemStack(mat, amount));
         }
 
-        logger.warning("Unable to resolve item identifier '" + identifier + "' to an ItemRegistry entry or valid Material.");
+        logger.warn(LogChannel.CORE, "Unable to resolve item identifier '" + identifier + "' to an ItemRegistry entry or valid Material.");
         return Optional.empty();
     }
 
@@ -414,7 +428,7 @@ public class ItemFactory {
         }
         Material mat = Material.matchMaterial(normalized);
         if (mat == null) {
-            logger.warning("Unknown material '" + rawMaterial + "' in ItemDefinition, falling back to BARRIER.");
+            logger.warn(LogChannel.CORE, "Unknown material '" + rawMaterial + "' in ItemDefinition, falling back to BARRIER.");
             return Material.BARRIER;
         }
         return mat;

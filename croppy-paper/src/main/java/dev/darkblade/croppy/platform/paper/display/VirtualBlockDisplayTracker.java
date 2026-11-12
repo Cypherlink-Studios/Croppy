@@ -1,5 +1,8 @@
 package dev.darkblade.croppy.platform.paper.display;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.species.Model3DDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
@@ -16,7 +19,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -27,7 +29,7 @@ public class VirtualBlockDisplayTracker {
     private final Server server;
     private final PacketEventsBlockRenderer renderer;
     private final ItemFactory itemFactory;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     private final int viewDistance = 48;
     private final int viewDistanceSq = viewDistance * viewDistance;
@@ -36,6 +38,10 @@ public class VirtualBlockDisplayTracker {
     private final Map<Integer, BlockPosition> interactionEntityLookup = new ConcurrentHashMap<>();
 
     public VirtualBlockDisplayTracker(Server server, PacketEventsBlockRenderer renderer, ItemFactory itemFactory, Logger logger) {
+        this(server, renderer, itemFactory, new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")));
+    }
+
+    public VirtualBlockDisplayTracker(Server server, PacketEventsBlockRenderer renderer, ItemFactory itemFactory, CroppyLogger logger) {
         this.server = Objects.requireNonNull(server, "server cannot be null");
         this.renderer = Objects.requireNonNull(renderer, "renderer cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
@@ -116,7 +122,7 @@ public class VirtualBlockDisplayTracker {
                     renderer.spawnBlockDisplay(player, display, item);
                     display.addViewer(playerId);
                 } catch (Exception e) {
-                    logger.log(Level.WARNING, "Failed to spawn virtual block display for player " + player.getName(), e);
+                    logger.warn(LogChannel.DISPLAY, "Failed to spawn virtual block display for player " + player.getName(), e);
                 }
             } else if (inRange && viewing) {
                 renderer.updateBlockDisplay(player, display, item, true);
@@ -190,7 +196,7 @@ public class VirtualBlockDisplayTracker {
                         renderer.spawnBlockDisplay(player, display, item);
                         display.addViewer(playerId);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to spawn virtual block display for player " + player.getName(), e);
+                        logger.warn(LogChannel.DISPLAY, "Failed to spawn virtual block display for player " + player.getName(), e);
                     }
                 } else if (!inRange && viewing) {
                     display.removeViewer(playerId);

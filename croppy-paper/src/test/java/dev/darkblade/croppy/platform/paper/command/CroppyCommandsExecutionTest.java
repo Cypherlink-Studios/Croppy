@@ -6,7 +6,10 @@ import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry;
 import dev.darkblade.croppy.core.item.DefaultItemRegistry;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.LogLevel;
 import dev.darkblade.croppy.platform.paper.config.PluginConfig;
+import dev.darkblade.croppy.platform.paper.logging.PaperCroppyLogger;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -417,5 +420,104 @@ class CroppyCommandsExecutionTest {
 
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy update apply").join());
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("plugins/update/Croppy.jar") || m.contains("Staged") || m.contains("staged")));
+    }
+
+    @Test
+    @DisplayName("Verify /croppy debug subcommands execute via Cloud 2.0 and keep debug output console-only")
+    void testDebugCommandsExecution() {
+        CropInspectorService inspector = new CropInspectorService(
+                new CropManager(),
+                new DefaultSpeciesRegistry(),
+                pos -> null
+        );
+
+        CroppyCommands commands = new CroppyCommands(
+                null,
+                inspector,
+                new PluginConfig(),
+                null,
+                null,
+                new DefaultFertilizerRegistry(),
+                null,
+                new DefaultItemRegistry()
+        );
+
+        List<String> consoleLogs = new ArrayList<>();
+        PaperCroppyLogger paperLogger = new PaperCroppyLogger((level, message, throwable) ->
+                consoleLogs.add(level.name() + " " + PlainTextComponentSerializer.plainText().serialize(message))
+        );
+        paperLogger.applyConfig(LogLevel.INFO, java.util.Set.of());
+        commands.setCroppyLogger(paperLogger);
+
+        CommandManager<Source> commandManager = new CommandManager<>(
+                ExecutionCoordinator.simpleCoordinator(),
+                CommandRegistrationHandler.nullCommandRegistrationHandler()
+        ) {
+            @Override
+            public boolean hasPermission(Source sender, String permission) {
+                return true;
+            }
+        };
+
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(org.bukkit.entity.Player.class),
+                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success((org.bukkit.entity.Player) null)
+        );
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(Key.class),
+                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+
+        AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);
+        parser.parse(commands);
+
+        List<String> receivedMessages = new ArrayList<>();
+        CommandSender mockSender = (CommandSender) Proxy.newProxyInstance(
+                CommandSender.class.getClassLoader(),
+                new Class<?>[]{CommandSender.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("sendMessage") && args != null && args.length > 0) {
+                        if (args[0] instanceof Component component) {
+                            receivedMessages.add(PlainTextComponentSerializer.plainText().serialize(component));
+                        } else if (args[0] != null) {
+                            receivedMessages.add(args[0].toString());
+                        }
+                    }
+                    return null;
+                }
+        );
+
+        Source mockSource = (Source) Proxy.newProxyInstance(
+                Source.class.getClassLoader(),
+                new Class<?>[]{Source.class},
+                (proxy, method, args) -> method.getName().equals("source") ? mockSender : null
+        );
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy debug enable packet").join());
+        assertTrue(paperLogger.getDebugChannels().contains(LogChannel.PACKET));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("packet")));
+
+        paperLogger.debug(LogChannel.PACKET, () -> "PACKET_CONSOLE_ONLY_PAYLOAD");
+        assertTrue(consoleLogs.stream().anyMatch(m -> m.contains("PACKET_CONSOLE_ONLY_PAYLOAD")));
+        assertTrue(receivedMessages.stream().noneMatch(m -> m.contains("PACKET_CONSOLE_ONLY_PAYLOAD")));
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy debug disable packet").join());
+        assertTrue(paperLogger.getDebugChannels().isEmpty());
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy debug toggle station").join());
+        assertTrue(paperLogger.getDebugChannels().contains(LogChannel.STATION));
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy debug status").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("INFO") && m.contains("RICH")));
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy debug all").join());
+        assertTrue(paperLogger.getDebugChannels().containsAll(List.of(LogChannel.values())));
+
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy debug off").join());
+        assertTrue(paperLogger.getDebugChannels().isEmpty());
+
+        receivedMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy debug toggle nope").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("nope") && m.contains("packet")));
     }
 }

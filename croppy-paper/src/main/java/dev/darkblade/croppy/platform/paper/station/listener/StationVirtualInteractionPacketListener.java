@@ -9,6 +9,9 @@ import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockChange;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMultiBlockChange;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
@@ -34,8 +37,34 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
     private final StationViewerTracker viewerTracker;
     private final StationBlockListener blockListener;
     private final StationInteractListener interactListener;
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+
+    public StationVirtualInteractionPacketListener(
+            Plugin plugin,
+            StationViewerTracker viewerTracker,
+            StationBlockListener blockListener,
+            StationInteractListener interactListener,
+            CroppyLogger logger,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
+    ) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.viewerTracker = Objects.requireNonNull(viewerTracker, "viewerTracker cannot be null");
+        this.blockListener = Objects.requireNonNull(blockListener, "blockListener cannot be null");
+        this.interactListener = Objects.requireNonNull(interactListener, "interactListener cannot be null");
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this.protectionPort = protectionPort;
+    }
+
+    public StationVirtualInteractionPacketListener(
+            Plugin plugin,
+            StationViewerTracker viewerTracker,
+            StationBlockListener blockListener,
+            StationInteractListener interactListener,
+            CroppyLogger logger
+    ) {
+        this(plugin, viewerTracker, blockListener, interactListener, logger, null);
+    }
 
     public StationVirtualInteractionPacketListener(
             Plugin plugin,
@@ -45,12 +74,14 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
             Logger logger,
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.viewerTracker = Objects.requireNonNull(viewerTracker, "viewerTracker cannot be null");
-        this.blockListener = Objects.requireNonNull(blockListener, "blockListener cannot be null");
-        this.interactListener = Objects.requireNonNull(interactListener, "interactListener cannot be null");
-        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
-        this.protectionPort = protectionPort;
+        this(
+                plugin,
+                viewerTracker,
+                blockListener,
+                interactListener,
+                new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")),
+                protectionPort
+        );
     }
 
     public StationVirtualInteractionPacketListener(
@@ -135,7 +166,7 @@ public class StationVirtualInteractionPacketListener extends PacketListenerAbstr
                 handleMultiBlockChange(event);
             }
         } catch (Exception ex) {
-            logger.log(java.util.logging.Level.FINE, "Error rewriting block change packet for station", ex);
+            logger.trace(LogChannel.PACKET, () -> "Error rewriting block change packet for station", ex);
         }
     }
 

@@ -1,6 +1,9 @@
 package dev.darkblade.croppy.platform.paper.station.listener;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StationRegistry;
@@ -48,6 +51,7 @@ public final class StationBlockListener implements Listener {
     private final ItemFactory itemFactory;
     private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+    private final CroppyLogger logger;
 
     public StationBlockListener(
             DefaultStationManager stationManager,
@@ -57,12 +61,26 @@ public final class StationBlockListener implements Listener {
             dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
     ) {
+        this(stationManager, stationRegistry, stationStorage, itemFactory, viewerTracker, protectionPort,
+                NoOpCroppyLogger.INSTANCE);
+    }
+
+    public StationBlockListener(
+            DefaultStationManager stationManager,
+            StationRegistry stationRegistry,
+            StationStorage stationStorage,
+            ItemFactory itemFactory,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
+            CroppyLogger logger
+    ) {
         this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
         this.stationRegistry = Objects.requireNonNull(stationRegistry, "stationRegistry cannot be null");
         this.stationStorage = Objects.requireNonNull(stationStorage, "stationStorage cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.viewerTracker = viewerTracker;
         this.protectionPort = protectionPort;
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     public StationBlockListener(
@@ -155,7 +173,10 @@ public final class StationBlockListener implements Listener {
         if (hideBaseBlock) {
             try {
                 event.getPlayer().sendBlockChange(block.getLocation(), org.bukkit.Material.BARRIER.createBlockData());
-            } catch (Exception ignored) {}
+            } catch (Exception ex) {
+                logger.trace(LogChannel.STATION, () -> "Failed to send hidden station barrier block change to "
+                        + event.getPlayer().getName(), ex);
+            }
         }
     }
 
@@ -197,7 +218,10 @@ public final class StationBlockListener implements Listener {
         World world = null;
         try {
             world = (org.bukkit.Bukkit.getServer() != null) ? org.bukkit.Bukkit.getWorld(pos.worldName()) : null;
-        } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            logger.trace(LogChannel.STATION,
+                    () -> "Unable to resolve world '" + pos.worldName() + "' during station break", ex);
+        }
         if (world == null) {
             return;
         }

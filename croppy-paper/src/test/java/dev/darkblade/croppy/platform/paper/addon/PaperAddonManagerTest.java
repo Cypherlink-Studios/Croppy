@@ -217,7 +217,7 @@ class PaperAddonManagerTest {
             Path coffeeResources = coffeeResourcesOpt.get();
             dev.darkblade.croppy.core.menu.YamlMenuLoader loader = new dev.darkblade.croppy.core.menu.YamlMenuLoader();
             dev.darkblade.croppy.core.menu.DefaultMenuRegistry registry = new dev.darkblade.croppy.core.menu.DefaultMenuRegistry();
-            int loaded = loader.loadAll(coffeeResources, registry, null);
+            int loaded = loader.loadAll(coffeeResources, registry, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
             assertEquals(3, loaded);
             assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_grinder")));
             assertTrue(registry.contains(Key.of("croppy_coffee", "coffee_roaster")));
@@ -247,7 +247,7 @@ class PaperAddonManagerTest {
             Path coffeeInteractions = coffeeInteractionsOpt.get();
             dev.darkblade.croppy.core.interaction.YamlInteractionLoader loader = new dev.darkblade.croppy.core.interaction.YamlInteractionLoader();
             dev.darkblade.croppy.core.interaction.DefaultInteractionRegistry registry = new dev.darkblade.croppy.core.interaction.DefaultInteractionRegistry();
-            int loaded = loader.loadAll(coffeeInteractions, registry, null);
+            int loaded = loader.loadAll(coffeeInteractions, registry, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
             assertTrue(loaded >= 15, "Expected at least 15 interactions, got: " + loaded);
 
             // Grinder interactions

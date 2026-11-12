@@ -3,6 +3,10 @@ package dev.darkblade.croppy.core.item;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -18,7 +22,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -28,10 +31,16 @@ import java.util.stream.Stream;
 public class YamlItemLoader {
 
     private final Yaml yaml;
+    private final CroppyLogger defaultLogger;
 
     public YamlItemLoader() {
+        this(NoOpCroppyLogger.INSTANCE);
+    }
+
+    public YamlItemLoader(CroppyLogger defaultLogger) {
         LoaderOptions options = new LoaderOptions();
         this.yaml = new Yaml(new SafeConstructor(options));
+        this.defaultLogger = defaultLogger != null ? defaultLogger : NoOpCroppyLogger.INSTANCE;
     }
 
     /**
@@ -43,8 +52,13 @@ public class YamlItemLoader {
      * @return the parsed ItemDefinition
      * @throws IllegalArgumentException if the configuration is invalid
      */
-    @SuppressWarnings("unchecked")
     public ItemDefinition load(InputStream in, String defaultCategory, String sourceName) {
+        return load(in, defaultCategory, sourceName, defaultLogger);
+    }
+
+    @SuppressWarnings("unchecked")
+    public ItemDefinition load(InputStream in, String defaultCategory, String sourceName, CroppyLogger logger) {
+        CroppyLogger log = logger != null ? logger : defaultLogger;
         Objects.requireNonNull(in, "Input stream cannot be null");
         Object loaded = yaml.load(in);
         if (!(loaded instanceof Map<?, ?> rawMap)) {
@@ -102,8 +116,8 @@ public class YamlItemLoader {
             try {
                 itemModel = trimmedModel.contains(":") ? Key.parse(trimmedModel) : Key.of("croppy", trimmedModel);
             } catch (Exception e) {
-                Logger.getLogger(YamlItemLoader.class.getName())
-                        .warning("Invalid item-model key '" + trimmedModel + "' in " + sourceName + ": " + e.getMessage());
+                log.warn(LogChannel.LOADER,
+                        "Invalid item-model key '" + trimmedModel + "' in " + sourceName + ": " + e.getMessage());
             }
         }
 
@@ -169,8 +183,12 @@ public class YamlItemLoader {
      * Loads an ItemDefinition from a file on disk.
      */
     public ItemDefinition load(Path filePath, String defaultCategory) throws IOException {
+        return load(filePath, defaultCategory, defaultLogger);
+    }
+
+    public ItemDefinition load(Path filePath, String defaultCategory, CroppyLogger logger) throws IOException {
         try (InputStream in = Files.newInputStream(filePath)) {
-            return load(in, defaultCategory, filePath.getFileName().toString());
+            return load(in, defaultCategory, filePath.getFileName().toString(), logger);
         }
     }
 
@@ -178,6 +196,11 @@ public class YamlItemLoader {
      * Loads all YAML item definitions in a directory for a specific category.
      */
     public int loadDirectory(Path dir, String category, Logger logger, ItemRegistry registry) {
+        return loadDirectory(dir, category, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE, registry);
+    }
+
+    public int loadDirectory(Path dir, String category, CroppyLogger logger, ItemRegistry registry) {
+        CroppyLogger log = logger != null ? logger : defaultLogger;
         if (!Files.exists(dir) || !Files.isDirectory(dir)) {
             return 0;
         }
@@ -190,15 +213,16 @@ public class YamlItemLoader {
 
             for (Path file : files) {
                 try {
-                    ItemDefinition def = load(file, category);
+                    ItemDefinition def = load(file, category, log);
                     registry.register(def);
                     count++;
+                    log.debug(LogChannel.LOADER, () -> "Loaded item: " + def.getKey() + " from " + file.getFileName());
                 } catch (Exception e) {
-                    logger.log(Level.SEVERE, "Failed to load item from " + file.getFileName() + ": " + e.getMessage(), e);
+                    log.error(LogChannel.LOADER, "Failed to load item from " + file.getFileName() + ": " + e.getMessage(), e);
                 }
             }
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Failed to read item directory: " + dir, e);
+            log.error(LogChannel.LOADER, "Failed to read item directory: " + dir, e);
         }
         return count;
     }
@@ -207,6 +231,14 @@ public class YamlItemLoader {
      * Scans the root items directory, treating each sub-folder as a category.
      */
     public int loadAllCategories(Path itemsRootDir, Logger logger, ItemRegistry registry) {
+        return loadAllCategories(itemsRootDir, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE, registry);
+    }
+
+    /**
+     * Scans the root items directory, treating each sub-folder as a category.
+     */
+    public int loadAllCategories(Path itemsRootDir, CroppyLogger logger, ItemRegistry registry) {
+        CroppyLogger log = logger != null ? logger : defaultLogger;
         if (!Files.exists(itemsRootDir) || !Files.isDirectory(itemsRootDir)) {
             return 0;
         }
@@ -219,12 +251,12 @@ public class YamlItemLoader {
 
             for (Path subDir : subDirs) {
                 String category = subDir.getFileName().toString();
-                int loaded = loadDirectory(subDir, category, logger, registry);
+                int loaded = loadDirectory(subDir, category, log, registry);
                 totalLoaded += loaded;
-                logger.info("Loaded " + loaded + " items from category '" + category + "'.");
+                log.debug(LogChannel.LOADER, () -> "Loaded " + loaded + " items from category '" + category + "'.");
             }
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Failed to scan items directory: " + itemsRootDir, e);
+            log.error(LogChannel.LOADER, "Failed to scan items directory: " + itemsRootDir, e);
         }
         return totalLoaded;
     }

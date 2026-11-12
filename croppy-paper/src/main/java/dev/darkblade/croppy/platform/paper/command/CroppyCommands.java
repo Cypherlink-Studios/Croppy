@@ -8,6 +8,10 @@ import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
 import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.LogLevel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.item.ItemCategory;
 import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
 import dev.darkblade.croppy.api.item.ItemDefinition;
@@ -26,6 +30,8 @@ import dev.darkblade.croppy.platform.paper.config.PluginConfig;
 import dev.darkblade.croppy.platform.paper.fertilizer.FertilizerService;
 import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
+import dev.darkblade.croppy.platform.paper.logging.LogStyle;
+import dev.darkblade.croppy.platform.paper.logging.PaperCroppyLogger;
 import dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController;
 import dev.darkblade.croppy.platform.paper.menu.ItemCatalogController;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
@@ -58,11 +64,14 @@ import org.incendo.cloud.context.CommandInput;
 import org.incendo.cloud.paper.util.sender.Source;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Cloud 2.0 command controller handling all /croppy administrative subcommands.
@@ -94,6 +103,23 @@ public class CroppyCommands {
     private CropTargetResolver targetResolver;
     private SpeciesRegistry speciesRegistry;
     private DisplaySynchronizer displaySynchronizer;
+    private PaperCroppyLogger croppyLogger;
+
+    public void setCroppyLogger(PaperCroppyLogger croppyLogger) {
+        this.croppyLogger = croppyLogger;
+    }
+
+    private PaperCroppyLogger resolvePaperLogger() {
+        if (this.croppyLogger != null) {
+            return this.croppyLogger;
+        }
+        return this.plugin != null ? this.plugin.getCroppyLogger() : null;
+    }
+
+    private CroppyLogger resolveLogger() {
+        PaperCroppyLogger resolved = resolvePaperLogger();
+        return resolved != null ? resolved : NoOpCroppyLogger.INSTANCE;
+    }
 
     public void setTargetResolver(CropTargetResolver targetResolver) {
         this.targetResolver = targetResolver;
@@ -114,7 +140,8 @@ public class CroppyCommands {
         if (plugin != null && plugin.getCore() != null) {
             this.targetResolver = new CropTargetResolver(
                     plugin.getCore().getCropManager(),
-                    plugin.getVirtualBlockDisplayTracker()
+                    plugin.getVirtualBlockDisplayTracker(),
+                    plugin.getCroppyLogger()
             );
             return this.targetResolver;
         }
@@ -200,7 +227,7 @@ public class CroppyCommands {
                     }
                 }
             } catch (Exception ignored) {}
-            this.messageService = new PaperMessageService(catalog, null);
+            this.messageService = new PaperMessageService(catalog, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
         }
         this.miniMessage = MiniMessage.miniMessage();
     }
@@ -625,7 +652,7 @@ public class CroppyCommands {
             sendPrefixed(sender, MessageKey.of("general.reload-success"));
         } catch (Exception e) {
             sendPrefixed(sender, MessageKey.of("general.reload-failed"), "error", e.getMessage() != null ? e.getMessage() : "Unknown error");
-            plugin.getLogger().severe("Failed to reload Croppy: " + e.getMessage());
+            resolveLogger().error(LogChannel.CORE, "Failed to reload Croppy", e);
         }
     }
 
@@ -1284,5 +1311,147 @@ public class CroppyCommands {
             sendPrefixed(sender, MessageKey.of("command.update.failed"), "error", errorMsg);
             return null;
         });
+    }
+
+    @Suggestions("log_channels")
+    public List<String> suggestLogChannels(CommandContext<Source> context, CommandInput input) {
+        return Arrays.stream(LogChannel.values())
+                .map(LogChannel::id)
+                .toList();
+    }
+
+    @Command("croppy debug status")
+    @Permission("croppy.admin")
+    public void debugStatus(Source source) {
+        CommandSender sender = source.source();
+        PaperCroppyLogger logger = requirePaperLogger(sender);
+        if (logger == null) {
+            return;
+        }
+        LogLevel level = logger.getMinimumLevel();
+        LogStyle style = pluginConfig != null ? pluginConfig.getLoggingStyle() : LogStyle.RICH;
+        Set<LogChannel> active = logger.getDebugChannels();
+
+        sendRaw(sender, MessageKey.of("command.debug.status-header"));
+        sendRaw(sender, MessageKey.of("command.debug.status-config"),
+                "level", level.name(),
+                "style", style.name());
+        sendRaw(sender, MessageKey.of("command.debug.status-channels-header"));
+        for (LogChannel channel : LogChannel.values()) {
+            boolean enabled = active.contains(channel);
+            sendRaw(sender,
+                    MessageKey.of(enabled ? "command.debug.channel-entry-on" : "command.debug.channel-entry-off"),
+                    "channel", channel.id());
+        }
+    }
+
+    @Command("croppy debug toggle <channel>")
+    @Permission("croppy.admin")
+    public void debugToggle(
+            Source source,
+            @Argument(value = "channel", suggestions = "log_channels") String channelInput
+    ) {
+        CommandSender sender = source.source();
+        PaperCroppyLogger logger = requirePaperLogger(sender);
+        LogChannel channel = logger != null ? parseDebugChannel(sender, channelInput) : null;
+        if (logger == null || channel == null) {
+            return;
+        }
+        boolean nowEnabled = logger.toggleDebugChannel(channel);
+        emitChannelChange(sender, logger, channel, nowEnabled ? "enabled" : "disabled", true);
+    }
+
+    @Command("croppy debug enable <channel>")
+    @Permission("croppy.admin")
+    public void debugEnable(
+            Source source,
+            @Argument(value = "channel", suggestions = "log_channels") String channelInput
+    ) {
+        CommandSender sender = source.source();
+        PaperCroppyLogger logger = requirePaperLogger(sender);
+        LogChannel channel = logger != null ? parseDebugChannel(sender, channelInput) : null;
+        if (logger == null || channel == null) {
+            return;
+        }
+        boolean changed = logger.enableDebugChannel(channel);
+        emitChannelChange(sender, logger, channel, changed ? "enabled" : "already-enabled", changed);
+    }
+
+    @Command("croppy debug disable <channel>")
+    @Permission("croppy.admin")
+    public void debugDisable(
+            Source source,
+            @Argument(value = "channel", suggestions = "log_channels") String channelInput
+    ) {
+        CommandSender sender = source.source();
+        PaperCroppyLogger logger = requirePaperLogger(sender);
+        LogChannel channel = logger != null ? parseDebugChannel(sender, channelInput) : null;
+        if (logger == null || channel == null) {
+            return;
+        }
+        boolean changed = logger.disableDebugChannel(channel);
+        emitChannelChange(sender, logger, channel, changed ? "disabled" : "already-disabled", changed);
+    }
+
+    @Command("croppy debug all")
+    @Permission("croppy.admin")
+    public void debugAll(Source source) {
+        CommandSender sender = source.source();
+        PaperCroppyLogger logger = requirePaperLogger(sender);
+        if (logger == null) {
+            return;
+        }
+        logger.enableAllDebugChannels();
+        logger.info(LogChannel.COMMAND, "Enabled console debug logging across all channels.");
+        sendPrefixed(sender, MessageKey.of("command.debug.all-enabled"), "count", LogChannel.values().length);
+    }
+
+    @Command("croppy debug off")
+    @Permission("croppy.admin")
+    public void debugOff(Source source) {
+        CommandSender sender = source.source();
+        PaperCroppyLogger logger = requirePaperLogger(sender);
+        if (logger == null) {
+            return;
+        }
+        logger.disableAllDebugChannels();
+        logger.info(LogChannel.COMMAND, "Cleared all runtime debug channel overrides.");
+        sendPrefixed(sender, MessageKey.of("command.debug.all-disabled"));
+    }
+
+    private PaperCroppyLogger requirePaperLogger(CommandSender sender) {
+        PaperCroppyLogger logger = resolvePaperLogger();
+        if (logger == null) {
+            sendPrefixed(sender, MessageKey.of("command.debug.unavailable"));
+        }
+        return logger;
+    }
+
+    private LogChannel parseDebugChannel(CommandSender sender, String channelInput) {
+        Optional<LogChannel> channelOpt = LogChannel.fromString(channelInput);
+        if (channelOpt.isPresent()) {
+            return channelOpt.get();
+        }
+        String validChannels = Arrays.stream(LogChannel.values())
+                .map(LogChannel::id)
+                .collect(Collectors.joining(", "));
+        sendPrefixed(sender, MessageKey.of("command.debug.invalid-channel"),
+                "channel", channelInput != null ? channelInput : "",
+                "valid", validChannels);
+        return null;
+    }
+
+    private void emitChannelChange(
+            CommandSender sender,
+            PaperCroppyLogger logger,
+            LogChannel channel,
+            String messageSuffix,
+            boolean changed
+    ) {
+        if (changed) {
+            logger.info(LogChannel.COMMAND,
+                    "Console debug channel '" + channel.id() + "' -> " + messageSuffix + ".");
+        }
+        sendPrefixed(sender, MessageKey.of("command.debug." + messageSuffix), "channel", channel.id());
     }
 }

@@ -4,6 +4,10 @@ import dev.darkblade.croppy.api.fertilizer.Fertilizer;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.fertilizer.FertilizerType;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -17,7 +21,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -120,8 +123,16 @@ public class YamlFertilizerLoader {
      * Loads all .yml and .yaml files in the specified directory into the target registry.
      */
     public int loadDirectory(Path dir, Logger logger, FertilizerRegistry registry) {
+        return loadDirectory(dir, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE, registry);
+    }
+
+    /**
+     * Loads all .yml and .yaml files in the specified directory into the target registry.
+     */
+    public int loadDirectory(Path dir, CroppyLogger logger, FertilizerRegistry registry) {
         Objects.requireNonNull(dir, "Directory path cannot be null");
         Objects.requireNonNull(registry, "Registry cannot be null");
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
 
         if (!Files.exists(dir) || !Files.isDirectory(dir)) {
             return 0;
@@ -139,19 +150,13 @@ public class YamlFertilizerLoader {
                     Fertilizer fertilizer = load(in, path.getFileName().toString());
                     registry.register(fertilizer);
                     loadedCount++;
-                    if (logger != null) {
-                        logger.info("Loaded fertilizer: " + fertilizer.getKey().asString());
-                    }
+                    log.debug(LogChannel.LOADER, () -> "Loaded fertilizer: " + fertilizer.getKey().asString());
                 } catch (Exception e) {
-                    if (logger != null) {
-                        logger.log(Level.SEVERE, "Failed to load fertilizer from " + path.getFileName(), e);
-                    }
+                    log.error(LogChannel.LOADER, "Failed to load fertilizer from " + path.getFileName(), e);
                 }
             }
         } catch (IOException e) {
-            if (logger != null) {
-                logger.log(Level.SEVERE, "Failed to scan fertilizer directory: " + dir, e);
-            }
+            log.error(LogChannel.LOADER, "Failed to scan fertilizer directory: " + dir, e);
         }
 
         return loadedCount;

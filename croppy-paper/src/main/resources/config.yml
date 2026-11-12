@@ -116,3 +116,15 @@ crafting:
   # Automatically unlocks all registered Croppy crafting recipes in player recipe books upon join
   auto-discover-recipes: true
 
+# ==============================================================================
+# Logging & Console Diagnostics
+# ==============================================================================
+logging:
+  # Minimum console severity level: TRACE, DEBUG, INFO, WARN, ERROR
+  level: "INFO"
+  # Lifecycle console presentation style: RICH (framed banner & phase table) or COMPACT (single-line)
+  style: "RICH"
+  # Optional subsystem channels promoted to DEBUG verbosity even when logging.level is INFO
+  # Valid channels: core, loader, growth, station, display, packet, storage, addon, pack, integration, update, i18n, command
+  debug-channels: []
+

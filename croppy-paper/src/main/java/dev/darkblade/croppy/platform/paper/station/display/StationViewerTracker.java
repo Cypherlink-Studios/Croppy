@@ -2,6 +2,9 @@ package dev.darkblade.croppy.platform.paper.station.display;
 
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.process.PhaseDefinition;
 import dev.darkblade.croppy.api.process.ProcessDefinition;
 import dev.darkblade.croppy.api.process.ProcessInstance;
@@ -54,17 +57,25 @@ public class StationViewerTracker {
     private final PacketEventsStationRenderer renderer;
     private final ItemFactory itemFactory;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final ProcessRegistry processRegistry;
 
     private final Map<BlockPosition, PacketStationDisplay> activeDisplays = new ConcurrentHashMap<>();
 
-    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger, ProcessRegistry processRegistry) {
+    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, CroppyLogger logger, ProcessRegistry processRegistry) {
         this.server = Objects.requireNonNull(server, "server cannot be null");
         this.renderer = Objects.requireNonNull(renderer, "renderer cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
         this.processRegistry = processRegistry;
+    }
+
+    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, CroppyLogger logger) {
+        this(server, renderer, itemFactory, logger, null);
+    }
+
+    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger, ProcessRegistry processRegistry) {
+        this(server, renderer, itemFactory, new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")), processRegistry);
     }
 
     public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger) {
@@ -506,7 +517,8 @@ public class StationViewerTracker {
         if (blockState == null || blockState.isBlank()) return null;
         try {
             return Bukkit.createBlockData(blockState);
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            logger.trace(LogChannel.DISPLAY, () -> "Invalid station display block state '" + blockState + "'", ex);
             return null;
         }
     }
@@ -517,7 +529,8 @@ public class StationViewerTracker {
         } catch (Exception ex) {
             try {
                 return Bukkit.createBlockData(Material.BARRIER);
-            } catch (Exception ignored) {
+            } catch (Exception fallbackEx) {
+                logger.trace(LogChannel.DISPLAY, () -> "Failed to resolve BARRIER block data", fallbackEx);
                 return null;
             }
         }

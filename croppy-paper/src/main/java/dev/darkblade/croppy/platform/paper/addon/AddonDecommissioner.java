@@ -3,6 +3,10 @@ package dev.darkblade.croppy.platform.paper.addon;
 import dev.darkblade.croppy.api.addon.CroppyAddon;
 import dev.darkblade.croppy.api.growth.GrowthModifier;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.core.CroppyCore;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
@@ -10,7 +14,6 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.IOException;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -34,10 +37,10 @@ public final class AddonDecommissioner {
                                     PaperAddonContext context,
                                     AddonClassLoader classLoader,
                                     CroppyCore core,
-                                    Logger logger,
+                                    CroppyLogger logger,
                                     boolean isUnload) {
         Objects.requireNonNull(context, "context cannot be null");
-        Logger log = logger != null ? logger : Logger.getLogger(AddonDecommissioner.class.getName());
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         String id = context.getDescription().id();
 
         // Phase 1: Notification
@@ -45,7 +48,7 @@ public final class AddonDecommissioner {
             try {
                 addonInstance.onDisable(context);
             } catch (Throwable t) {
-                log.log(Level.SEVERE, "Exception thrown during onDisable for addon '" + id + "'", t);
+                log.error(LogChannel.ADDON, "Exception thrown during onDisable for addon '" + id + "'", t);
             }
         }
 
@@ -54,7 +57,7 @@ public final class AddonDecommissioner {
             try {
                 HandlerList.unregisterAll(listener);
             } catch (Throwable t) {
-                log.log(Level.WARNING, "Failed to unregister listener for addon '" + id + "'", t);
+                log.warn(LogChannel.ADDON, "Failed to unregister listener for addon '" + id + "'", t);
             }
         }
 
@@ -125,8 +128,27 @@ public final class AddonDecommissioner {
             try {
                 classLoader.close();
             } catch (IOException e) {
-                log.log(Level.WARNING, "Error closing class loader for addon '" + id + "'", e);
+                log.warn(LogChannel.ADDON, "Error closing class loader for addon '" + id + "'", e);
             }
         }
+    }
+
+    /**
+     * Backwards-compatible overload accepting a JUL {@link Logger}.
+     */
+    public static void decommission(CroppyAddon addonInstance,
+                                    PaperAddonContext context,
+                                    AddonClassLoader classLoader,
+                                    CroppyCore core,
+                                    Logger logger,
+                                    boolean isUnload) {
+        decommission(
+                addonInstance,
+                context,
+                classLoader,
+                core,
+                logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE,
+                isUnload
+        );
     }
 }

@@ -58,20 +58,32 @@ import org.incendo.cloud.paper.PaperCommandManager;
 import org.incendo.cloud.paper.util.sender.PaperSimpleSenderMapper;
 import org.incendo.cloud.paper.util.sender.Source;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.platform.paper.logging.ConsoleLifecycleReporter;
+import dev.darkblade.croppy.platform.paper.logging.ConsoleLifecycleReporter.PhaseStatus;
+import dev.darkblade.croppy.platform.paper.logging.LogStyle;
+import dev.darkblade.croppy.platform.paper.logging.PaperCroppyLogger;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.logging.Level;
 
 /**
  * Main Paper plugin adapter bridging server lifecycle events to the decoupled
  * core.
  */
 public class CroppyPlugin extends JavaPlugin {
+
+    private static final int TOTAL_STARTUP_PHASES = 7;
+
+    private PaperCroppyLogger croppyLogger;
+    private ConsoleLifecycleReporter lifecycleReporter;
 
     private CroppyCore core;
     private CropStorage storage;
@@ -148,17 +160,97 @@ public class CroppyPlugin extends JavaPlugin {
         return updateService;
     }
 
+    public PaperCroppyLogger getCroppyLogger() {
+        return ensureLoggerInitialized();
+    }
+
+    private synchronized PaperCroppyLogger ensureLoggerInitialized() {
+        if (this.croppyLogger == null) {
+            this.croppyLogger = new PaperCroppyLogger(getComponentLogger());
+        }
+        if (this.lifecycleReporter == null) {
+            this.lifecycleReporter = new ConsoleLifecycleReporter(
+                    () -> this.pluginConfig != null ? this.pluginConfig.getLoggingStyle() : LogStyle.RICH,
+                    this.croppyLogger,
+                    component -> getServer().getConsoleSender().sendMessage(component));
+        }
+        return this.croppyLogger;
+    }
+
+    private static long elapsedMillis(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
+    }
+
+    private PhaseStatus resolvePhaseStatus(int warningsBefore, int errorsBefore) {
+        if (this.croppyLogger.getErrorCount() > errorsBefore) {
+            return PhaseStatus.ERROR;
+        }
+        if (this.croppyLogger.getWarningCount() > warningsBefore) {
+            return PhaseStatus.WARN;
+        }
+        return PhaseStatus.OK;
+    }
+
+    private void runPhase(int index, String label, java.util.function.Supplier<String> action) {
+        long startNanos = System.nanoTime();
+        int warningsBefore = this.croppyLogger.getWarningCount();
+        int errorsBefore = this.croppyLogger.getErrorCount();
+        try {
+            String summary = action.get();
+            PhaseStatus status = resolvePhaseStatus(warningsBefore, errorsBefore);
+            this.lifecycleReporter.emitPhase(index, TOTAL_STARTUP_PHASES, label, summary,
+                    elapsedMillis(startNanos), status);
+        } catch (RuntimeException e) {
+            this.lifecycleReporter.emitPhase(index, TOTAL_STARTUP_PHASES, label,
+                    "Failed: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()),
+                    elapsedMillis(startNanos), PhaseStatus.ERROR);
+            throw e;
+        }
+    }
+
+    private String summarizeIntegrations() {
+        if (this.integrationManager == null) {
+            return "None configured";
+        }
+        List<String> activeNames = new ArrayList<>();
+        for (dev.darkblade.croppy.integration.common.CroppyIntegration integration : this.integrationManager.getAllIntegrations()) {
+            if (this.integrationManager.isActive(integration.id())) {
+                activeNames.add(integration.id());
+            }
+        }
+        if (activeNames.isEmpty()) {
+            return "None active";
+        }
+        return activeNames.size() + " active (" + String.join(", ", activeNames) + ")";
+    }
+
+    private String summarizeAddons() {
+        if (this.addonManager == null) {
+            return "0 enabled";
+        }
+        Collection<dev.darkblade.croppy.api.addon.AddonDescription> discovered = this.addonManager.getDiscoveredAddons();
+        int enabledCount = 0;
+        for (dev.darkblade.croppy.api.addon.AddonDescription desc : discovered) {
+            if (this.addonManager.getState(desc.id()) == dev.darkblade.croppy.api.addon.AddonState.ENABLED) {
+                enabledCount++;
+            }
+        }
+        return enabledCount + "/" + discovered.size() + " enabled";
+    }
+
     @Override
     public void onLoad() {
+        PaperCroppyLogger logger = ensureLoggerInitialized();
         saveDefaultConfig();
         this.pluginConfig = new PluginConfig();
-        this.pluginConfig.load(getConfig());
+        this.pluginConfig.load(getConfig(), logger);
+        logger.applyConfig(this.pluginConfig.getLoggingLevel(), this.pluginConfig.getLoggingDebugChannels());
 
-        this.integrationManager = new dev.darkblade.croppy.integration.common.IntegrationManager(getLogger());
+        this.integrationManager = new dev.darkblade.croppy.integration.common.IntegrationManager(logger);
 
         // Register WorldGuard integration early in onLoad for custom flag registration
         dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wg = new dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration(
-                getLogger(),
+                logger,
                 this.pluginConfig.isWorldGuardEnabled(),
                 this.pluginConfig.isWorldGuardUseCustomFlags());
         this.integrationManager.register(wg);
@@ -167,50 +259,90 @@ public class CroppyPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        getLogger().info("Enabling Croppy plugin...");
+        long totalStartNanos = System.nanoTime();
+        PaperCroppyLogger logger = ensureLoggerInitialized();
         saveDefaultConfig();
 
         if (this.pluginConfig == null) {
             this.pluginConfig = new PluginConfig();
-            this.pluginConfig.load(getConfig());
+            this.pluginConfig.load(getConfig(), logger);
         }
+        logger.applyConfig(this.pluginConfig.getLoggingLevel(), this.pluginConfig.getLoggingDebugChannels());
+        logger.resetCounters();
 
-        this.core = new CroppyCore(getLogger());
+        this.lifecycleReporter.emitStartupBanner(
+                getPluginMeta().getVersion(),
+                getServer().getName() + " " + getServer().getMinecraftVersion(),
+                System.getProperty("java.version"));
+
+        this.core = new CroppyCore(logger);
         try {
             preloadShutdownClasses();
             this.core.initialize();
 
-            setupIntegrations();
+            runPhase(1, "Integrations", () -> {
+                setupIntegrations();
+                return summarizeIntegrations();
+            });
 
-            this.libbyLoader = new LibbyDependencyLoader(this);
-            this.storage = CropStorageFactory.create(this, libbyLoader);
-            this.core.setStorage(storage);
-            this.stationStorage = new dev.darkblade.croppy.platform.paper.storage.PdcStationStorage(this,
-                    core.getStationRegistry());
+            runPhase(2, "Storage", () -> {
+                this.libbyLoader = new LibbyDependencyLoader(this, logger);
+                this.storage = CropStorageFactory.create(this, libbyLoader, logger);
+                this.core.setStorage(storage);
+                this.stationStorage = new dev.darkblade.croppy.platform.paper.storage.PdcStationStorage(this,
+                        core.getStationRegistry());
+                return this.pluginConfig.getStorageType().toUpperCase(Locale.ROOT) + " backend ready";
+            });
 
-            setupLocalization();
-            setupItemDefinitions();
-            setupFertilizers();
-            setupCropDefinitions();
-            setupProcessDefinitions();
-            setupRecipeDefinitions();
-            setupMenuDefinitions();
-            setupStationDefinitions();
-            setupInteractionDefinitions();
-            setupRuleDefinitions();
-            setupCraftingRecipeDefinitions();
-            setupMenuServices();
-            setupGrowthSimulation();
-            loadActiveChunkCrops();
-            loadActiveChunkStations();
-            setupAddonSystem();
-            setupResourcePackPipeline();
-            setupUpdateSubsystem();
-            setupCommands();
-            registerListeners();
-            getLogger().info("Croppy enabled successfully!");
+            runPhase(3, "Localization", () -> {
+                int localesLoaded = setupLocalization();
+                return localesLoaded + " locales (default: " + this.pluginConfig.getDefaultLocale() + ")";
+            });
+
+            runPhase(4, "Definitions", () -> {
+                setupItemDefinitions();
+                setupFertilizers();
+                setupCropDefinitions();
+                setupProcessDefinitions();
+                setupRecipeDefinitions();
+                setupMenuDefinitions();
+                setupStationDefinitions();
+                setupInteractionDefinitions();
+                setupRuleDefinitions();
+                setupCraftingRecipeDefinitions();
+                return core.getItemRegistry().size() + " items, "
+                        + core.getSpeciesRegistry().size() + " crops, "
+                        + core.getStationRegistry().size() + " stations, "
+                        + core.getRecipeRegistry().size() + " recipes";
+            });
+
+            runPhase(5, "Addons", () -> {
+                setupAddonSystem();
+                return summarizeAddons();
+            });
+
+            runPhase(6, "Resource Pack", () -> {
+                setupResourcePackPipeline();
+                return this.pluginConfig.isResourcePackServerEnabled()
+                        ? "HTTP :" + this.pluginConfig.getResourcePackServerPort()
+                        : "Merged pack ready";
+            });
+
+            runPhase(7, "Runtime", () -> {
+                setupMenuServices();
+                setupGrowthSimulation();
+                int cropsRestored = loadActiveChunkCrops();
+                int stationsRestored = loadActiveChunkStations();
+                setupUpdateSubsystem();
+                setupCommands();
+                registerListeners();
+                return cropsRestored + " crops, " + stationsRestored + " stations restored; tickers active";
+            });
+
+            this.lifecycleReporter.emitStartupComplete(getPluginMeta().getVersion(), elapsedMillis(totalStartNanos));
         } catch (Exception e) {
-            getLogger().log(Level.SEVERE, "Failed to initialize Croppy", e);
+            logger.error(LogChannel.CORE, "Failed to initialize Croppy", e);
+            this.lifecycleReporter.emitStartupComplete(getPluginMeta().getVersion(), elapsedMillis(totalStartNanos));
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -225,15 +357,15 @@ public class CroppyPlugin extends JavaPlugin {
         }
         Path resourcePackDir = getDataFolder().toPath().resolve("resourcepack");
         dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger merger = new dev.darkblade.croppy.platform.paper.resourcepack.ResourcePackMerger(
-                resourcePackDir, getLogger());
+                resourcePackDir, this.croppyLogger);
         this.addonManager = new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(this, this.core, addonsDir,
-                merger);
+                merger, this.croppyLogger);
         this.addonManager.enableAll();
     }
 
     private void setupResourcePackPipeline() {
         this.resourcePackService = new dev.darkblade.croppy.platform.paper.resourcepack.PaperResourcePackService(this,
-                this.pluginConfig);
+                this.pluginConfig, this.croppyLogger);
         this.resourcePackService.start();
     }
 
@@ -269,24 +401,24 @@ public class CroppyPlugin extends JavaPlugin {
                 jarNameSupplier,
                 this.pluginConfig.getUpdatesChannel(),
                 this.pluginConfig.isUpdatesEnabled(),
-                getLogger());
+                this.croppyLogger);
 
         if (this.pluginConfig.isUpdatesEnabled() && this.pluginConfig.isUpdatesCheckOnStartup()) {
             this.updateService.checkForUpdatesAsync(false).thenAccept(result -> {
                 if (result.updateAvailable()) {
-                    getLogger().warning("A new update for Croppy is available: v"
+                    this.croppyLogger.warn(LogChannel.UPDATE, "A new update for Croppy is available: v"
                             + result.latestVersion().map(dev.darkblade.croppy.api.update.SemanticVersion::asString)
                                     .orElse("?")
                             + " (current: v" + result.currentVersion().asString() + ") ["
                             + this.pluginConfig.getUpdatesChannel() + "]");
-                    getLogger().warning(
+                    this.croppyLogger.warn(LogChannel.UPDATE,
                             "Run '/croppy update apply' to download and stage the update for the next server restart.");
                 }
             });
         }
     }
 
-    private void loadActiveChunkCrops() {
+    private int loadActiveChunkCrops() {
         int loadedCount = 0;
         for (World world : getServer().getWorlds()) {
             for (Chunk chunk : world.getLoadedChunks()) {
@@ -308,7 +440,10 @@ public class CroppyPlugin extends JavaPlugin {
                 }
             }
         }
-        getLogger().info("Restored " + loadedCount + " crop instances from currently loaded chunks.");
+        int restored = loadedCount;
+        this.croppyLogger.debug(LogChannel.STORAGE,
+                () -> "Restored " + restored + " crop instances from currently loaded chunks.");
+        return restored;
     }
 
     private void setupMenuServices() {
@@ -328,7 +463,7 @@ public class CroppyPlugin extends JavaPlugin {
         this.menuTicker = new dev.darkblade.croppy.platform.paper.menu.PaperMenuTicker(this.menuRenderer,
                 core.getProcessRegistry());
         this.menuService = new dev.darkblade.croppy.platform.paper.menu.PaperMenuService(core.getMenuRegistry(),
-                this.menuRenderer, core.getProcessRegistry(), this.menuTicker, getLogger());
+                this.menuRenderer, core.getProcessRegistry(), this.menuTicker, this.croppyLogger);
         this.menuListener = new dev.darkblade.croppy.platform.paper.menu.PaperMenuListener(this,
                 core.getProcessEngine(), this.itemFactory, this.menuRenderer, this.chatPromptService, this.menuService);
         this.menuListener.setExperimentationHandler(this.experimentationHandler);
@@ -373,7 +508,7 @@ public class CroppyPlugin extends JavaPlugin {
         var pm = getServer().getPluginManager();
         pm.registerEvents(new ChunkLifecycleListener(core.getCropManager(), storage, core.getSpeciesRegistry(),
                 this.displaySynchronizer, this.virtualBlockDisplayTracker, core.getStationManager(),
-                this.stationStorage, this.stationViewerTracker, getLogger()), this);
+                this.stationStorage, this.stationViewerTracker, this.croppyLogger), this);
         pm.registerEvents(new CropPlantListener(core, this.fertilizerService, this.displaySynchronizer,
                 getProtectionPort(), this.messageService), this);
         pm.registerEvents(new CropGrowthListener(core), this);
@@ -394,10 +529,10 @@ public class CroppyPlugin extends JavaPlugin {
         // Station & Process listeners
         this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
                 core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.menuService,
-                core.getInteractionRouter(), core.getRuleEngine(), this.messageService, this);
+                core.getInteractionRouter(), core.getRuleEngine(), this.messageService, this, this.croppyLogger);
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
                 core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory,
-                this.stationViewerTracker, getProtectionPort());
+                this.stationViewerTracker, getProtectionPort(), this.croppyLogger);
 
         pm.registerEvents(this.chatPromptService, this);
         pm.registerEvents(this.menuListener, this);
@@ -407,14 +542,14 @@ public class CroppyPlugin extends JavaPlugin {
                 this.stationViewerTracker, this.virtualBlockDisplayTracker), this);
 
         this.virtualInteractionListener = new dev.darkblade.croppy.platform.paper.display.VirtualInteractionPacketListener(
-                this, core, this.virtualBlockDisplayTracker, getLogger(), this.displaySynchronizer, getProtectionPort(),
-                this.itemFactory, this.inspectorService);
+                this, core, this.virtualBlockDisplayTracker, this.croppyLogger, this.displaySynchronizer,
+                getProtectionPort(), this.itemFactory, this.inspectorService);
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.virtualInteractionListener);
 
         this.stationVirtualInteractionListener = new dev.darkblade.croppy.platform.paper.station.listener.StationVirtualInteractionPacketListener(
-                this, this.stationViewerTracker, this.stationBlockListener, this.stationInteractListener, getLogger(),
-                getProtectionPort());
+                this, this.stationViewerTracker, this.stationBlockListener, this.stationInteractListener,
+                this.croppyLogger, getProtectionPort());
         com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                 .registerListener(this.stationVirtualInteractionListener);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.BukkitRecipeDiscoveryListener(
@@ -422,7 +557,7 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getRecipeRegistry(),
                 this.recipeStorage,
                 this.feedbackHelper,
-                getLogger()), this);
+                this.croppyLogger), this);
         pm.registerEvents(new dev.darkblade.croppy.platform.paper.listener.RecipeBookItemListener(
                 this.itemFactory,
                 this.compendiumController), this);
@@ -435,8 +570,8 @@ public class CroppyPlugin extends JavaPlugin {
                     this.craftingRecipeService, this.pluginConfig), this);
         }
 
-        getLogger().info(
-                "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
+        this.croppyLogger.debug(LogChannel.CORE,
+                () -> "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
     }
 
     private void setupMenuDefinitions() {
@@ -456,8 +591,9 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("menus/stations/stove_menu.yml");
 
         dev.darkblade.croppy.core.menu.YamlMenuLoader menuLoader = new dev.darkblade.croppy.core.menu.YamlMenuLoader();
-        int loaded = menuLoader.loadAll(menusDir, core.getMenuRegistry(), getLogger());
-        getLogger().info("Registered " + loaded + " menu definitions into MenuRegistry.");
+        int loaded = menuLoader.loadAll(menusDir, core.getMenuRegistry(), this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + loaded + " menu definitions into MenuRegistry.");
     }
 
     private void setupProcessDefinitions() {
@@ -473,8 +609,9 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("processes/fried_egg_cook.yml");
 
         dev.darkblade.croppy.core.process.YamlProcessLoader processLoader = new dev.darkblade.croppy.core.process.YamlProcessLoader();
-        int loaded = processLoader.loadAll(processesDir, core.getProcessRegistry(), getLogger());
-        getLogger().info("Registered " + loaded + " process definitions into ProcessRegistry.");
+        int loaded = processLoader.loadAll(processesDir, core.getProcessRegistry(), this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + loaded + " process definitions into ProcessRegistry.");
     }
 
     private void setupRecipeDefinitions() {
@@ -490,8 +627,9 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("recipes/fried_egg.yml");
 
         dev.darkblade.croppy.core.recipe.YamlRecipeLoader recipeLoader = new dev.darkblade.croppy.core.recipe.YamlRecipeLoader();
-        int loaded = recipeLoader.loadAll(recipesDir, core.getRecipeRegistry(), getLogger());
-        getLogger().info("Registered " + loaded + " recipe definitions into RecipeRegistry.");
+        int loaded = recipeLoader.loadAll(recipesDir, core.getRecipeRegistry(), this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + loaded + " recipe definitions into RecipeRegistry.");
     }
 
     private void setupCraftingRecipeDefinitions() {
@@ -522,8 +660,9 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("crafting/fertilizers/quality_fertilizer.yml");
 
         dev.darkblade.croppy.core.crafting.YamlCraftingRecipeLoader loader = new dev.darkblade.croppy.core.crafting.YamlCraftingRecipeLoader();
-        int loaded = loader.loadAll(craftingDir, core.getCraftingRecipeRegistry(), getLogger());
-        getLogger().info("Registered " + loaded + " crafting recipe definitions into CraftingRecipeRegistry.");
+        int loaded = loader.loadAll(craftingDir, core.getCraftingRecipeRegistry(), this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + loaded + " crafting recipe definitions into CraftingRecipeRegistry.");
 
         dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeChoiceResolver choiceResolver =
                 new dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeChoiceResolver(this.itemFactory);
@@ -532,7 +671,7 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getCraftingRecipeRegistry(),
                 this.itemFactory,
                 choiceResolver,
-                getLogger()
+                this.croppyLogger
         );
         this.craftingRecipeService.registerAll();
     }
@@ -550,8 +689,9 @@ public class CroppyPlugin extends JavaPlugin {
         }
 
         dev.darkblade.croppy.core.station.YamlStationLoader stationLoader = new dev.darkblade.croppy.core.station.YamlStationLoader();
-        int loaded = stationLoader.loadAll(stationsDir, core.getStationRegistry(), getLogger());
-        getLogger().info("Registered " + loaded + " station definitions into StationRegistry.");
+        int loaded = stationLoader.loadAll(stationsDir, core.getStationRegistry(), this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + loaded + " station definitions into StationRegistry.");
     }
 
     private void setupInteractionDefinitions() {
@@ -568,8 +708,9 @@ public class CroppyPlugin extends JavaPlugin {
         }
 
         dev.darkblade.croppy.core.interaction.YamlInteractionLoader loader = new dev.darkblade.croppy.core.interaction.YamlInteractionLoader();
-        int loaded = loader.loadAll(dir, core.getInteractionRegistry(), getLogger());
-        getLogger().info("Registered " + loaded + " interaction definitions into InteractionRegistry.");
+        int loaded = loader.loadAll(dir, core.getInteractionRegistry(), this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + loaded + " interaction definitions into InteractionRegistry.");
     }
 
     private void setupRuleDefinitions() {
@@ -584,13 +725,14 @@ public class CroppyPlugin extends JavaPlugin {
         }
 
         dev.darkblade.croppy.core.rule.YamlRuleLoader loader = new dev.darkblade.croppy.core.rule.YamlRuleLoader();
-        int loaded = loader.loadAll(dir, core.getRuleRegistry(), getLogger());
-        getLogger().info("Registered " + loaded + " rule definitions into RuleRegistry.");
+        int loaded = loader.loadAll(dir, core.getRuleRegistry(), this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + loaded + " rule definitions into RuleRegistry.");
     }
 
-    private void loadActiveChunkStations() {
+    private int loadActiveChunkStations() {
         if (this.stationStorage == null)
-            return;
+            return 0;
         int loadedCount = 0;
         for (World world : getServer().getWorlds()) {
             for (Chunk chunk : world.getLoadedChunks()) {
@@ -604,7 +746,10 @@ public class CroppyPlugin extends JavaPlugin {
                 }
             }
         }
-        getLogger().info("Restored " + loadedCount + " station instances from currently loaded chunks.");
+        int restored = loadedCount;
+        this.croppyLogger.debug(LogChannel.STORAGE,
+                () -> "Restored " + restored + " station instances from currently loaded chunks.");
+        return restored;
     }
 
     private void setupItemDefinitions() {
@@ -644,9 +789,9 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("items/stations/stove.yml");
 
         YamlItemLoader itemLoader = new YamlItemLoader();
-        int loaded = itemLoader.loadAllCategories(itemsDir, getLogger(), core.getItemRegistry());
-        this.itemFactory = new ItemFactory(this, core.getItemRegistry());
-        getLogger().info("Registered " + loaded + " custom items across "
+        int loaded = itemLoader.loadAllCategories(itemsDir, this.croppyLogger, core.getItemRegistry());
+        this.itemFactory = new ItemFactory(this, core.getItemRegistry(), this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.LOADER, () -> "Registered " + loaded + " custom items across "
                 + core.getItemRegistry().getCategories().size() + " categories.");
     }
 
@@ -659,7 +804,8 @@ public class CroppyPlugin extends JavaPlugin {
                 }
                 saveResource(resourcePath, false);
             } catch (Exception e) {
-                getLogger().warning("Could not extract default resource '" + resourcePath + "': " + e.getMessage());
+                this.croppyLogger.warn(LogChannel.LOADER,
+                        "Could not extract default resource '" + resourcePath + "': " + e.getMessage());
             }
         }
     }
@@ -678,8 +824,9 @@ public class CroppyPlugin extends JavaPlugin {
         }
 
         YamlFertilizerLoader fertLoader = new YamlFertilizerLoader();
-        int loaded = fertLoader.loadDirectory(fertDir, getLogger(), this.fertilizerRegistry);
-        getLogger().info("Registered " + loaded + " fertilizer definitions into FertilizerRegistry.");
+        int loaded = fertLoader.loadDirectory(fertDir, this.croppyLogger, this.fertilizerRegistry);
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + loaded + " fertilizer definitions into FertilizerRegistry.");
     }
 
     private void setupGrowthSimulation() {
@@ -693,10 +840,10 @@ public class CroppyPlugin extends JavaPlugin {
 
         this.environmentProvider = new PaperEnvironmentProvider(getServer(), waterSearchRadius);
         this.packetBlockRenderer = new dev.darkblade.croppy.platform.paper.display.PacketEventsBlockRenderer(
-                getLogger());
+                this.croppyLogger);
         this.virtualBlockDisplayTracker = new dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplayTracker(
-                getServer(), this.packetBlockRenderer, this.itemFactory, getLogger());
-        this.displaySynchronizer = new PaperDisplaySynchronizer(getServer(), getLogger(),
+                getServer(), this.packetBlockRenderer, this.itemFactory, this.croppyLogger);
+        this.displaySynchronizer = new PaperDisplaySynchronizer(getServer(), this.croppyLogger,
                 this.virtualBlockDisplayTracker);
 
         growthEngine.setDisplaySynchronizer(this.displaySynchronizer);
@@ -719,7 +866,7 @@ public class CroppyPlugin extends JavaPlugin {
         });
 
         this.growthTicker = new PaperGrowthTicker(this, core, this.environmentProvider, this.dailyTransitionService,
-                this.virtualBlockDisplayTracker);
+                this.virtualBlockDisplayTracker, this.croppyLogger);
         this.growthTicker.start(tickInterval);
 
         // Schedule periodic rain hydration task (every 5 seconds / 100 ticks)
@@ -734,14 +881,14 @@ public class CroppyPlugin extends JavaPlugin {
                     this.virtualBlockDisplayTracker.tickViewers();
                 }
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error during virtual display viewer tracking tick", t);
+                this.croppyLogger.warn(LogChannel.DISPLAY, "Error during virtual display viewer tracking tick", t);
             }
         }, 20L, 20L);
 
         this.packetStationRenderer = new dev.darkblade.croppy.platform.paper.station.display.PacketEventsStationRenderer(
-                getLogger());
+                this.croppyLogger);
         this.stationViewerTracker = new dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker(
-                getServer(), this.packetStationRenderer, this.itemFactory, getLogger(), core.getProcessRegistry());
+                getServer(), this.packetStationRenderer, this.itemFactory, this.croppyLogger, core.getProcessRegistry());
 
         this.stationTicker = new dev.darkblade.croppy.platform.paper.station.PaperStationTicker(
                 this,
@@ -754,16 +901,17 @@ public class CroppyPlugin extends JavaPlugin {
                 this.stationViewerTracker,
                 this.fuelService,
                 core.getProcessRegistry(),
-                20L);
+                20L,
+                this.croppyLogger);
         this.stationTicker.start();
 
         this.menuTickerTask = getServer().getScheduler().runTaskTimer(this,
                 this.menuTicker, 20L, 10L);
 
-        getLogger().info("Started PaperGrowthTicker with interval of " + tickInterval + " ticks (base progress: "
-                + baseProgress + ").");
-        getLogger().info("Started PaperStationTicker with interval of 20 ticks.");
-        getLogger().info("Started PaperMenuTicker with interval of 10 ticks.");
+        this.croppyLogger.debug(LogChannel.GROWTH, () -> "Started PaperGrowthTicker with interval of "
+                + tickInterval + " ticks (base progress: " + baseProgress + ").");
+        this.croppyLogger.debug(LogChannel.STATION, () -> "Started PaperStationTicker with interval of 20 ticks.");
+        this.croppyLogger.debug(LogChannel.CORE, () -> "Started PaperMenuTicker with interval of 10 ticks.");
     }
 
     private void setupCommands() {
@@ -844,19 +992,26 @@ public class CroppyPlugin extends JavaPlugin {
         commands.setItemCatalogController(this.itemCatalogController);
         commands.setItemCategoryRegistry(this.core.getItemCategoryRegistry());
         commands.setTargetResolver(new dev.darkblade.croppy.platform.paper.service.CropTargetResolver(
-                this.core.getCropManager(), this.virtualBlockDisplayTracker));
+                this.core.getCropManager(), this.virtualBlockDisplayTracker, this.croppyLogger));
         commands.setSpeciesRegistry(this.core.getSpeciesRegistry());
         commands.setDisplaySynchronizer(this.displaySynchronizer);
         commands.setAddonManager(this.addonManager);
         commands.setResourcePackService(this.resourcePackService);
         commands.setUpdateService(this.updateService);
+        commands.setCroppyLogger(this.croppyLogger);
         annotationParser.parse(commands);
-        getLogger().info("Registered Cloud 2.0 command manager and /croppy commands.");
+        this.croppyLogger.debug(LogChannel.CORE,
+                () -> "Registered Cloud 2.0 command manager and /croppy commands.");
     }
 
     public void reloadPlugin() {
+        long startNanos = System.nanoTime();
+        PaperCroppyLogger logger = ensureLoggerInitialized();
+        logger.resetCounters();
         reloadConfig();
-        this.pluginConfig.load(getConfig());
+        this.pluginConfig.load(getConfig(), logger);
+        // Reset runtime debug channel overrides back to config.yml values on reload
+        logger.applyConfig(this.pluginConfig.getLoggingLevel(), this.pluginConfig.getLoggingDebugChannels());
         setupLocalization();
         this.core.getSpeciesRegistry().clear();
         this.core.getItemRegistry().clear();
@@ -887,8 +1042,12 @@ public class CroppyPlugin extends JavaPlugin {
             this.addonManager.disableAll();
             this.addonManager.enableAll();
         }
-        getLogger().info(
-                "Croppy configuration, items, fertilizers, menus, stations, interactions, rules, and crop definitions reloaded successfully.");
+        String summary = core.getItemRegistry().size() + " items, "
+                + core.getSpeciesRegistry().size() + " crops, "
+                + core.getStationRegistry().size() + " stations, "
+                + core.getRecipeRegistry().size() + " recipes, "
+                + summarizeAddons();
+        this.lifecycleReporter.emitReloadSummary(elapsedMillis(startNanos), summary);
     }
 
     private void setupCropDefinitions() {
@@ -900,29 +1059,33 @@ public class CroppyPlugin extends JavaPlugin {
         saveResourceIfNotExists("crops/rice.yml");
 
         YamlSpeciesLoader loader = new YamlSpeciesLoader();
-        List<Species> loaded = loader.loadDirectory(cropsDir, getLogger());
+        List<Species> loaded = loader.loadDirectory(cropsDir, this.croppyLogger);
         for (Species species : loaded) {
             core.getSpeciesRegistry().register(species);
         }
-        getLogger().info("Registered " + core.getSpeciesRegistry().size() + " crop species into SpeciesRegistry.");
+        this.croppyLogger.debug(LogChannel.LOADER,
+                () -> "Registered " + core.getSpeciesRegistry().size() + " crop species into SpeciesRegistry.");
     }
 
     private void preloadShutdownClasses() {
         try {
             Class.forName(ChunkPosition.class.getName());
         } catch (ClassNotFoundException e) {
-            getLogger().log(Level.WARNING, "Failed to preload ChunkPosition class for shutdown safety", e);
+            this.croppyLogger.warn(LogChannel.CORE,
+                    "Failed to preload ChunkPosition class for shutdown safety", e);
         }
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("Disabling Croppy plugin...");
+        long startNanos = System.nanoTime();
+        PaperCroppyLogger logger = ensureLoggerInitialized();
+        logger.resetCounters();
         if (this.addonManager != null) {
             try {
                 this.addonManager.disableAll();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error disabling addons during shutdown", t);
+                logger.warn(LogChannel.ADDON, "Error disabling addons during shutdown", t);
             }
             this.addonManager = null;
         }
@@ -931,7 +1094,7 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.resourcePackService.shutdown();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error stopping resource pack service during shutdown", t);
+                logger.warn(LogChannel.PACK, "Error stopping resource pack service during shutdown", t);
             }
             this.resourcePackService = null;
         }
@@ -940,7 +1103,7 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.growthTicker.stop();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error stopping growth ticker during shutdown", t);
+                logger.warn(LogChannel.GROWTH, "Error stopping growth ticker during shutdown", t);
             }
             this.growthTicker = null;
         }
@@ -949,7 +1112,7 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.rainTask.cancel();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error cancelling rain task during shutdown", t);
+                logger.warn(LogChannel.GROWTH, "Error cancelling rain task during shutdown", t);
             }
             this.rainTask = null;
         }
@@ -958,7 +1121,7 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.stationTicker.stop();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error stopping station ticker during shutdown", t);
+                logger.warn(LogChannel.STATION, "Error stopping station ticker during shutdown", t);
             }
             this.stationTicker = null;
         }
@@ -967,7 +1130,7 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.menuTickerTask.cancel();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error cancelling menu ticker task during shutdown", t);
+                logger.warn(LogChannel.CORE, "Error cancelling menu ticker task during shutdown", t);
             }
             this.menuTickerTask = null;
         }
@@ -976,19 +1139,19 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.displayTrackerTask.cancel();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error cancelling display tracker task during shutdown", t);
+                logger.warn(LogChannel.DISPLAY, "Error cancelling display tracker task during shutdown", t);
             }
             this.displayTrackerTask = null;
         }
 
-        flushActiveCrops();
-        flushActiveStations();
+        int cropsFlushed = flushActiveCrops();
+        int stationsFlushed = flushActiveStations();
 
         if (this.virtualBlockDisplayTracker != null) {
             try {
                 this.virtualBlockDisplayTracker.clearAll();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error clearing virtual block displays", t);
+                logger.warn(LogChannel.DISPLAY, "Error clearing virtual block displays", t);
             }
         }
         if (this.virtualInteractionListener != null) {
@@ -996,7 +1159,7 @@ public class CroppyPlugin extends JavaPlugin {
                 com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                         .unregisterListener(this.virtualInteractionListener);
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error unregistering virtual interaction listener", t);
+                logger.warn(LogChannel.PACKET, "Error unregistering virtual interaction listener", t);
             }
         }
         if (this.stationVirtualInteractionListener != null) {
@@ -1004,7 +1167,7 @@ public class CroppyPlugin extends JavaPlugin {
                 com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
                         .unregisterListener(this.stationVirtualInteractionListener);
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error unregistering station virtual interaction listener", t);
+                logger.warn(LogChannel.PACKET, "Error unregistering station virtual interaction listener", t);
             }
         }
 
@@ -1012,7 +1175,7 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.craftingRecipeService.unregisterAll();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error unregistering crafting recipes during shutdown", t);
+                logger.warn(LogChannel.CORE, "Error unregistering crafting recipes during shutdown", t);
             }
             this.craftingRecipeService = null;
         }
@@ -1021,7 +1184,7 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.storage.shutdown();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error shutting down storage backend", t);
+                logger.warn(LogChannel.STORAGE, "Error shutting down storage backend", t);
             }
             this.storage = null;
         }
@@ -1029,22 +1192,23 @@ public class CroppyPlugin extends JavaPlugin {
             try {
                 this.core.shutdown();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error shutting down core", t);
+                logger.warn(LogChannel.CORE, "Error shutting down core", t);
             }
         }
         if (this.integrationManager != null) {
             try {
                 this.integrationManager.onDisable();
             } catch (Throwable t) {
-                getLogger().log(Level.WARNING, "Error disabling integrations", t);
+                logger.warn(LogChannel.INTEGRATION, "Error disabling integrations", t);
             }
         }
-        getLogger().info("Croppy disabled cleanly.");
+        this.lifecycleReporter.emitShutdownSummary(elapsedMillis(startNanos),
+                cropsFlushed + " crops, " + stationsFlushed + " stations flushed");
     }
 
-    private void flushActiveCrops() {
+    private int flushActiveCrops() {
         if (this.storage == null || this.core == null) {
-            return;
+            return 0;
         }
 
         try {
@@ -1058,16 +1222,20 @@ public class CroppyPlugin extends JavaPlugin {
             for (Map.Entry<ChunkPosition, List<CropInstance>> entry : chunkMap.entrySet()) {
                 storage.saveChunk(entry.getKey().worldName(), entry.getKey().x(), entry.getKey().z(), entry.getValue());
             }
-            getLogger().info("Flushed " + core.getCropManager().count() + " active crop instances across "
-                    + chunkMap.size() + " chunks.");
+            int flushed = core.getCropManager().count();
+            int chunkCount = chunkMap.size();
+            this.croppyLogger.debug(LogChannel.STORAGE, () -> "Flushed " + flushed
+                    + " active crop instances across " + chunkCount + " chunks.");
+            return flushed;
         } catch (Throwable t) {
-            getLogger().log(Level.SEVERE, "Failed to flush active crops during plugin shutdown", t);
+            this.croppyLogger.error(LogChannel.STORAGE, "Failed to flush active crops during plugin shutdown", t);
+            return 0;
         }
     }
 
-    private void flushActiveStations() {
+    private int flushActiveStations() {
         if (this.stationStorage == null || this.core == null) {
-            return;
+            return 0;
         }
 
         try {
@@ -1083,10 +1251,14 @@ public class CroppyPlugin extends JavaPlugin {
                 stationStorage.saveChunk(entry.getKey().worldName(), entry.getKey().x(), entry.getKey().z(),
                         entry.getValue());
             }
-            getLogger().info("Flushed " + core.getStationManager().getStationCount() + " active stations across "
-                    + chunkMap.size() + " chunks.");
+            int flushed = core.getStationManager().getStationCount();
+            int chunkCount = chunkMap.size();
+            this.croppyLogger.debug(LogChannel.STORAGE, () -> "Flushed " + flushed
+                    + " active stations across " + chunkCount + " chunks.");
+            return flushed;
         } catch (Throwable t) {
-            getLogger().log(Level.SEVERE, "Failed to flush active stations during plugin shutdown", t);
+            this.croppyLogger.error(LogChannel.STORAGE, "Failed to flush active stations during plugin shutdown", t);
+            return 0;
         }
     }
 
@@ -1146,7 +1318,7 @@ public class CroppyPlugin extends JavaPlugin {
         return dailyTransitionService;
     }
 
-    private void setupLocalization() {
+    private int setupLocalization() {
         Path localesDir = getDataFolder().toPath().resolve("locales");
         if (!Files.exists(localesDir)) {
             try {
@@ -1165,12 +1337,14 @@ public class CroppyPlugin extends JavaPlugin {
 
         dev.darkblade.croppy.core.i18n.YamlLocaleLoader loader = new dev.darkblade.croppy.core.i18n.YamlLocaleLoader();
         Map<dev.darkblade.croppy.api.i18n.LocaleRef, Map<String, String>> loaded = loader.loadDirectory(localesDir,
-                getLogger());
+                this.croppyLogger);
         catalog.setCatalogs(loaded);
 
-        this.messageService = new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, getLogger());
-        getLogger().info("Initialized localization service with " + loaded.size() + " locales (default: "
-                + defaultLocale + ").");
+        this.messageService = new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog,
+                this.croppyLogger);
+        this.croppyLogger.debug(LogChannel.I18N, () -> "Initialized localization service with "
+                + loaded.size() + " locales (default: " + defaultLocale + ").");
+        return loaded.size();
     }
 
     public dev.darkblade.croppy.platform.paper.i18n.PaperMessageService getMessageService() {
@@ -1187,9 +1361,9 @@ public class CroppyPlugin extends JavaPlugin {
 
     private void setupIntegrations() {
         if (this.integrationManager == null) {
-            this.integrationManager = new dev.darkblade.croppy.integration.common.IntegrationManager(getLogger());
+            this.integrationManager = new dev.darkblade.croppy.integration.common.IntegrationManager(this.croppyLogger);
             dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration wg = new dev.darkblade.croppy.integration.worldguard.WorldGuardIntegration(
-                    getLogger(),
+                    this.croppyLogger,
                     this.pluginConfig.isWorldGuardEnabled(),
                     this.pluginConfig.isWorldGuardUseCustomFlags());
             this.integrationManager.register(wg);
@@ -1197,7 +1371,7 @@ public class CroppyPlugin extends JavaPlugin {
 
         // Register PAPI integration
         dev.darkblade.croppy.integration.papi.PapiIntegration papi = new dev.darkblade.croppy.integration.papi.PapiIntegration(
-                getLogger(),
+                this.croppyLogger,
                 this.core,
                 getDescription().getVersion(),
                 this.pluginConfig.isPapiEnabled(),
@@ -1206,7 +1380,7 @@ public class CroppyPlugin extends JavaPlugin {
 
         // Register Vault integration
         dev.darkblade.croppy.integration.vault.VaultIntegration vault = new dev.darkblade.croppy.integration.vault.VaultIntegration(
-                getLogger(),
+                this.croppyLogger,
                 this.pluginConfig.isVaultEnabled());
         this.integrationManager.register(vault);
 

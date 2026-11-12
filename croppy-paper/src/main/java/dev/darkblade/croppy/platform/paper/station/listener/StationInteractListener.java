@@ -1,6 +1,9 @@
 package dev.darkblade.croppy.platform.paper.station.listener;
 
 import dev.darkblade.croppy.api.expression.EvaluationContext;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.interaction.InteractionAction;
 import dev.darkblade.croppy.api.interaction.InteractionDefinition;
@@ -69,6 +72,7 @@ public final class StationInteractListener implements Listener {
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final NamespacedKey durabilityKey = new NamespacedKey("croppy", "durability");
     private final Plugin plugin;
+    private final CroppyLogger logger;
 
     public StationInteractListener(
             DefaultStationManager stationManager,
@@ -78,7 +82,8 @@ public final class StationInteractListener implements Listener {
             InteractionRouter interactionRouter,
             RuleEngine ruleEngine
     ) {
-        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, null, null);
+        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, null, null,
+                NoOpCroppyLogger.INSTANCE);
     }
 
     public StationInteractListener(
@@ -90,7 +95,8 @@ public final class StationInteractListener implements Listener {
             RuleEngine ruleEngine,
             PaperMessageService messageService
     ) {
-        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, messageService, null);
+        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, messageService,
+                null, NoOpCroppyLogger.INSTANCE);
     }
 
     public StationInteractListener(
@@ -103,6 +109,21 @@ public final class StationInteractListener implements Listener {
             PaperMessageService messageService,
             Plugin plugin
     ) {
+        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, messageService,
+                plugin, NoOpCroppyLogger.INSTANCE);
+    }
+
+    public StationInteractListener(
+            DefaultStationManager stationManager,
+            ProcessEngine processEngine,
+            ItemFactory itemFactory,
+            PaperMenuService menuService,
+            InteractionRouter interactionRouter,
+            RuleEngine ruleEngine,
+            PaperMessageService messageService,
+            Plugin plugin,
+            CroppyLogger logger
+    ) {
         this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
         this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
@@ -111,6 +132,7 @@ public final class StationInteractListener implements Listener {
         this.ruleEngine = Objects.requireNonNull(ruleEngine, "ruleEngine cannot be null");
         this.messageService = messageService;
         this.plugin = plugin;
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -148,7 +170,10 @@ public final class StationInteractListener implements Listener {
                         }
                     });
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ex) {
+                logger.trace(LogChannel.STATION, () -> "Failed to resend hidden station barrier block change to "
+                        + player.getName(), ex);
+            }
         }
     }
 
@@ -480,7 +505,11 @@ public final class StationInteractListener implements Listener {
                         player.playSound(player.getLocation(), sound, volume, pitch);
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ex) {
+                String failedSound = soundName;
+                logger.trace(LogChannel.STATION,
+                        () -> "Failed to play interaction sound '" + failedSound + "' for " + player.getName(), ex);
+            }
         }
     }
 
@@ -501,7 +530,11 @@ public final class StationInteractListener implements Listener {
                 Particle p = Particle.valueOf(particleName.toUpperCase(Locale.ROOT));
                 BlockPosition pos = station.getPosition();
                 player.getWorld().spawnParticle(p, pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5, count, 0.2, 0.2, 0.2, 0.02);
-            } catch (IllegalArgumentException ignored) {}
+            } catch (IllegalArgumentException ex) {
+                String failedParticle = particleName;
+                logger.trace(LogChannel.STATION,
+                        () -> "Unknown interaction particle '" + failedParticle + "' for station " + station.getPosition(), ex);
+            }
         }
     }
 

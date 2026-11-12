@@ -1,5 +1,13 @@
 package dev.darkblade.croppy.platform.paper.config;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.LogLevel;
+import dev.darkblade.croppy.platform.paper.logging.LogStyle;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +19,69 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PluginConfigTest {
+
+    @Test
+    void testLoggingDefaultsWhenSectionMissing() {
+        PluginConfig config = new PluginConfig();
+        config.load(new YamlConfiguration());
+
+        assertEquals(LogLevel.INFO, config.getLoggingLevel());
+        assertEquals(LogStyle.RICH, config.getLoggingStyle());
+        assertTrue(config.getLoggingDebugChannels().isEmpty());
+    }
+
+    @Test
+    void testLoggingValidConfigurationValues() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("logging.level", "debug");
+        yaml.set("logging.style", "compact");
+        yaml.set("logging.debug-channels", List.of("LOADER", "station", " I18N "));
+
+        PluginConfig config = new PluginConfig();
+        config.load(yaml);
+
+        assertEquals(LogLevel.DEBUG, config.getLoggingLevel());
+        assertEquals(LogStyle.COMPACT, config.getLoggingStyle());
+        assertEquals(Set.of(LogChannel.LOADER, LogChannel.STATION, LogChannel.I18N), config.getLoggingDebugChannels());
+    }
+
+    @Test
+    void testLoggingInvalidValuesFallbackSafelyAndWarn() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("logging.level", "VERBOSE");
+        yaml.set("logging.style", "FANCY");
+        yaml.set("logging.debug-channels", List.of("growth", "nonexistent_channel"));
+
+        List<String> warnings = new ArrayList<>();
+        CroppyLogger spyLogger = new CroppyLogger() {
+            @Override
+            public boolean isEnabled(LogLevel level, LogChannel channel) {
+                return true;
+            }
+
+            @Override
+            public void log(LogLevel level, LogChannel channel, String message) {
+                if (level == LogLevel.WARN) {
+                    warnings.add(message);
+                }
+            }
+
+            @Override
+            public void log(LogLevel level, LogChannel channel, String message, Throwable throwable) {
+                if (level == LogLevel.WARN) {
+                    warnings.add(message);
+                }
+            }
+        };
+
+        PluginConfig config = new PluginConfig();
+        config.load(yaml, spyLogger);
+
+        assertEquals(LogLevel.INFO, config.getLoggingLevel());
+        assertEquals(LogStyle.RICH, config.getLoggingStyle());
+        assertEquals(Set.of(LogChannel.GROWTH), config.getLoggingDebugChannels());
+        assertEquals(3, warnings.size());
+    }
 
     @Test
     @DisplayName("Should load default values when configuration is empty or null")

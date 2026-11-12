@@ -1,5 +1,9 @@
 package dev.darkblade.croppy.platform.paper.update;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.update.SemanticVersion;
 import dev.darkblade.croppy.api.update.UpdateApplyResult;
 import dev.darkblade.croppy.api.update.UpdateChannel;
@@ -14,7 +18,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -29,7 +32,7 @@ public class PaperUpdateService implements UpdateService {
     private final Supplier<String> targetJarNameSupplier;
     private final UpdateChannel channel;
     private final boolean enabled;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     public PaperUpdateService(
             GitHubReleaseClient releaseClient,
@@ -39,12 +42,30 @@ public class PaperUpdateService implements UpdateService {
             boolean enabled,
             Logger logger
     ) {
+        this(
+                releaseClient,
+                updateDirectory,
+                targetJarNameSupplier,
+                channel,
+                enabled,
+                logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE
+        );
+    }
+
+    public PaperUpdateService(
+            GitHubReleaseClient releaseClient,
+            Path updateDirectory,
+            Supplier<String> targetJarNameSupplier,
+            UpdateChannel channel,
+            boolean enabled,
+            CroppyLogger logger
+    ) {
         this.releaseClient = Objects.requireNonNull(releaseClient, "releaseClient cannot be null");
         this.updateDirectory = Objects.requireNonNull(updateDirectory, "updateDirectory cannot be null");
         this.targetJarNameSupplier = Objects.requireNonNull(targetJarNameSupplier, "targetJarNameSupplier cannot be null");
         this.channel = Objects.requireNonNull(channel, "channel cannot be null");
         this.enabled = enabled;
-        this.logger = (logger != null) ? logger : Logger.getLogger(PaperUpdateService.class.getName());
+        this.logger = (logger != null) ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     @Override
@@ -118,11 +139,11 @@ public class PaperUpdateService implements UpdateService {
                         String computedHash = ChecksumValidator.computeSha256(tempFile);
                         if (!computedHash.equalsIgnoreCase(expectedHash.get())) {
                             Files.deleteIfExists(tempFile);
-                            logger.severe("Checksum mismatch for downloaded update! Expected: " + expectedHash.get() + ", got: " + computedHash);
+                            logger.error(LogChannel.UPDATE, "Checksum mismatch for downloaded update! Expected: " + expectedHash.get() + ", got: " + computedHash);
                             return UpdateApplyResult.failed("Cryptographic verification failed: SHA-256 digest does not match release manifest");
                         }
                     } else {
-                        logger.warning("Manifest did not contain checksum for asset " + remoteAssetName + ". Proceeding with caution.");
+                        logger.warn(LogChannel.UPDATE, "Manifest did not contain checksum for asset " + remoteAssetName + ". Proceeding with caution.");
                     }
 
                     // Move to plugins/update/<currentJarName>
@@ -132,19 +153,19 @@ public class PaperUpdateService implements UpdateService {
                         Files.move(tempFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
                     }
 
-                    logger.info("Successfully staged Croppy v" + latestVersion.asString() + " to " + targetFile);
+                    logger.info(LogChannel.UPDATE, "Successfully staged Croppy v" + latestVersion.asString() + " to " + targetFile);
                     return UpdateApplyResult.success(
                             finalTargetJarName,
                             latestVersion.asString(),
                             "Update successfully staged to plugins/update/" + finalTargetJarName + ". Restart server to apply."
                     );
                 } catch (IOException e) {
-                    logger.log(Level.SEVERE, "Failed to stage update file on disk", e);
+                    logger.error(LogChannel.UPDATE, "Failed to stage update file on disk", e);
                     return UpdateApplyResult.failed("Failed to stage update file on disk: " + e.getMessage());
                 }
             }).exceptionally(throwable -> {
                 String msg = (throwable.getCause() != null) ? throwable.getCause().getMessage() : throwable.getMessage();
-                logger.log(Level.SEVERE, "Exception occurred during update application", throwable);
+                logger.error(LogChannel.UPDATE, "Exception occurred during update application", throwable);
                 return UpdateApplyResult.failed("Update download failed: " + msg);
             });
         });

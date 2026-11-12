@@ -12,6 +12,8 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.interaction.InteractionAction;
 import dev.darkblade.croppy.api.interaction.InteractionDefinition;
 import dev.darkblade.croppy.api.interaction.InteractionTrigger;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.YieldEntry;
 import dev.darkblade.croppy.api.world.BlockPosition;
@@ -50,7 +52,7 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
     private final Plugin plugin;
     private final CroppyCore core;
     private final VirtualBlockDisplayTracker displayTracker;
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final DisplaySynchronizer displaySynchronizer;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
     private final ItemFactory itemFactory;
@@ -60,7 +62,7 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
             Plugin plugin,
             CroppyCore core,
             VirtualBlockDisplayTracker displayTracker,
-            Logger logger,
+            CroppyLogger logger,
             DisplaySynchronizer displaySynchronizer,
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
             ItemFactory itemFactory,
@@ -72,8 +74,30 @@ public class VirtualInteractionPacketListener extends PacketListenerAbstract {
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
         this.displaySynchronizer = displaySynchronizer;
         this.protectionPort = protectionPort;
-        this.itemFactory = (itemFactory != null) ? itemFactory : new ItemFactory(plugin, core.getItemRegistry());
+        this.itemFactory = (itemFactory != null) ? itemFactory : new ItemFactory(plugin, core.getItemRegistry(), this.logger);
         this.inspectorService = inspectorService;
+    }
+
+    public VirtualInteractionPacketListener(
+            Plugin plugin,
+            CroppyCore core,
+            VirtualBlockDisplayTracker displayTracker,
+            Logger logger,
+            DisplaySynchronizer displaySynchronizer,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
+            ItemFactory itemFactory,
+            CropInspectorService inspectorService
+    ) {
+        this(
+                plugin,
+                core,
+                displayTracker,
+                new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")),
+                displaySynchronizer,
+                protectionPort,
+                itemFactory,
+                inspectorService
+        );
     }
 
     public VirtualInteractionPacketListener(

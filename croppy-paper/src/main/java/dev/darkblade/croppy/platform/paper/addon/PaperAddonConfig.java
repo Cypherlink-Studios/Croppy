@@ -1,6 +1,10 @@
 package dev.darkblade.croppy.platform.paper.addon;
 
 import dev.darkblade.croppy.api.addon.AddonConfig;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -12,7 +16,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -22,12 +25,12 @@ import java.util.logging.Logger;
 public class PaperAddonConfig implements AddonConfig {
 
     private final File file;
-    private final Logger logger;
+    private final CroppyLogger logger;
     private ConfigurationSection section;
 
-    public PaperAddonConfig(File file, Logger logger) {
+    public PaperAddonConfig(File file, CroppyLogger logger) {
         this.file = Objects.requireNonNull(file, "file cannot be null");
-        this.logger = logger != null ? logger : Logger.getLogger(PaperAddonConfig.class.getName());
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         if (file.exists()) {
             this.section = YamlConfiguration.loadConfiguration(file);
         } else {
@@ -35,14 +38,26 @@ public class PaperAddonConfig implements AddonConfig {
         }
     }
 
-    public PaperAddonConfig(Path filePath, Logger logger) {
+    public PaperAddonConfig(File file, Logger logger) {
+        this(file, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    public PaperAddonConfig(Path filePath, CroppyLogger logger) {
         this(Objects.requireNonNull(filePath, "filePath cannot be null").toFile(), logger);
     }
 
-    public PaperAddonConfig(File file, ConfigurationSection section, Logger logger) {
+    public PaperAddonConfig(Path filePath, Logger logger) {
+        this(filePath, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    public PaperAddonConfig(File file, ConfigurationSection section, CroppyLogger logger) {
         this.file = file;
         this.section = Objects.requireNonNull(section, "section cannot be null");
-        this.logger = logger != null ? logger : Logger.getLogger(PaperAddonConfig.class.getName());
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
+    }
+
+    public PaperAddonConfig(File file, ConfigurationSection section, Logger logger) {
+        this(file, section, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
     }
 
     public ConfigurationSection getConfigurationSection() {
@@ -145,7 +160,7 @@ public class PaperAddonConfig implements AddonConfig {
     public synchronized void save() {
         if (file == null) return;
         if (!(section instanceof YamlConfiguration yamlConfig)) {
-            logger.warning("Cannot save sub-section independently; save must be performed from root configuration.");
+            logger.warn(LogChannel.ADDON, "Cannot save sub-section independently; save must be performed from root configuration.");
             return;
         }
 
@@ -155,7 +170,7 @@ public class PaperAddonConfig implements AddonConfig {
             }
             yamlConfig.save(file);
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Failed to save configuration to " + file.getAbsolutePath(), e);
+            logger.error(LogChannel.ADDON, "Failed to save configuration to " + file.getAbsolutePath(), e);
         }
     }
 }

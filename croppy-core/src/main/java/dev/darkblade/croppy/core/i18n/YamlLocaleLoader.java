@@ -1,6 +1,10 @@
 package dev.darkblade.croppy.core.i18n;
 
 import dev.darkblade.croppy.api.i18n.LocaleRef;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -15,7 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -73,11 +76,23 @@ public class YamlLocaleLoader {
      * Loads all YAML files from the given directory into a map of LocaleRef to key-value mappings.
      *
      * @param directory directory containing locale YAML files
-     * @param logger    logger for diagnostics
+     * @param logger    logger for diagnostics (may be null)
      * @return map of loaded locales
      */
     public Map<LocaleRef, Map<String, String>> loadDirectory(Path directory, Logger logger) {
+        return loadDirectory(directory, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    /**
+     * Loads all YAML files from the given directory into a map of LocaleRef to key-value mappings.
+     *
+     * @param directory directory containing locale YAML files
+     * @param logger    logger for diagnostics (may be null)
+     * @return map of loaded locales
+     */
+    public Map<LocaleRef, Map<String, String>> loadDirectory(Path directory, CroppyLogger logger) {
         Objects.requireNonNull(directory, "directory cannot be null");
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         if (!Files.exists(directory) || !Files.isDirectory(directory)) {
             return Collections.emptyMap();
         }
@@ -91,19 +106,13 @@ public class YamlLocaleLoader {
                     LocaleRef localeRef = LocaleRef.parse(baseName);
                     Map<String, String> messages = loadFile(path);
                     result.put(localeRef, messages);
-                    if (logger != null) {
-                        logger.info("Loaded " + messages.size() + " messages for locale [" + localeRef + "] from " + fileName);
-                    }
+                    log.debug(LogChannel.LOADER, () -> "Loaded " + messages.size() + " messages for locale [" + localeRef + "] from " + fileName);
                 } catch (Exception e) {
-                    if (logger != null) {
-                        logger.log(Level.WARNING, "Failed to load locale file: " + fileName, e);
-                    }
+                    log.warn(LogChannel.LOADER, "Failed to load locale file: " + fileName, e);
                 }
             }
         } catch (IOException e) {
-            if (logger != null) {
-                logger.log(Level.SEVERE, "Failed to read locale directory: " + directory, e);
-            }
+            log.error(LogChannel.LOADER, "Failed to read locale directory: " + directory, e);
         }
 
         return Collections.unmodifiableMap(result);

@@ -96,7 +96,8 @@ class PaperMenuIntegrationTest {
         PaperMenuRenderer renderer = new PaperMenuRenderer(itemFactory);
         DefaultProcessRegistry processRegistry = new DefaultProcessRegistry();
         PaperMenuTicker ticker = new PaperMenuTicker(renderer, processRegistry);
-        PaperMenuService service = new PaperMenuService(menuRegistry, renderer, processRegistry, ticker, null);
+        PaperMenuService service = new PaperMenuService(menuRegistry, renderer, processRegistry, ticker,
+                dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
 
         assertSame(menuRegistry, service.getMenuRegistry());
 

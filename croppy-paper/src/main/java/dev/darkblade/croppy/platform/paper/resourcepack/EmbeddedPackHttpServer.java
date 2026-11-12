@@ -4,6 +4,9 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.resourcepack.PackBuildResult;
 
 import java.io.IOException;
@@ -17,7 +20,6 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -30,7 +32,7 @@ public class EmbeddedPackHttpServer {
     private final int port;
     private final Path packFilePath;
     private final Supplier<PackBuildResult> activePackSupplier;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     private HttpServer server;
     private ExecutorService executor;
@@ -42,6 +44,22 @@ public class EmbeddedPackHttpServer {
             Path packFilePath,
             Supplier<PackBuildResult> activePackSupplier,
             Logger logger
+    ) {
+        this(
+                host,
+                port,
+                packFilePath,
+                activePackSupplier,
+                new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null"))
+        );
+    }
+
+    public EmbeddedPackHttpServer(
+            String host,
+            int port,
+            Path packFilePath,
+            Supplier<PackBuildResult> activePackSupplier,
+            CroppyLogger logger
     ) {
         this.host = (host != null && !host.isBlank()) ? host.trim() : "0.0.0.0";
         this.port = port;
@@ -77,14 +95,15 @@ public class EmbeddedPackHttpServer {
             server.start();
             isRunning = true;
 
-            logger.info(String.format("Croppy embedded Resource Pack HTTP server started on %s:%d", address.getHostString(), port));
+            logger.debug(LogChannel.PACK, () ->
+                    String.format("Croppy embedded Resource Pack HTTP server started on %s:%d", address.getHostString(), port));
             return true;
         } catch (BindException e) {
-            logger.log(Level.WARNING, String.format("Failed to bind embedded resource pack HTTP server to port %d (Address already in use). You can configure a different port in config.yml.", port));
+            logger.warn(LogChannel.PACK, String.format("Failed to bind embedded resource pack HTTP server to port %d (Address already in use). You can configure a different port in config.yml.", port));
             stop();
             return false;
         } catch (IOException e) {
-            logger.log(Level.WARNING, "Failed to start embedded resource pack HTTP server: " + e.getMessage(), e);
+            logger.warn(LogChannel.PACK, "Failed to start embedded resource pack HTTP server: " + e.getMessage(), e);
             stop();
             return false;
         }

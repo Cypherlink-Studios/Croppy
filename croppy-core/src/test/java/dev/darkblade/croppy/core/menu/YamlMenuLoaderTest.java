@@ -1,6 +1,7 @@
 package dev.darkblade.croppy.core.menu;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.menu.ClickTypeFilter;
 import dev.darkblade.croppy.api.menu.MenuActionType;
 import dev.darkblade.croppy.api.menu.MenuDefinition;
@@ -172,7 +173,7 @@ class YamlMenuLoaderTest {
         Files.writeString(tempDir.resolve("menu2.yaml"), yaml2);
 
         DefaultMenuRegistry registry = new DefaultMenuRegistry();
-        int loaded = loader.loadAll(tempDir, registry, null);
+        int loaded = loader.loadAll(tempDir, registry, NoOpCroppyLogger.INSTANCE);
 
         assertEquals(2, loaded);
         assertTrue(registry.contains(Key.of("croppy", "menu1")));

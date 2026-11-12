@@ -1,5 +1,8 @@
 package dev.darkblade.croppy.integration.worldguard;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.protection.ProtectionPort;
 import dev.darkblade.croppy.integration.common.CroppyIntegration;
 import org.bukkit.Bukkit;
@@ -13,15 +16,19 @@ import java.util.logging.Logger;
  */
 public class WorldGuardIntegration implements CroppyIntegration {
 
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final boolean enabledInConfig;
     private final boolean useCustomFlags;
     private WorldGuardProtectionAdapter adapter;
 
-    public WorldGuardIntegration(Logger logger, boolean enabledInConfig, boolean useCustomFlags) {
+    public WorldGuardIntegration(CroppyLogger logger, boolean enabledInConfig, boolean useCustomFlags) {
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
         this.enabledInConfig = enabledInConfig;
         this.useCustomFlags = useCustomFlags;
+    }
+
+    public WorldGuardIntegration(Logger logger, boolean enabledInConfig, boolean useCustomFlags) {
+        this(new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")), enabledInConfig, useCustomFlags);
     }
 
     @Override
@@ -55,7 +62,7 @@ public class WorldGuardIntegration implements CroppyIntegration {
     public void onEnable() {
         if (isAvailable()) {
             this.adapter = new WorldGuardProtectionAdapter(useCustomFlags);
-            logger.info("WorldGuard integration activated with custom flags: " + useCustomFlags);
+            logger.debug(LogChannel.INTEGRATION, () -> "WorldGuard integration activated with custom flags: " + useCustomFlags);
         }
     }
 

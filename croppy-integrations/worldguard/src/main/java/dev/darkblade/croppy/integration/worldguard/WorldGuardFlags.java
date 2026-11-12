@@ -5,8 +5,11 @@ import com.sk89q.worldguard.protection.flags.Flag;
 import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.flags.registry.FlagConflictException;
 import com.sk89q.worldguard.protection.flags.registry.FlagRegistry;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -30,25 +33,35 @@ public final class WorldGuardFlags {
      * @param logger logger for diagnostic output
      */
     public static synchronized void register(Logger logger) {
+        register(logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    /**
+     * Registers custom flags into WorldGuard's FlagRegistry. Must be executed in onLoad().
+     *
+     * @param logger logger for diagnostic output
+     */
+    public static synchronized void register(CroppyLogger logger) {
         if (registered) {
             return;
         }
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
 
         try {
             FlagRegistry registry = WorldGuard.getInstance().getFlagRegistry();
-            CROPPY_PLANT = registerStateFlag(registry, "croppy-plant", false, logger);
-            CROPPY_HARVEST = registerStateFlag(registry, "croppy-harvest", false, logger);
-            CROPPY_WATER = registerStateFlag(registry, "croppy-water", false, logger);
-            CROPPY_FERTILIZE = registerStateFlag(registry, "croppy-fertilize", false, logger);
-            CROPPY_COOK = registerStateFlag(registry, "croppy-cook", false, logger);
+            CROPPY_PLANT = registerStateFlag(registry, "croppy-plant", false, log);
+            CROPPY_HARVEST = registerStateFlag(registry, "croppy-harvest", false, log);
+            CROPPY_WATER = registerStateFlag(registry, "croppy-water", false, log);
+            CROPPY_FERTILIZE = registerStateFlag(registry, "croppy-fertilize", false, log);
+            CROPPY_COOK = registerStateFlag(registry, "croppy-cook", false, log);
             registered = true;
-            logger.info("Successfully registered custom WorldGuard flags for Croppy.");
+            log.debug(LogChannel.INTEGRATION, "Successfully registered custom WorldGuard flags for Croppy.");
         } catch (Throwable t) {
-            logger.log(Level.WARNING, "Failed to register custom WorldGuard flags: " + t.getMessage(), t);
+            log.warn(LogChannel.INTEGRATION, "Failed to register custom WorldGuard flags: " + t.getMessage(), t);
         }
     }
 
-    private static StateFlag registerStateFlag(FlagRegistry registry, String name, boolean defaultValue, Logger logger) {
+    private static StateFlag registerStateFlag(FlagRegistry registry, String name, boolean defaultValue, CroppyLogger logger) {
         try {
             StateFlag flag = new StateFlag(name, defaultValue);
             registry.register(flag);
@@ -58,7 +71,7 @@ public final class WorldGuardFlags {
             if (existing instanceof StateFlag stateFlag) {
                 return stateFlag;
             }
-            logger.warning("Flag conflict detected for existing non-state flag: " + name);
+            logger.warn(LogChannel.INTEGRATION, "Flag conflict detected for existing non-state flag: " + name);
             return null;
         }
     }

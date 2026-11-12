@@ -11,6 +11,9 @@ import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.species.Model3DDefinition;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.species.RotationCalculator;
@@ -22,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -49,9 +51,13 @@ public class PacketEventsBlockRenderer {
 
     private static final byte ITEM_TRANSFORM_FIXED = 8;
 
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     public PacketEventsBlockRenderer(Logger logger) {
+        this(new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")));
+    }
+
+    public PacketEventsBlockRenderer(CroppyLogger logger) {
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
     }
 
@@ -180,7 +186,7 @@ public class PacketEventsBlockRenderer {
         try {
             PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to dispatch packet to player " + player.getName(), e);
+            logger.warn(LogChannel.DISPLAY, "Failed to dispatch packet to player " + player.getName(), e);
         }
     }
 }

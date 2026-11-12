@@ -5,6 +5,7 @@ import dev.darkblade.croppy.api.addon.CroppyAddon;
 import dev.darkblade.croppy.api.growth.GrowthModifier;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.menu.MenuDefinition;
 import dev.darkblade.croppy.api.species.CropRequirements;
 import dev.darkblade.croppy.api.species.RotationMode;
@@ -39,7 +40,7 @@ class AddonDecommissionerTest {
         CroppyCore core = new CroppyCore();
         core.initialize();
 
-        PaperAddonContext context = new PaperAddonContext(desc, tempDir, null, null, core);
+        PaperAddonContext context = new PaperAddonContext(desc, tempDir, NoOpCroppyLogger.INSTANCE, null, core);
 
         // Register domain items and species under addon
         Key itemKey = Key.of("test_addon", "wand");
@@ -107,7 +108,7 @@ class AddonDecommissionerTest {
         AddonClassLoader classLoader = new AddonClassLoader(new URL[0], ClassLoader.getPlatformClassLoader(), desc);
 
         // Execute decommission with isUnload = true
-        AddonDecommissioner.decommission(addon, context, classLoader, core, null, true);
+        AddonDecommissioner.decommission(addon, context, classLoader, core, NoOpCroppyLogger.INSTANCE, true);
 
         // Phase 1 verification
         assertTrue(onDisableCalled.get());
@@ -136,7 +137,7 @@ class AddonDecommissionerTest {
         CroppyCore core = new CroppyCore();
         core.initialize();
 
-        PaperAddonContext context = new PaperAddonContext(desc, tempDir, null, null, core);
+        PaperAddonContext context = new PaperAddonContext(desc, tempDir, NoOpCroppyLogger.INSTANCE, null, core);
         Key itemKey = Key.of("faulty", "bad_item");
         ItemDefinition item = new ItemDefinition(itemKey, "misc", "minecraft:dirt", 0, null, "Bad", List.of(), Map.of());
         core.getItemRegistry().register(item);
@@ -154,7 +155,7 @@ class AddonDecommissionerTest {
 
         // Should not rethrow exception, but proceed to subsequent phases
         assertDoesNotThrow(() ->
-                AddonDecommissioner.decommission(faultyAddon, context, null, core, null, false));
+                AddonDecommissioner.decommission(faultyAddon, context, null, core, NoOpCroppyLogger.INSTANCE, false));
 
         // Registry should still be purged
         assertFalse(core.getItemRegistry().contains(itemKey));

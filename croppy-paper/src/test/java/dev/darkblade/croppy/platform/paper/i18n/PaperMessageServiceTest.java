@@ -45,7 +45,7 @@ class PaperMessageServiceTest {
                 LocaleRef.ES_ES, esES
         ));
 
-        messageService = new PaperMessageService(catalog, null);
+        messageService = new PaperMessageService(catalog, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
     }
 
     @Test

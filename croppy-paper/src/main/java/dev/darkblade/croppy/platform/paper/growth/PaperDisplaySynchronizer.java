@@ -4,6 +4,8 @@ import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
 import dev.darkblade.croppy.api.species.CropDisplay;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
@@ -46,13 +48,21 @@ public class PaperDisplaySynchronizer implements DisplaySynchronizer {
     public static final NamespacedKey STATION_DISPLAY_KEY = new NamespacedKey("croppy", "station_display");
 
     private final Server server;
-    private final Logger logger;
+    private final CroppyLogger logger;
     private VirtualBlockDisplayTracker displayTracker;
 
-    public PaperDisplaySynchronizer(Server server, Logger logger, VirtualBlockDisplayTracker displayTracker) {
+    public PaperDisplaySynchronizer(Server server, CroppyLogger logger, VirtualBlockDisplayTracker displayTracker) {
         this.server = Objects.requireNonNull(server, "server must not be null");
         this.logger = Objects.requireNonNull(logger, "logger must not be null");
         this.displayTracker = displayTracker;
+    }
+
+    public PaperDisplaySynchronizer(Server server, CroppyLogger logger) {
+        this(server, logger, null);
+    }
+
+    public PaperDisplaySynchronizer(Server server, Logger logger, VirtualBlockDisplayTracker displayTracker) {
+        this(server, new JulCroppyLogger(Objects.requireNonNull(logger, "logger must not be null")), displayTracker);
     }
 
     public PaperDisplaySynchronizer(Server server, Logger logger) {

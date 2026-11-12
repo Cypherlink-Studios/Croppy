@@ -5,6 +5,10 @@ import dev.darkblade.croppy.api.crafting.CraftingRecipeRegistry;
 import dev.darkblade.croppy.api.crafting.CraftingType;
 import dev.darkblade.croppy.api.crafting.IngredientChoice;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -14,7 +18,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -142,13 +145,25 @@ public final class YamlCraftingRecipeLoader {
      *
      * @param directory directory containing YAML crafting definitions
      * @param registry  registry to register definitions into
-     * @param logger    logger for diagnostics
+     * @param logger    logger for diagnostics (may be null)
      * @return total number of recipes successfully loaded
      */
     public int loadAll(Path directory, CraftingRecipeRegistry registry, Logger logger) {
+        return loadAll(directory, registry, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    /**
+     * Recursively traverses a directory and loads all .yml and .yaml crafting recipes into the given registry.
+     *
+     * @param directory directory containing YAML crafting definitions
+     * @param registry  registry to register definitions into
+     * @param logger    logger for diagnostics (may be null)
+     * @return total number of recipes successfully loaded
+     */
+    public int loadAll(Path directory, CraftingRecipeRegistry registry, CroppyLogger logger) {
         Objects.requireNonNull(directory, "directory cannot be null");
         Objects.requireNonNull(registry, "registry cannot be null");
-        Logger log = (logger != null) ? logger : Logger.getLogger(YamlCraftingRecipeLoader.class.getName());
+        CroppyLogger log = (logger != null) ? logger : NoOpCroppyLogger.INSTANCE;
 
         if (!Files.exists(directory) || !Files.isDirectory(directory)) {
             return 0;
@@ -166,12 +181,13 @@ public final class YamlCraftingRecipeLoader {
                     CraftingRecipe recipe = load(file);
                     registry.register(recipe);
                     loadedCount++;
+                    log.debug(LogChannel.LOADER, () -> "Loaded crafting recipe: " + recipe.getKey() + " from " + file.getFileName());
                 } catch (Exception e) {
-                    log.log(Level.WARNING, "Failed to load crafting recipe from: " + file.toAbsolutePath(), e);
+                    log.warn(LogChannel.LOADER, "Failed to load crafting recipe from: " + file.toAbsolutePath(), e);
                 }
             }
         } catch (IOException e) {
-            log.log(Level.SEVERE, "Failed to walk directory: " + directory.toAbsolutePath(), e);
+            log.error(LogChannel.LOADER, "Failed to walk directory: " + directory.toAbsolutePath(), e);
         }
 
         return loadedCount;

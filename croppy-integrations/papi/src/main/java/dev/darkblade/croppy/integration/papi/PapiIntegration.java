@@ -1,5 +1,8 @@
 package dev.darkblade.croppy.integration.papi;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.integration.common.CroppyIntegration;
 import org.bukkit.Bukkit;
@@ -13,19 +16,23 @@ import java.util.logging.Logger;
  */
 public class PapiIntegration implements CroppyIntegration {
 
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final CroppyCore core;
     private final String version;
     private final boolean enabledInConfig;
     private final int raycastDistance;
     private CroppyPlaceholderExpansion expansion;
 
-    public PapiIntegration(Logger logger, CroppyCore core, String version, boolean enabledInConfig, int raycastDistance) {
+    public PapiIntegration(CroppyLogger logger, CroppyCore core, String version, boolean enabledInConfig, int raycastDistance) {
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
         this.core = Objects.requireNonNull(core, "CroppyCore cannot be null");
         this.version = Objects.requireNonNull(version, "version cannot be null");
         this.enabledInConfig = enabledInConfig;
         this.raycastDistance = raycastDistance;
+    }
+
+    public PapiIntegration(Logger logger, CroppyCore core, String version, boolean enabledInConfig, int raycastDistance) {
+        this(new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")), core, version, enabledInConfig, raycastDistance);
     }
 
     @Override
@@ -58,9 +65,9 @@ public class PapiIntegration implements CroppyIntegration {
         if (isAvailable()) {
             this.expansion = new CroppyPlaceholderExpansion(core, version, raycastDistance);
             if (this.expansion.register()) {
-                logger.info("Registered Croppy PlaceholderAPI expansion (raycast distance: " + raycastDistance + ").");
+                logger.debug(LogChannel.INTEGRATION, () -> "Registered Croppy PlaceholderAPI expansion (raycast distance: " + raycastDistance + ").");
             } else {
-                logger.warning("Failed to register Croppy PlaceholderAPI expansion.");
+                logger.warn(LogChannel.INTEGRATION, "Failed to register Croppy PlaceholderAPI expansion.");
             }
         }
     }

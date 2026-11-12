@@ -4,6 +4,9 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.crop.DefaultCropInstance;
@@ -19,7 +22,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -28,9 +30,14 @@ import java.util.logging.Logger;
 public class SqliteCropStorage implements CropStorage {
 
     private final HikariDataSource dataSource;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     public SqliteCropStorage(Path databaseFile, int maxPoolSize, long connectionTimeoutMs, Logger logger) {
+        this(databaseFile, maxPoolSize, connectionTimeoutMs,
+                new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")));
+    }
+
+    public SqliteCropStorage(Path databaseFile, int maxPoolSize, long connectionTimeoutMs, CroppyLogger logger) {
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
         Objects.requireNonNull(databaseFile, "databaseFile cannot be null");
 
@@ -76,9 +83,9 @@ public class SqliteCropStorage implements CropStorage {
             } catch (SQLException ignored) {}
 
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_croppy_chunk ON croppy_crops (world, chunk_x, chunk_z);");
-            logger.info("SQLite database storage initialized and schema verified.");
+            logger.debug(LogChannel.STORAGE, "SQLite database storage initialized and schema verified.");
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to initialize SQLite crop database schema", e);
+            logger.error(LogChannel.STORAGE, "Failed to initialize SQLite crop database schema", e);
             throw new IllegalStateException("Failed to initialize SQLite storage", e);
         }
     }
@@ -113,7 +120,7 @@ public class SqliteCropStorage implements CropStorage {
                 return list;
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to load crops for chunk [" + chunkX + ", " + chunkZ + "] in world " + worldName, e);
+            logger.error(LogChannel.STORAGE, "Failed to load crops for chunk [" + chunkX + ", " + chunkZ + "] in world " + worldName, e);
             return Collections.emptyList();
         }
     }
@@ -166,7 +173,7 @@ public class SqliteCropStorage implements CropStorage {
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to save chunk [" + chunkX + ", " + chunkZ + "] to SQLite", e);
+            logger.error(LogChannel.STORAGE, "Failed to save chunk [" + chunkX + ", " + chunkZ + "] to SQLite", e);
         }
     }
 
@@ -203,7 +210,7 @@ public class SqliteCropStorage implements CropStorage {
             ps.setString(13, crop.getFertilizerKey() != null ? crop.getFertilizerKey().asString() : null);
             ps.executeUpdate();
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to save crop at " + pos + " to SQLite", e);
+            logger.error(LogChannel.STORAGE, "Failed to save crop at " + pos + " to SQLite", e);
         }
     }
 
@@ -220,16 +227,16 @@ public class SqliteCropStorage implements CropStorage {
             ps.setInt(4, position.z());
             ps.executeUpdate();
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to delete crop at " + position + " from SQLite", e);
+            logger.error(LogChannel.STORAGE, "Failed to delete crop at " + position + " from SQLite", e);
         }
     }
 
     @Override
     public void shutdown() {
         if (dataSource != null && !dataSource.isClosed()) {
-            logger.info("Closing SQLite HikariCP connection pool...");
+            logger.debug(LogChannel.STORAGE, "Closing SQLite HikariCP connection pool...");
             dataSource.close();
-            logger.info("SQLite HikariCP pool closed.");
+            logger.debug(LogChannel.STORAGE, "SQLite HikariCP pool closed.");
         }
     }
 }

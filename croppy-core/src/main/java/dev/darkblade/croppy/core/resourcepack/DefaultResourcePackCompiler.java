@@ -22,8 +22,9 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import java.util.regex.Pattern;
 import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
@@ -36,7 +37,15 @@ import java.util.zip.ZipOutputStream;
  */
 public class DefaultResourcePackCompiler implements ResourcePackCompiler {
 
-    private static final Logger LOGGER = Logger.getLogger(DefaultResourcePackCompiler.class.getName());
+    private final CroppyLogger logger;
+
+    public DefaultResourcePackCompiler() {
+        this(NoOpCroppyLogger.INSTANCE);
+    }
+
+    public DefaultResourcePackCompiler(CroppyLogger logger) {
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
+    }
     private static final Pattern VALID_PATH_SEGMENT = Pattern.compile("^[a-z0-9_.-]+$");
 
     @Override
@@ -131,7 +140,7 @@ public class DefaultResourcePackCompiler implements ResourcePackCompiler {
                 String entryPath = prefix.isEmpty() ? relative : (prefix.endsWith("/") ? prefix + relative : prefix + "/" + relative);
 
                 if (!isValidMinecraftPath(entryPath)) {
-                    LOGGER.log(Level.WARNING, "Skipping invalid resource pack asset path: {0}", entryPath);
+                    logger.warn(LogChannel.PACK, "Skipping invalid resource pack asset path: " + entryPath);
                     return FileVisitResult.CONTINUE;
                 }
 
@@ -166,7 +175,7 @@ public class DefaultResourcePackCompiler implements ResourcePackCompiler {
                 }
 
                 if (!isValidMinecraftPath(entryName)) {
-                    LOGGER.log(Level.WARNING, "Skipping invalid asset path in archive {0}: {1}", new Object[]{archivePath, entryName});
+                    logger.warn(LogChannel.PACK, "Skipping invalid asset path in archive " + archivePath + ": " + entryName);
                     continue;
                 }
 

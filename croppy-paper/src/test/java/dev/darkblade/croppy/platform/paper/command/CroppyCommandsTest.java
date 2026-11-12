@@ -17,8 +17,11 @@ import dev.darkblade.croppy.core.crop.DefaultCropInstance;
 import dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry;
 import dev.darkblade.croppy.core.item.DefaultItemRegistry;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.LogLevel;
 import dev.darkblade.croppy.platform.paper.CroppyPlugin;
 import dev.darkblade.croppy.platform.paper.config.PluginConfig;
+import dev.darkblade.croppy.platform.paper.logging.PaperCroppyLogger;
 import dev.darkblade.croppy.platform.paper.service.CropInspectorService;
 import dev.darkblade.croppy.platform.paper.service.CropTargetResolver;
 import net.kyori.adventure.text.Component;
@@ -474,5 +477,73 @@ class CroppyCommandsTest {
 
         commands.inspectRaycast(mockSource);
         assertNotNull(sentMessage.get(), "Expected no-crop-found error message to be sent to player");
+    }
+
+    @Test
+    @DisplayName("Verify log_channels suggestion provider lists all LogChannel IDs")
+    void testSuggestLogChannels() {
+        List<String> suggestions = commands.suggestLogChannels(null, CommandInput.empty());
+        assertEquals(LogChannel.values().length, suggestions.size());
+        for (LogChannel channel : LogChannel.values()) {
+            assertTrue(suggestions.contains(channel.id()), "Missing suggestion for " + channel.id());
+        }
+    }
+
+    @Test
+    @DisplayName("Verify /croppy debug subcommands manage PaperCroppyLogger runtime channels cleanly")
+    void testDebugChannelManagementUnit() {
+        List<String> consoleOutput = new ArrayList<>();
+        PaperCroppyLogger logger = new PaperCroppyLogger((level, msg, throwable) ->
+                consoleOutput.add(level.name() + ": " + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(msg))
+        );
+        logger.applyConfig(LogLevel.INFO, java.util.Set.of());
+        commands.setCroppyLogger(logger);
+
+        List<String> playerMessages = new ArrayList<>();
+        Player mockPlayer = (Player) Proxy.newProxyInstance(
+                Player.class.getClassLoader(),
+                new Class<?>[]{Player.class},
+                (proxy, method, args) -> {
+                    if ("locale".equals(method.getName())) return java.util.Locale.ENGLISH;
+                    if ("sendMessage".equals(method.getName()) && args != null && args.length > 0 && args[0] instanceof Component c) {
+                        playerMessages.add(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(c));
+                        return null;
+                    }
+                    return null;
+                }
+        );
+
+        Source mockSource = (Source) Proxy.newProxyInstance(
+                Source.class.getClassLoader(),
+                new Class<?>[]{Source.class},
+                (proxy, method, args) -> {
+                    if ("source".equals(method.getName())) return mockPlayer;
+                    return null;
+                }
+        );
+
+        commands.debugEnable(mockSource, "growth");
+        assertTrue(logger.getDebugChannels().contains(LogChannel.GROWTH));
+
+        // Verify debug logs go only to console sink, never forwarded to player chat
+        logger.debug(LogChannel.GROWTH, () -> "CONSOLE_ONLY_GROWTH_TRACE");
+        assertTrue(consoleOutput.stream().anyMatch(line -> line.contains("CONSOLE_ONLY_GROWTH_TRACE")));
+        assertFalse(playerMessages.stream().anyMatch(line -> line.contains("CONSOLE_ONLY_GROWTH_TRACE")));
+
+        commands.debugStatus(mockSource);
+        assertTrue(playerMessages.stream().anyMatch(m -> m.contains("INFO") && m.contains("RICH")));
+
+        commands.debugToggle(mockSource, "growth");
+        assertFalse(logger.getDebugChannels().contains(LogChannel.GROWTH));
+
+        commands.debugAll(mockSource);
+        assertEquals(LogChannel.values().length, logger.getDebugChannels().size());
+
+        commands.debugOff(mockSource);
+        assertTrue(logger.getDebugChannels().isEmpty());
+
+        playerMessages.clear();
+        commands.debugToggle(mockSource, "nonexistent");
+        assertTrue(playerMessages.stream().anyMatch(m -> m.contains("nonexistent") && m.contains("growth")));
     }
 }

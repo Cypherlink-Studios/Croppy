@@ -2,6 +2,7 @@ package dev.darkblade.croppy.core.addon;
 
 import dev.darkblade.croppy.api.addon.AddonDescription;
 import dev.darkblade.croppy.api.addon.AddonState;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ class DefaultAddonManagerTest {
 
     @BeforeEach
     void setUp() {
-        manager = new DefaultAddonManager(tempDir, null);
+        manager = new DefaultAddonManager(tempDir, NoOpCroppyLogger.INSTANCE);
     }
 
     @Test

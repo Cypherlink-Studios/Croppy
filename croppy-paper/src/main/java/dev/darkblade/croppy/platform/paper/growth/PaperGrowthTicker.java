@@ -3,6 +3,10 @@ package dev.darkblade.croppy.platform.paper.growth;
 import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.growth.CropEnvironment;
 import dev.darkblade.croppy.api.growth.EnvironmentProvider;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.core.CroppyCore;
@@ -19,7 +23,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Objects;
-import java.util.logging.Level;
 
 /**
  * Scheduled Bukkit runnable executing periodic growth simulation cycles for all active crops,
@@ -32,22 +35,37 @@ public class PaperGrowthTicker extends BukkitRunnable {
     private final EnvironmentProvider environmentProvider;
     private final DailyTransitionService dailyTransitionService;
     private final VirtualBlockDisplayTracker displayTracker;
+    private final CroppyLogger logger;
     private BukkitTask task;
 
-    public PaperGrowthTicker(Plugin plugin, CroppyCore core, EnvironmentProvider environmentProvider, DailyTransitionService dailyTransitionService, VirtualBlockDisplayTracker displayTracker) {
+    public PaperGrowthTicker(
+            Plugin plugin,
+            CroppyCore core,
+            EnvironmentProvider environmentProvider,
+            DailyTransitionService dailyTransitionService,
+            VirtualBlockDisplayTracker displayTracker,
+            CroppyLogger logger
+    ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin must not be null");
         this.core = Objects.requireNonNull(core, "core must not be null");
         this.environmentProvider = Objects.requireNonNull(environmentProvider, "environmentProvider must not be null");
         this.dailyTransitionService = dailyTransitionService;
         this.displayTracker = displayTracker;
+        this.logger = logger != null
+                ? logger
+                : (plugin.getLogger() != null ? new JulCroppyLogger(plugin.getLogger()) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    public PaperGrowthTicker(Plugin plugin, CroppyCore core, EnvironmentProvider environmentProvider, DailyTransitionService dailyTransitionService, VirtualBlockDisplayTracker displayTracker) {
+        this(plugin, core, environmentProvider, dailyTransitionService, displayTracker, null);
     }
 
     public PaperGrowthTicker(Plugin plugin, CroppyCore core, EnvironmentProvider environmentProvider, DailyTransitionService dailyTransitionService) {
-        this(plugin, core, environmentProvider, dailyTransitionService, null);
+        this(plugin, core, environmentProvider, dailyTransitionService, null, null);
     }
 
     public PaperGrowthTicker(Plugin plugin, CroppyCore core, EnvironmentProvider environmentProvider) {
-        this(plugin, core, environmentProvider, null, null);
+        this(plugin, core, environmentProvider, null, null, null);
     }
 
     @Override
@@ -87,7 +105,7 @@ public class PaperGrowthTicker extends BukkitRunnable {
                     handleWitheredCrop(world, crop);
                 }
             } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING, "Error processing growth for crop at " + crop.getPosition(), e);
+                logger.warn(LogChannel.GROWTH, "Error processing growth for crop at " + crop.getPosition(), e);
             }
         }
     }

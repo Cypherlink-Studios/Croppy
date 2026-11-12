@@ -22,8 +22,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 
 /**
  * Pure Java 21 implementation of {@link AddonConfig} powered by SnakeYAML 2.2.
@@ -31,14 +32,18 @@ import java.util.logging.Logger;
  */
 public class YamlAddonConfig implements AddonConfig {
 
-    private static final Logger LOGGER = Logger.getLogger(YamlAddonConfig.class.getName());
-
     private final Path filePath;
+    private final CroppyLogger logger;
     private final Map<String, Object> data = new ConcurrentHashMap<>();
     private final Yaml yaml;
 
     public YamlAddonConfig(Path filePath) {
+        this(filePath, NoOpCroppyLogger.INSTANCE);
+    }
+
+    public YamlAddonConfig(Path filePath, CroppyLogger logger) {
         this.filePath = filePath;
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         this.yaml = createYaml();
         if (filePath != null && Files.exists(filePath)) {
             reload();
@@ -46,7 +51,12 @@ public class YamlAddonConfig implements AddonConfig {
     }
 
     public YamlAddonConfig(Path filePath, Map<String, Object> initialData) {
+        this(filePath, initialData, NoOpCroppyLogger.INSTANCE);
+    }
+
+    public YamlAddonConfig(Path filePath, Map<String, Object> initialData, CroppyLogger logger) {
         this.filePath = filePath;
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         this.yaml = createYaml();
         if (initialData != null) {
             this.data.putAll(deepCopy(initialData));
@@ -64,8 +74,12 @@ public class YamlAddonConfig implements AddonConfig {
     }
 
     public static YamlAddonConfig load(Path filePath) throws IOException {
+        return load(filePath, NoOpCroppyLogger.INSTANCE);
+    }
+
+    public static YamlAddonConfig load(Path filePath, CroppyLogger logger) throws IOException {
         Objects.requireNonNull(filePath, "filePath cannot be null");
-        YamlAddonConfig config = new YamlAddonConfig(filePath);
+        YamlAddonConfig config = new YamlAddonConfig(filePath, logger);
         config.reload();
         return config;
     }
@@ -324,7 +338,7 @@ public class YamlAddonConfig implements AddonConfig {
                 }
             }
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to reload configuration from " + filePath + ": " + e.getMessage(), e);
+            logger.warn(LogChannel.ADDON, "Failed to reload configuration from " + filePath + ": " + e.getMessage(), e);
         }
     }
 
@@ -339,7 +353,7 @@ public class YamlAddonConfig implements AddonConfig {
                 yaml.dump(data, writer);
             }
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to save configuration to " + filePath + ": " + e.getMessage(), e);
+            logger.error(LogChannel.ADDON, "Failed to save configuration to " + filePath + ": " + e.getMessage(), e);
         }
     }
 }

@@ -42,7 +42,7 @@ class UpdateNotificationListenerTest {
                 catalog.registerLocale(LocaleRef.EN_US, loader.load(in, "en-US.yml"));
             }
         }
-        messageService = new PaperMessageService(catalog, null);
+        messageService = new PaperMessageService(catalog, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
     }
 
     private Player createMockPlayer(boolean hasPermission, boolean online) {

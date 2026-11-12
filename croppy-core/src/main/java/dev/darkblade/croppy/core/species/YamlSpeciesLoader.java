@@ -1,6 +1,10 @@
 package dev.darkblade.croppy.core.species;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.species.CropDisplay;
 import dev.darkblade.croppy.api.species.CropRequirements;
 import dev.darkblade.croppy.api.species.HarvestDefinition;
@@ -26,7 +30,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -380,11 +383,23 @@ public class YamlSpeciesLoader {
      * Loads all YAML species files from a directory.
      *
      * @param directory the directory to scan
-     * @param logger logger for diagnostic output
+     * @param logger    logger for diagnostic output (may be null)
      * @return list of loaded species
      */
     public List<Species> loadDirectory(Path directory, Logger logger) {
+        return loadDirectory(directory, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    /**
+     * Loads all YAML species files from a directory.
+     *
+     * @param directory the directory to scan
+     * @param logger    logger for diagnostic output (may be null)
+     * @return list of loaded species
+     */
+    public List<Species> loadDirectory(Path directory, CroppyLogger logger) {
         Objects.requireNonNull(directory, "Directory cannot be null");
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         List<Species> loaded = new ArrayList<>();
 
         if (!Files.exists(directory) || !Files.isDirectory(directory)) {
@@ -398,19 +413,13 @@ public class YamlSpeciesLoader {
                         try (InputStream in = Files.newInputStream(path)) {
                             Species species = load(in, path.getFileName().toString());
                             loaded.add(species);
-                            if (logger != null) {
-                                logger.info("Loaded crop species: " + species.getKey());
-                            }
+                            log.debug(LogChannel.LOADER, () -> "Loaded crop species: " + species.getKey());
                         } catch (Exception e) {
-                            if (logger != null) {
-                                logger.log(Level.SEVERE, "Failed to load species from: " + path, e);
-                            }
+                            log.error(LogChannel.LOADER, "Failed to load species from: " + path, e);
                         }
                     });
         } catch (IOException e) {
-            if (logger != null) {
-                logger.log(Level.SEVERE, "Failed to read species directory: " + directory, e);
-            }
+            log.error(LogChannel.LOADER, "Failed to read species directory: " + directory, e);
         }
 
         return loaded;

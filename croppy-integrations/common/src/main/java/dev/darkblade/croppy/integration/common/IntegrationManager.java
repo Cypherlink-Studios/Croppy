@@ -1,7 +1,10 @@
 package dev.darkblade.croppy.integration.common;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+
 import java.util.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -10,12 +13,16 @@ import java.util.logging.Logger;
  */
 public class IntegrationManager {
 
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final Map<String, CroppyIntegration> integrations = new LinkedHashMap<>();
     private final Set<String> activeIntegrations = new HashSet<>();
 
-    public IntegrationManager(Logger logger) {
+    public IntegrationManager(CroppyLogger logger) {
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+    }
+
+    public IntegrationManager(Logger logger) {
+        this(new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")));
     }
 
     /**
@@ -73,7 +80,7 @@ public class IntegrationManager {
                     integration.onLoad();
                 }
             } catch (Throwable t) {
-                logger.log(Level.SEVERE, "Failed during onLoad for integration: " + integration.id(), t);
+                logger.error(LogChannel.INTEGRATION, "Failed during onLoad for integration: " + integration.id(), t);
             }
         }
     }
@@ -87,10 +94,10 @@ public class IntegrationManager {
                 if (integration.isAvailable()) {
                     integration.onEnable();
                     activeIntegrations.add(integration.id().toLowerCase(Locale.ROOT));
-                    logger.info("Successfully hooked integration: " + integration.id());
+                    logger.debug(LogChannel.INTEGRATION, () -> "Successfully hooked integration: " + integration.id());
                 }
             } catch (Throwable t) {
-                logger.log(Level.SEVERE, "Failed during onEnable for integration: " + integration.id(), t);
+                logger.error(LogChannel.INTEGRATION, "Failed during onEnable for integration: " + integration.id(), t);
             }
         }
     }
@@ -104,7 +111,7 @@ public class IntegrationManager {
                 try {
                     integration.onDisable();
                 } catch (Throwable t) {
-                    logger.log(Level.SEVERE, "Failed during onDisable for integration: " + integration.id(), t);
+                    logger.error(LogChannel.INTEGRATION, "Failed during onDisable for integration: " + integration.id(), t);
                 }
             }
         }

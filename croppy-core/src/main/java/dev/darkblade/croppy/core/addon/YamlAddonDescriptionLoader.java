@@ -1,6 +1,9 @@
 package dev.darkblade.croppy.core.addon;
 
 import dev.darkblade.croppy.api.addon.AddonDescription;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -24,10 +27,16 @@ public class YamlAddonDescriptionLoader {
     private static final Pattern VALID_IDENTIFIER_PATTERN = Pattern.compile("^[a-z0-9_.-]+$");
 
     private final Yaml yaml;
+    private final CroppyLogger logger;
 
     public YamlAddonDescriptionLoader() {
+        this(NoOpCroppyLogger.INSTANCE);
+    }
+
+    public YamlAddonDescriptionLoader(CroppyLogger logger) {
         LoaderOptions options = new LoaderOptions();
         this.yaml = new Yaml(new SafeConstructor(options));
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     /**
@@ -137,6 +146,7 @@ public class YamlAddonDescriptionLoader {
             softDependencies = parseStringList(root.get("soft_dependencies"));
         }
 
+        logger.debug(LogChannel.LOADER, () -> "Parsed addon manifest '" + id + "' v" + version + " from " + sourceName);
         return new AddonDescription(
                 id,
                 name,

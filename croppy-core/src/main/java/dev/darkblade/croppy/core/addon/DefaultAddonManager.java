@@ -3,6 +3,10 @@ package dev.darkblade.croppy.core.addon;
 import dev.darkblade.croppy.api.addon.AddonDescription;
 import dev.darkblade.croppy.api.addon.AddonManager;
 import dev.darkblade.croppy.api.addon.AddonState;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.registry.Service;
 
 import java.io.IOException;
@@ -18,7 +22,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -29,7 +32,7 @@ public class DefaultAddonManager implements AddonManager, Service {
     public static final String MANIFEST_FILE = "addon.yml";
 
     protected final Path addonsDirectory;
-    protected final Logger logger;
+    protected final CroppyLogger logger;
     protected final YamlAddonDescriptionLoader descriptionLoader;
 
     protected final Map<String, AddonDescription> discoveredAddons = new ConcurrentHashMap<>();
@@ -37,16 +40,24 @@ public class DefaultAddonManager implements AddonManager, Service {
     protected final Map<String, Path> addonPaths = new ConcurrentHashMap<>();
     protected final Map<String, Path> dataFolders = new ConcurrentHashMap<>();
 
-    public DefaultAddonManager(Path addonsDirectory, Logger logger) {
+    public DefaultAddonManager(Path addonsDirectory, CroppyLogger logger) {
         this.addonsDirectory = Objects.requireNonNull(addonsDirectory, "addonsDirectory cannot be null");
-        this.logger = logger != null ? logger : Logger.getLogger(DefaultAddonManager.class.getName());
-        this.descriptionLoader = new YamlAddonDescriptionLoader();
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
+        this.descriptionLoader = new YamlAddonDescriptionLoader(this.logger);
+    }
+
+    public DefaultAddonManager(Path addonsDirectory, CroppyLogger logger, YamlAddonDescriptionLoader descriptionLoader) {
+        this.addonsDirectory = Objects.requireNonNull(addonsDirectory, "addonsDirectory cannot be null");
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
+        this.descriptionLoader = Objects.requireNonNull(descriptionLoader, "descriptionLoader cannot be null");
+    }
+
+    public DefaultAddonManager(Path addonsDirectory, Logger logger) {
+        this(addonsDirectory, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
     }
 
     public DefaultAddonManager(Path addonsDirectory, Logger logger, YamlAddonDescriptionLoader descriptionLoader) {
-        this.addonsDirectory = Objects.requireNonNull(addonsDirectory, "addonsDirectory cannot be null");
-        this.logger = logger != null ? logger : Logger.getLogger(DefaultAddonManager.class.getName());
-        this.descriptionLoader = Objects.requireNonNull(descriptionLoader, "descriptionLoader cannot be null");
+        this(addonsDirectory, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE, descriptionLoader);
     }
 
     @Override
@@ -55,7 +66,7 @@ public class DefaultAddonManager implements AddonManager, Service {
             try {
                 Files.createDirectories(addonsDirectory);
             } catch (IOException e) {
-                logger.log(Level.SEVERE, "Failed to create addons directory: " + addonsDirectory, e);
+                logger.error(LogChannel.ADDON, "Failed to create addons directory: " + addonsDirectory, e);
                 return;
             }
         }
@@ -65,11 +76,11 @@ public class DefaultAddonManager implements AddonManager, Service {
                 try {
                     discoverEntry(entry);
                 } catch (Exception e) {
-                    logger.log(Level.WARNING, "Failed to inspect potential addon entry: " + entry.getFileName(), e);
+                    logger.warn(LogChannel.ADDON, "Failed to inspect potential addon entry: " + entry.getFileName(), e);
                 }
             }
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Failed to scan addons directory: " + addonsDirectory, e);
+            logger.error(LogChannel.ADDON, "Failed to scan addons directory: " + addonsDirectory, e);
         }
     }
 
@@ -102,7 +113,7 @@ public class DefaultAddonManager implements AddonManager, Service {
         // 1. Duplicate ID validation
         if (discoveredAddons.containsKey(id)) {
             Path existing = addonPaths.get(id);
-            logger.severe("CRITICAL: Duplicate addon id '" + id + "' detected! Conflict between ["
+            logger.error(LogChannel.ADDON, "CRITICAL: Duplicate addon id '" + id + "' detected! Conflict between ["
                     + existing + "] and [" + path + "]. Registration rejected.");
             return false;
         }
@@ -114,7 +125,7 @@ public class DefaultAddonManager implements AddonManager, Service {
         // 2. Data folder binding & naming convention validation
         if (Files.isDirectory(path)) {
             if (!path.getFileName().toString().equalsIgnoreCase(id)) {
-                logger.warning("Directory addon '" + id + "' is located in folder '" + path.getFileName()
+                logger.warn(LogChannel.ADDON, "Directory addon '" + id + "' is located in folder '" + path.getFileName()
                         + "'. It is strongly recommended that directory names match the addon manifest id.");
             }
             dataFolders.put(id, path);
@@ -173,7 +184,7 @@ public class DefaultAddonManager implements AddonManager, Service {
             for (Map.Entry<String, Path> entry : addonPaths.entrySet()) {
                 if (!entry.getKey().equals(addonId) && Files.isDirectory(entry.getValue())) {
                     if (entry.getValue().toAbsolutePath().normalize().equals(dataFolder.toAbsolutePath().normalize())) {
-                        logger.severe("CRITICAL: Path collision detected! JAR addon '" + addonId + "' data folder ["
+                        logger.error(LogChannel.ADDON, "CRITICAL: Path collision detected! JAR addon '" + addonId + "' data folder ["
                                 + dataFolder + "] is already occupied by directory addon '" + entry.getKey() + "'. Halting load.");
                         return false;
                     }

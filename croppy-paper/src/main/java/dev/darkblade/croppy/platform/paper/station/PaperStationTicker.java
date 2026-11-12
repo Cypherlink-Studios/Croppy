@@ -4,6 +4,10 @@ import dev.darkblade.croppy.api.expression.EvaluationContext;
 import dev.darkblade.croppy.api.fuel.FuelProperties;
 import dev.darkblade.croppy.api.fuel.FuelProvider;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.process.PhaseDefinition;
 import dev.darkblade.croppy.api.process.PhaseEffects;
 import dev.darkblade.croppy.api.process.PhaseParticle;
@@ -43,7 +47,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.logging.Level;
 
 /**
  * Scheduled recurring ticker executing active processes, updating thermal dynamics,
@@ -62,7 +65,38 @@ public final class PaperStationTicker implements Runnable {
     private final FuelProvider fuelProvider;
     private final ProcessRegistry processRegistry;
     private final long tickIntervalTicks;
+    private final CroppyLogger logger;
     private BukkitTask task;
+
+    public PaperStationTicker(
+            Plugin plugin,
+            DefaultStationManager stationManager,
+            ProcessEngine processEngine,
+            PaperThermalEvaluator thermalEvaluator,
+            RuleEngine ruleEngine,
+            PaperDisplaySynchronizer displaySynchronizer,
+            ItemFactory itemFactory,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            FuelProvider fuelProvider,
+            ProcessRegistry processRegistry,
+            long tickIntervalTicks,
+            CroppyLogger logger
+    ) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+        this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
+        this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
+        this.thermalEvaluator = Objects.requireNonNull(thermalEvaluator, "thermalEvaluator cannot be null");
+        this.ruleEngine = Objects.requireNonNull(ruleEngine, "ruleEngine cannot be null");
+        this.displaySynchronizer = displaySynchronizer;
+        this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
+        this.viewerTracker = viewerTracker;
+        this.fuelProvider = fuelProvider;
+        this.processRegistry = processRegistry;
+        this.tickIntervalTicks = Math.max(1, tickIntervalTicks);
+        this.logger = logger != null
+                ? logger
+                : (plugin.getLogger() != null ? new JulCroppyLogger(plugin.getLogger()) : NoOpCroppyLogger.INSTANCE);
+    }
 
     public PaperStationTicker(
             Plugin plugin,
@@ -77,17 +111,7 @@ public final class PaperStationTicker implements Runnable {
             ProcessRegistry processRegistry,
             long tickIntervalTicks
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
-        this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
-        this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
-        this.thermalEvaluator = Objects.requireNonNull(thermalEvaluator, "thermalEvaluator cannot be null");
-        this.ruleEngine = Objects.requireNonNull(ruleEngine, "ruleEngine cannot be null");
-        this.displaySynchronizer = displaySynchronizer;
-        this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
-        this.viewerTracker = viewerTracker;
-        this.fuelProvider = fuelProvider;
-        this.processRegistry = processRegistry;
-        this.tickIntervalTicks = Math.max(1, tickIntervalTicks);
+        this(plugin, stationManager, processEngine, thermalEvaluator, ruleEngine, displaySynchronizer, itemFactory, viewerTracker, fuelProvider, processRegistry, tickIntervalTicks, null);
     }
 
     public PaperStationTicker(
@@ -158,7 +182,7 @@ public final class PaperStationTicker implements Runnable {
             try {
                 tickStation(station);
             } catch (Throwable t) {
-                plugin.getLogger().log(Level.SEVERE, "Error ticking station at " + station.getPosition(), t);
+                logger.error(LogChannel.STATION, "Error ticking station at " + station.getPosition(), t);
             }
         }
     }
@@ -339,7 +363,9 @@ public final class PaperStationTicker implements Runnable {
         try {
             Particle.DustOptions dust = new Particle.DustOptions(color, 1.2f);
             world.spawnParticle(Particle.DUST, center, 4, 0.15, 0.05, 0.15, 0.0, dust);
-        } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            logger.trace(LogChannel.STATION, () -> "Failed to spawn thermal dust particle at " + center, ex);
+        }
     }
 
     private void renderPhaseEffects(World world, BlockPosition pos, PhaseEffects effects, long phaseElapsedTicks) {
@@ -355,7 +381,10 @@ public final class PaperStationTicker implements Runnable {
                 Particle particle = Particle.valueOf(p.type().toUpperCase(Locale.ROOT));
                 Location pLoc = center.clone().add(0, 0.45, 0);
                 world.spawnParticle(particle, pLoc, p.count(), p.offsetX(), p.offsetY(), p.offsetZ(), p.speed());
-            } catch (Exception ignored) {}
+            } catch (Exception ex) {
+                logger.trace(LogChannel.STATION,
+                        () -> "Failed to spawn process particle '" + p.type() + "' at " + center, ex);
+            }
         }
 
         if (effects.hasSound()) {
@@ -372,7 +401,9 @@ public final class PaperStationTicker implements Runnable {
                             world.playSound(center, sound, s.volume(), s.pitch());
                         }
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ex) {
+                    logger.trace(LogChannel.STATION, () -> "Failed to play process sound at " + center, ex);
+                }
             }
         }
     }
@@ -418,7 +449,10 @@ public final class PaperStationTicker implements Runnable {
                                 world.playSound(center, sound, vol, pitch);
                             }
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception ex) {
+                        logger.trace(LogChannel.STATION,
+                                () -> "Failed to play rule action sound '" + sObj + "' at " + center, ex);
+                    }
                 }
             } else if ("EMIT_PARTICLES".equals(type)) {
                 Object pObj = action.parameters().get("particle");
@@ -427,7 +461,10 @@ public final class PaperStationTicker implements Runnable {
                         Particle p = Particle.valueOf(pObj.toString().toUpperCase(Locale.ROOT));
                         int count = action.parameters().get("count") instanceof Number n ? n.intValue() : 5;
                         world.spawnParticle(p, center, count, 0.2, 0.2, 0.2, 0.02);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ex) {
+                        logger.trace(LogChannel.STATION,
+                                () -> "Failed to spawn rule action particle '" + pObj + "' at " + center, ex);
+                    }
                 }
             }
         }

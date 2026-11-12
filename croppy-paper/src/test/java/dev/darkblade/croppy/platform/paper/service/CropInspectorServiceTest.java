@@ -184,7 +184,7 @@ class CropInspectorServiceTest {
         }
 
         dev.darkblade.croppy.platform.paper.i18n.PaperMessageService messageService =
-                new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, null);
+                new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
 
         CropInspectorService localizedInspector = new CropInspectorService(
                 cropManager, speciesRegistry, pos -> CropEnvironment.of(12, 8), null, null, messageService
@@ -235,7 +235,7 @@ class CropInspectorServiceTest {
         }
 
         dev.darkblade.croppy.platform.paper.i18n.PaperMessageService messageService =
-                new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, null);
+                new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
 
         CropInspectorService localizedInspector = new CropInspectorService(
                 cropManager, speciesRegistry, pos -> CropEnvironment.of(15, 8), null, null, messageService

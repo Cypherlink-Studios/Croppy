@@ -5,6 +5,10 @@ import dev.darkblade.croppy.api.interaction.InteractionAction;
 import dev.darkblade.croppy.api.interaction.InteractionDefinition;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.interaction.InteractionTrigger;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -20,7 +24,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -221,12 +224,25 @@ public final class YamlInteractionLoader {
      *
      * @param directory directory to search
      * @param registry  registry to populate
-     * @param logger    logger for status messages
+     * @param logger    logger for status messages (may be null)
      * @return count of loaded interactions
      */
     public int loadAll(Path directory, InteractionRegistry registry, Logger logger) {
+        return loadAll(directory, registry, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    /**
+     * Recursively loads all interaction YAML files from a directory into the given registry.
+     *
+     * @param directory directory to search
+     * @param registry  registry to populate
+     * @param logger    logger for status messages (may be null)
+     * @return count of loaded interactions
+     */
+    public int loadAll(Path directory, InteractionRegistry registry, CroppyLogger logger) {
         Objects.requireNonNull(directory, "directory cannot be null");
         Objects.requireNonNull(registry, "registry cannot be null");
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         if (!Files.isDirectory(directory)) {
             return 0;
         }
@@ -244,16 +260,13 @@ public final class YamlInteractionLoader {
                         registry.register(def);
                         loadedCount++;
                     }
+                    log.debug(LogChannel.LOADER, () -> "Loaded " + defs.size() + " interactions from " + file.getFileName());
                 } catch (Exception ex) {
-                    if (logger != null) {
-                        logger.log(Level.SEVERE, "Failed to load interaction definition from " + file, ex);
-                    }
+                    log.error(LogChannel.LOADER, "Failed to load interaction definition from " + file, ex);
                 }
             }
         } catch (IOException e) {
-            if (logger != null) {
-                logger.log(Level.SEVERE, "Failed to scan interaction directory " + directory, e);
-            }
+            log.error(LogChannel.LOADER, "Failed to scan interaction directory " + directory, e);
         }
 
         return loadedCount;

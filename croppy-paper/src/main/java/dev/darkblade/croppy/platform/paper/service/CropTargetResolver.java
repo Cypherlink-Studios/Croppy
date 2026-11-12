@@ -1,6 +1,9 @@
 package dev.darkblade.croppy.platform.paper.service;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.platform.paper.display.VirtualBlockDisplay;
@@ -28,14 +31,20 @@ public class CropTargetResolver {
 
     private final CropManager cropManager;
     private final VirtualBlockDisplayTracker displayTracker;
+    private final CroppyLogger logger;
 
     public CropTargetResolver(CropManager cropManager, VirtualBlockDisplayTracker displayTracker) {
+        this(cropManager, displayTracker, NoOpCroppyLogger.INSTANCE);
+    }
+
+    public CropTargetResolver(CropManager cropManager, VirtualBlockDisplayTracker displayTracker, CroppyLogger logger) {
         this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
         this.displayTracker = displayTracker;
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     public CropTargetResolver(CropManager cropManager) {
-        this(cropManager, null);
+        this(cropManager, null, NoOpCroppyLogger.INSTANCE);
     }
 
     public CropManager getCropManager() {
@@ -98,8 +107,9 @@ public class CropTargetResolver {
             if (solidBlockHit != null && solidBlockHit.getHitPosition() != null) {
                 solidBlockDistance = start.distance(solidBlockHit.getHitPosition());
             }
-        } catch (Throwable ignored) {
-            // Allows test environments without full Bukkit world collision trees
+        } catch (Throwable t) {
+            logger.trace(LogChannel.CORE,
+                    () -> "Solid block raytrace failed in world '" + world.getName() + "'", t);
         }
 
         // 2. Raytrace nearby virtual interaction entity bounding boxes
@@ -160,7 +170,9 @@ public class CropTargetResolver {
         RayTraceResult anyBlockHit = null;
         try {
             anyBlockHit = world.rayTraceBlocks(startLoc, dir, maxDistance, FluidCollisionMode.NEVER, false);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            logger.trace(LogChannel.CORE,
+                    () -> "Supporting soil raytrace failed in world '" + world.getName() + "'", t);
         }
 
         if (anyBlockHit != null && anyBlockHit.getHitBlock() != null) {

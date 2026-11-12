@@ -2,6 +2,9 @@ package dev.darkblade.croppy.platform.paper.listener;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.station.StationInstance;
@@ -22,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -38,7 +40,29 @@ public class ChunkLifecycleListener implements Listener {
     private final DefaultStationManager stationManager;
     private final StationStorage stationStorage;
     private final StationViewerTracker viewerTracker;
-    private final Logger logger;
+    private final CroppyLogger logger;
+
+    public ChunkLifecycleListener(
+            CropManager cropManager,
+            CropStorage cropStorage,
+            SpeciesRegistry speciesRegistry,
+            DisplaySynchronizer displaySynchronizer,
+            VirtualBlockDisplayTracker displayTracker,
+            DefaultStationManager stationManager,
+            StationStorage stationStorage,
+            StationViewerTracker viewerTracker,
+            CroppyLogger logger
+    ) {
+        this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
+        this.cropStorage = Objects.requireNonNull(cropStorage, "cropStorage cannot be null");
+        this.speciesRegistry = speciesRegistry;
+        this.displaySynchronizer = displaySynchronizer;
+        this.displayTracker = displayTracker;
+        this.stationManager = stationManager;
+        this.stationStorage = stationStorage;
+        this.viewerTracker = viewerTracker;
+        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+    }
 
     public ChunkLifecycleListener(
             CropManager cropManager,
@@ -51,15 +75,17 @@ public class ChunkLifecycleListener implements Listener {
             StationViewerTracker viewerTracker,
             Logger logger
     ) {
-        this.cropManager = Objects.requireNonNull(cropManager, "cropManager cannot be null");
-        this.cropStorage = Objects.requireNonNull(cropStorage, "cropStorage cannot be null");
-        this.speciesRegistry = speciesRegistry;
-        this.displaySynchronizer = displaySynchronizer;
-        this.displayTracker = displayTracker;
-        this.stationManager = stationManager;
-        this.stationStorage = stationStorage;
-        this.viewerTracker = viewerTracker;
-        this.logger = Objects.requireNonNull(logger, "logger cannot be null");
+        this(
+                cropManager,
+                cropStorage,
+                speciesRegistry,
+                displaySynchronizer,
+                displayTracker,
+                stationManager,
+                stationStorage,
+                viewerTracker,
+                new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null"))
+        );
     }
 
     public ChunkLifecycleListener(
@@ -112,7 +138,7 @@ public class ChunkLifecycleListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error loading crops for chunk [" + chunkX + ", " + chunkZ + "]", e);
+            logger.error(LogChannel.STORAGE, "Error loading crops for chunk [" + chunkX + ", " + chunkZ + "]", e);
         }
 
         // 2. Restore stations
@@ -125,7 +151,7 @@ public class ChunkLifecycleListener implements Listener {
                     }
                 }
             } catch (Exception e) {
-                logger.log(Level.SEVERE, "Error loading stations for chunk [" + chunkX + ", " + chunkZ + "]", e);
+                logger.error(LogChannel.STORAGE, "Error loading stations for chunk [" + chunkX + ", " + chunkZ + "]", e);
             }
         }
     }
@@ -157,7 +183,7 @@ public class ChunkLifecycleListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error saving crops for unloaded chunk [" + chunkX + ", " + chunkZ + "]", e);
+            logger.error(LogChannel.STORAGE, "Error saving crops for unloaded chunk [" + chunkX + ", " + chunkZ + "]", e);
         }
 
         // 2. Persist & evict stations
@@ -178,7 +204,7 @@ public class ChunkLifecycleListener implements Listener {
                     stationManager.removeStation(station.getPosition());
                 }
             } catch (Exception e) {
-                logger.log(Level.SEVERE, "Error saving stations for unloaded chunk [" + chunkX + ", " + chunkZ + "]", e);
+                logger.error(LogChannel.STORAGE, "Error saving stations for unloaded chunk [" + chunkX + ", " + chunkZ + "]", e);
             }
         }
 

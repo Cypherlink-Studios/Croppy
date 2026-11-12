@@ -15,6 +15,9 @@ import dev.darkblade.croppy.api.station.StationRegistry;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+
 import java.util.logging.Logger;
 
 /**
@@ -31,6 +34,15 @@ public interface AddonContext {
      * @return the dedicated logger for this addon
      */
     Logger getLogger();
+
+    /**
+     * Returns the structured {@link CroppyLogger} scoped to this addon.
+     *
+     * @return the addon's {@link CroppyLogger}
+     */
+    default CroppyLogger getCroppyLogger() {
+        return new JulCroppyLogger(getLogger());
+    }
 
     /**
      * @return the root data directory dedicated to this addon

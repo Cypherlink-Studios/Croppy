@@ -1,6 +1,9 @@
 package dev.darkblade.croppy.integration.vault;
 
 import dev.darkblade.croppy.api.economy.EconomyPort;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.integration.common.CroppyIntegration;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -15,13 +18,17 @@ import java.util.logging.Logger;
  */
 public class VaultIntegration implements CroppyIntegration {
 
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final boolean enabledInConfig;
     private VaultEconomyAdapter adapter;
 
-    public VaultIntegration(Logger logger, boolean enabledInConfig) {
+    public VaultIntegration(CroppyLogger logger, boolean enabledInConfig) {
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
         this.enabledInConfig = enabledInConfig;
+    }
+
+    public VaultIntegration(Logger logger, boolean enabledInConfig) {
+        this(new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")), enabledInConfig);
     }
 
     @Override
@@ -55,9 +62,9 @@ public class VaultIntegration implements CroppyIntegration {
             RegisteredServiceProvider<Economy> rsp = Bukkit.getServicesManager().getRegistration(Economy.class);
             if (rsp != null && rsp.getProvider() != null) {
                 this.adapter = new VaultEconomyAdapter(rsp.getProvider());
-                logger.info("Hooked into Vault Economy provider: " + rsp.getProvider().getName());
+                logger.debug(LogChannel.INTEGRATION, () -> "Hooked into Vault Economy provider: " + rsp.getProvider().getName());
             } else {
-                logger.warning("Vault is installed, but no Economy provider has registered with ServicesManager.");
+                logger.warn(LogChannel.INTEGRATION, "Vault is installed, but no Economy provider has registered with ServicesManager.");
             }
         }
     }

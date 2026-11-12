@@ -4,6 +4,9 @@ import dev.darkblade.croppy.api.i18n.LocaleRef;
 import dev.darkblade.croppy.api.i18n.MessageKey;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.core.i18n.DefaultMessageCatalog;
@@ -22,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -35,9 +37,13 @@ public class PaperMessageService {
 
     private final DefaultMessageCatalog catalog;
     private final MiniMessage miniMessage;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     public PaperMessageService(DefaultMessageCatalog catalog, Logger logger) {
+        this(catalog, logger != null ? new JulCroppyLogger(logger) : null);
+    }
+
+    public PaperMessageService(DefaultMessageCatalog catalog, CroppyLogger logger) {
         this.catalog = Objects.requireNonNull(catalog, "catalog cannot be null");
         this.miniMessage = MiniMessage.miniMessage();
         this.logger = logger;
@@ -94,7 +100,7 @@ public class PaperMessageService {
         Optional<String> templateOpt = catalog.getTemplate(locale, key);
         if (templateOpt.isEmpty()) {
             if (logger != null && catalog.markMissingKeyReported(key.asString())) {
-                logger.warning("Missing translation key '" + key.asString() + "' for locale [" + locale + "].");
+                logger.warn(LogChannel.I18N, "Missing translation key '" + key.asString() + "' for locale [" + locale + "].");
             }
             return miniMessage.deserialize("<red><missing:" + key.asString() + "></red>");
         }

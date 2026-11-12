@@ -1,6 +1,10 @@
 package dev.darkblade.croppy.core.rule;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.rule.RuleAction;
 import dev.darkblade.croppy.api.rule.RuleDefinition;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
@@ -21,7 +25,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -159,12 +162,25 @@ public final class YamlRuleLoader {
      *
      * @param directory directory to search
      * @param registry  registry to populate
-     * @param logger    logger for status messages
+     * @param logger    logger for status messages (may be null)
      * @return count of loaded rules
      */
     public int loadAll(Path directory, RuleRegistry registry, Logger logger) {
+        return loadAll(directory, registry, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    /**
+     * Recursively loads all rule YAML files from a directory into the given registry.
+     *
+     * @param directory directory to search
+     * @param registry  registry to populate
+     * @param logger    logger for status messages (may be null)
+     * @return count of loaded rules
+     */
+    public int loadAll(Path directory, RuleRegistry registry, CroppyLogger logger) {
         Objects.requireNonNull(directory, "directory cannot be null");
         Objects.requireNonNull(registry, "registry cannot be null");
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         if (!Files.isDirectory(directory)) {
             return 0;
         }
@@ -180,16 +196,13 @@ public final class YamlRuleLoader {
                     RuleDefinition def = load(file);
                     registry.register(def);
                     loadedCount++;
+                    log.debug(LogChannel.LOADER, () -> "Loaded rule definition: " + def.getKey() + " from " + file.getFileName());
                 } catch (Exception ex) {
-                    if (logger != null) {
-                        logger.log(Level.SEVERE, "Failed to load rule definition from " + file, ex);
-                    }
+                    log.error(LogChannel.LOADER, "Failed to load rule definition from " + file, ex);
                 }
             }
         } catch (IOException e) {
-            if (logger != null) {
-                logger.log(Level.SEVERE, "Failed to scan rule directory " + directory, e);
-            }
+            log.error(LogChannel.LOADER, "Failed to scan rule directory " + directory, e);
         }
 
         return loadedCount;

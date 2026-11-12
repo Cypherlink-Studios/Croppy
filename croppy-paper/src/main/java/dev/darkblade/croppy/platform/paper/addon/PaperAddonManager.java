@@ -3,6 +3,10 @@ package dev.darkblade.croppy.platform.paper.addon;
 import dev.darkblade.croppy.api.addon.AddonDescription;
 import dev.darkblade.croppy.api.addon.AddonState;
 import dev.darkblade.croppy.api.addon.CroppyAddon;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.core.addon.AddonGraphValidator;
 import dev.darkblade.croppy.core.addon.DefaultAddonManager;
@@ -27,13 +31,10 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 /**
@@ -51,7 +52,26 @@ public class PaperAddonManager extends DefaultAddonManager {
     private final Map<String, PaperAddonContext> addonContexts = new ConcurrentHashMap<>();
 
     public PaperAddonManager(CroppyPlugin plugin, CroppyCore core, Path addonsDir, ResourcePackMerger resourcePackMerger) {
-        super(addonsDir, plugin != null ? plugin.getLogger() : Logger.getLogger(PaperAddonManager.class.getName()));
+        this(plugin, core, addonsDir, resourcePackMerger, resolvePluginLogger(plugin));
+    }
+
+    private static CroppyLogger resolvePluginLogger(CroppyPlugin plugin) {
+        if (plugin == null) {
+            return NoOpCroppyLogger.INSTANCE;
+        }
+        CroppyLogger paperLogger = plugin.getCroppyLogger();
+        if (paperLogger != null) {
+            return paperLogger;
+        }
+        return plugin.getLogger() != null ? new JulCroppyLogger(plugin.getLogger()) : NoOpCroppyLogger.INSTANCE;
+    }
+
+    public PaperAddonManager(CroppyPlugin plugin,
+                             CroppyCore core,
+                             Path addonsDir,
+                             ResourcePackMerger resourcePackMerger,
+                             CroppyLogger logger) {
+        super(addonsDir, logger);
         this.plugin = plugin;
         this.core = core;
         this.resourcePackMerger = resourcePackMerger;
@@ -63,7 +83,7 @@ public class PaperAddonManager extends DefaultAddonManager {
         try {
             order = AddonGraphValidator.resolveOrder(getDiscoveredAddons());
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to resolve addon dependency graph: " + e.getMessage(), e);
+            logger.error(LogChannel.ADDON, "Failed to resolve addon dependency graph: " + e.getMessage(), e);
             return;
         }
 
@@ -71,7 +91,7 @@ public class PaperAddonManager extends DefaultAddonManager {
             try {
                 enableAddon(desc.id());
             } catch (Exception e) {
-                logger.log(Level.SEVERE, "Failed to enable addon '" + desc.id() + "': " + e.getMessage(), e);
+                logger.error(LogChannel.ADDON, "Failed to enable addon '" + desc.id() + "': " + e.getMessage(), e);
             }
         }
     }
@@ -111,7 +131,7 @@ public class PaperAddonManager extends DefaultAddonManager {
         Path dataFolder = getDataFolder(addonId).orElseGet(() -> addonsDirectory.resolve(desc.id()));
         PaperAddonContext context = new PaperAddonContext(
                 desc, dataFolder, path, null,
-                Logger.getLogger("Croppy-" + desc.id()),
+                logger,
                 plugin, core
         );
         addonContexts.put(addonId, context);
@@ -140,7 +160,7 @@ public class PaperAddonManager extends DefaultAddonManager {
                 classLoaders.put(addonId, loader);
                 context.setAddonClassLoader(loader);
             } catch (Exception e) {
-                logger.log(Level.SEVERE, "Failed to create class loader for addon '" + addonId + "'", e);
+                logger.error(LogChannel.ADDON, "Failed to create class loader for addon '" + addonId + "'", e);
                 return false;
             }
         }
@@ -184,11 +204,11 @@ public class PaperAddonManager extends DefaultAddonManager {
                         addonInstances.put(addonId, instance);
                         instance.onEnable(context);
                     } else {
-                        logger.severe("Main class " + desc.main().get() + " does not implement CroppyAddon");
+                        logger.error(LogChannel.ADDON, "Main class " + desc.main().get() + " does not implement CroppyAddon");
                         return false;
                     }
                 } catch (Exception e) {
-                    logger.log(Level.SEVERE, "Error initializing code addon '" + addonId + "'", e);
+                    logger.error(LogChannel.ADDON, "Error initializing code addon '" + addonId + "'", e);
                     return false;
                 }
             }
@@ -199,18 +219,44 @@ public class PaperAddonManager extends DefaultAddonManager {
             try {
                 resourcePackMerger.mergeAddonAssets(desc, path);
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Failed to merge assets for addon '" + addonId + "'", e);
+                logger.warn(LogChannel.ADDON, "Failed to merge assets for addon '" + addonId + "'", e);
             }
         }
 
-        return super.enableAddon(addonId);
+        boolean enabled = super.enableAddon(addonId);
+        if (enabled && context != null) {
+            logger.info(LogChannel.ADDON, () ->
+                    "Enabled addon '" + desc.id() + "' v" + desc.version() + formatAddonSummary(context));
+        }
+        return enabled;
+    }
+
+    private String formatAddonSummary(PaperAddonContext context) {
+        List<String> parts = new ArrayList<>();
+        appendSummaryCount(parts, context.getRegisteredSpecies().size(), "crop", "crops");
+        appendSummaryCount(parts, context.getRegisteredItems().size(), "item", "items");
+        appendSummaryCount(parts, context.getRegisteredRecipes().size(), "recipe", "recipes");
+        appendSummaryCount(parts, context.getRegisteredCraftingRecipes().size(), "crafting recipe", "crafting recipes");
+        appendSummaryCount(parts, context.getRegisteredStations().size(), "station", "stations");
+        appendSummaryCount(parts, context.getRegisteredProcesses().size(), "process", "processes");
+        appendSummaryCount(parts, context.getRegisteredMenus().size(), "menu", "menus");
+        appendSummaryCount(parts, context.getRegisteredInteractions().size(), "interaction", "interactions");
+        return parts.isEmpty() ? "" : " (" + String.join(", ", parts) + ")";
+    }
+
+    private static void appendSummaryCount(List<String> parts, int count, String singular, String plural) {
+        if (count > 0) {
+            parts.add(count + " " + (count == 1 ? singular : plural));
+        }
     }
 
     private void loadDirectoryContent(PaperAddonContext context, Path root) {
+        CroppyLogger addonLogger = context.getCroppyLogger();
+
         // 1. Load items
         Path itemsDir = root.resolve("items");
         if (Files.exists(itemsDir) && Files.isDirectory(itemsDir)) {
-            YamlItemLoader itemLoader = new YamlItemLoader();
+            YamlItemLoader itemLoader = new YamlItemLoader(addonLogger);
             try (Stream<Path> stream = Files.walk(itemsDir)) {
                 for (Path file : (Iterable<Path>) stream.filter(p -> p.toString().endsWith(".yml") || p.toString().endsWith(".yaml"))::iterator) {
                     try {
@@ -220,12 +266,13 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.item.ItemDefinition def = itemLoader.load(file, category);
                         core.getItemRegistry().register(def);
                         context.trackItem(def.getKey());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon item '" + def.getKey() + "' from " + file.getFileName());
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load item from " + file, e);
+                        logger.warn(LogChannel.ADDON, "Failed to load item from " + file, e);
                     }
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Error scanning addon items directory: " + itemsDir, e);
+                logger.warn(LogChannel.ADDON, "Error scanning addon items directory: " + itemsDir, e);
             }
         }
 
@@ -233,7 +280,7 @@ public class PaperAddonManager extends DefaultAddonManager {
         Path cropsDir = root.resolve("crops");
         if (Files.exists(cropsDir) && Files.isDirectory(cropsDir)) {
             YamlSpeciesLoader speciesLoader = new YamlSpeciesLoader();
-            List<dev.darkblade.croppy.api.species.Species> loaded = speciesLoader.loadDirectory(cropsDir, logger);
+            List<dev.darkblade.croppy.api.species.Species> loaded = speciesLoader.loadDirectory(cropsDir, addonLogger);
             for (dev.darkblade.croppy.api.species.Species species : loaded) {
                 core.getSpeciesRegistry().register(species);
                 context.trackSpecies(species.getKey());
@@ -250,12 +297,13 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.recipe.RecipeDefinition recipe = recipeLoader.load(in, file.getFileName().toString());
                         core.getRecipeRegistry().register(recipe);
                         context.trackRecipe(recipe.key());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon recipe '" + recipe.key() + "' from " + file.getFileName());
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load recipe from " + file, e);
+                        logger.warn(LogChannel.ADDON, "Failed to load recipe from " + file, e);
                     }
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Error scanning addon recipes directory: " + recipesDir, e);
+                logger.warn(LogChannel.ADDON, "Error scanning addon recipes directory: " + recipesDir, e);
             }
         }
 
@@ -269,12 +317,13 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.station.StationDefinition station = stationLoader.load(in, file.getFileName().toString());
                         core.getStationRegistry().register(station);
                         context.trackStation(station.key());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon station '" + station.key() + "' from " + file.getFileName());
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load station from " + file, e);
+                        logger.warn(LogChannel.ADDON, "Failed to load station from " + file, e);
                     }
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Error scanning addon stations directory: " + stationsDir, e);
+                logger.warn(LogChannel.ADDON, "Error scanning addon stations directory: " + stationsDir, e);
             }
         }
 
@@ -288,12 +337,13 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.process.ProcessDefinition process = processLoader.load(in, file.getFileName().toString());
                         core.getProcessRegistry().register(process);
                         context.trackProcess(process.key());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon process '" + process.key() + "' from " + file.getFileName());
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load process from " + file, e);
+                        logger.warn(LogChannel.ADDON, "Failed to load process from " + file, e);
                     }
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Error scanning addon processes directory: " + processesDir, e);
+                logger.warn(LogChannel.ADDON, "Error scanning addon processes directory: " + processesDir, e);
             }
         }
 
@@ -307,12 +357,13 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.menu.MenuDefinition menu = menuLoader.load(in, file.getFileName().toString());
                         core.getMenuRegistry().register(menu);
                         context.trackMenu(menu.getKey());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon menu '" + menu.getKey() + "' from " + file.getFileName());
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load menu from " + file, e);
+                        logger.warn(LogChannel.ADDON, "Failed to load menu from " + file, e);
                     }
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Error scanning addon menus directory: " + menusDir, e);
+                logger.warn(LogChannel.ADDON, "Error scanning addon menus directory: " + menusDir, e);
             }
         }
 
@@ -328,13 +379,14 @@ public class PaperAddonManager extends DefaultAddonManager {
                         for (dev.darkblade.croppy.api.interaction.InteractionDefinition interaction : interactions) {
                             core.getInteractionRegistry().register(interaction);
                             context.trackInteraction(interaction.key());
+                            addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon interaction '" + interaction.key() + "' from " + file.getFileName());
                         }
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load interaction from " + file, e);
+                        logger.warn(LogChannel.ADDON, "Failed to load interaction from " + file, e);
                     }
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Error scanning addon interactions directory: " + interactionsDir, e);
+                logger.warn(LogChannel.ADDON, "Error scanning addon interactions directory: " + interactionsDir, e);
             }
         }
 
@@ -351,19 +403,21 @@ public class PaperAddonManager extends DefaultAddonManager {
                         if (plugin != null && plugin.getCraftingRecipeService() != null) {
                             plugin.getCraftingRecipeService().registerRecipe(recipe);
                         }
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon crafting recipe '" + recipe.getKey() + "' from " + file.getFileName());
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load crafting recipe from " + file, e);
+                        logger.warn(LogChannel.ADDON, "Failed to load crafting recipe from " + file, e);
                     }
                 }
             } catch (IOException e) {
-                logger.log(Level.WARNING, "Error scanning addon crafting directory: " + craftingDir, e);
+                logger.warn(LogChannel.ADDON, "Error scanning addon crafting directory: " + craftingDir, e);
             }
         }
     }
 
     private void loadJarContent(PaperAddonContext context, Path jarPath) {
+        CroppyLogger addonLogger = context.getCroppyLogger();
         YamlSpeciesLoader speciesLoader = new YamlSpeciesLoader();
-        YamlItemLoader itemLoader = new YamlItemLoader();
+        YamlItemLoader itemLoader = new YamlItemLoader(addonLogger);
         YamlRecipeLoader recipeLoader = new YamlRecipeLoader();
         YamlStationLoader stationLoader = new YamlStationLoader();
         YamlProcessLoader processLoader = new YamlProcessLoader();
@@ -386,8 +440,9 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.species.Species species = speciesLoader.load(in, name);
                         core.getSpeciesRegistry().register(species);
                         context.trackSpecies(species.getKey());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon crop species '" + species.getKey() + "' from " + name);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load crop species from " + name + " in " + jarPath.getFileName(), e);
+                        logger.warn(LogChannel.ADDON, "Failed to load crop species from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
                 // 2. Items
@@ -398,8 +453,9 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.item.ItemDefinition def = itemLoader.load(in, category, name);
                         core.getItemRegistry().register(def);
                         context.trackItem(def.getKey());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon item '" + def.getKey() + "' from " + name);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load item from " + name + " in " + jarPath.getFileName(), e);
+                        logger.warn(LogChannel.ADDON, "Failed to load item from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
                 // 3. Recipes
@@ -408,8 +464,9 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.recipe.RecipeDefinition recipe = recipeLoader.load(in, name);
                         core.getRecipeRegistry().register(recipe);
                         context.trackRecipe(recipe.key());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon recipe '" + recipe.key() + "' from " + name);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load recipe from " + name + " in " + jarPath.getFileName(), e);
+                        logger.warn(LogChannel.ADDON, "Failed to load recipe from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
                 // 4. Stations
@@ -418,8 +475,9 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.station.StationDefinition station = stationLoader.load(in, name);
                         core.getStationRegistry().register(station);
                         context.trackStation(station.key());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon station '" + station.key() + "' from " + name);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load station from " + name + " in " + jarPath.getFileName(), e);
+                        logger.warn(LogChannel.ADDON, "Failed to load station from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
                 // 5. Processes
@@ -428,8 +486,9 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.process.ProcessDefinition process = processLoader.load(in, name);
                         core.getProcessRegistry().register(process);
                         context.trackProcess(process.key());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon process '" + process.key() + "' from " + name);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load process from " + name + " in " + jarPath.getFileName(), e);
+                        logger.warn(LogChannel.ADDON, "Failed to load process from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
                 // 6. Menus
@@ -438,8 +497,9 @@ public class PaperAddonManager extends DefaultAddonManager {
                         dev.darkblade.croppy.api.menu.MenuDefinition menu = menuLoader.load(in, name);
                         core.getMenuRegistry().register(menu);
                         context.trackMenu(menu.getKey());
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon menu '" + menu.getKey() + "' from " + name);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load menu from " + name + " in " + jarPath.getFileName(), e);
+                        logger.warn(LogChannel.ADDON, "Failed to load menu from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
                 // 7. Interactions
@@ -450,9 +510,10 @@ public class PaperAddonManager extends DefaultAddonManager {
                         for (dev.darkblade.croppy.api.interaction.InteractionDefinition interaction : interactions) {
                             core.getInteractionRegistry().register(interaction);
                             context.trackInteraction(interaction.key());
+                            addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon interaction '" + interaction.key() + "' from " + name);
                         }
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load interaction from " + name + " in " + jarPath.getFileName(), e);
+                        logger.warn(LogChannel.ADDON, "Failed to load interaction from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
                 // 8. Crafting recipes
@@ -464,13 +525,14 @@ public class PaperAddonManager extends DefaultAddonManager {
                         if (plugin != null && plugin.getCraftingRecipeService() != null) {
                             plugin.getCraftingRecipeService().registerRecipe(recipe);
                         }
+                        addonLogger.debug(LogChannel.LOADER, () -> "Loaded addon crafting recipe '" + recipe.getKey() + "' from " + name);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Failed to load crafting recipe from " + name + " in " + jarPath.getFileName(), e);
+                        logger.warn(LogChannel.ADDON, "Failed to load crafting recipe from " + name + " in " + jarPath.getFileName(), e);
                     }
                 }
             }
         } catch (IOException e) {
-            logger.log(Level.WARNING, "Error reading JAR file " + jarPath, e);
+            logger.warn(LogChannel.ADDON, "Error reading JAR file " + jarPath, e);
         }
     }
 

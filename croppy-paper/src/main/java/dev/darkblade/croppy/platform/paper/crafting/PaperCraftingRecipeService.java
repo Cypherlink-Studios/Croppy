@@ -6,6 +6,10 @@ import dev.darkblade.croppy.api.crafting.CraftingType;
 import dev.darkblade.croppy.api.crafting.IngredientChoice;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -19,7 +23,6 @@ import org.bukkit.inventory.recipe.CraftingBookCategory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -32,7 +35,7 @@ public class PaperCraftingRecipeService {
     private final CraftingRecipeRegistry craftingRecipeRegistry;
     private final ItemFactory itemFactory;
     private final CraftingRecipeChoiceResolver choiceResolver;
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final Set<NamespacedKey> registeredKeys = ConcurrentHashMap.newKeySet();
 
     public PaperCraftingRecipeService(
@@ -42,11 +45,27 @@ public class PaperCraftingRecipeService {
             CraftingRecipeChoiceResolver choiceResolver,
             Logger logger
     ) {
+        this(
+                server,
+                craftingRecipeRegistry,
+                itemFactory,
+                choiceResolver,
+                logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE
+        );
+    }
+
+    public PaperCraftingRecipeService(
+            Server server,
+            CraftingRecipeRegistry craftingRecipeRegistry,
+            ItemFactory itemFactory,
+            CraftingRecipeChoiceResolver choiceResolver,
+            CroppyLogger logger
+    ) {
         this.server = server;
         this.craftingRecipeRegistry = Objects.requireNonNull(craftingRecipeRegistry, "craftingRecipeRegistry cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.choiceResolver = Objects.requireNonNull(choiceResolver, "choiceResolver cannot be null");
-        this.logger = (logger != null) ? logger : Logger.getLogger(PaperCraftingRecipeService.class.getName());
+        this.logger = (logger != null) ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     /**
@@ -62,10 +81,11 @@ public class PaperCraftingRecipeService {
                     registeredCount++;
                 }
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Failed to register crafting recipe '" + recipe.getKey() + "': " + e.getMessage(), e);
+                logger.warn(LogChannel.LOADER, "Failed to register crafting recipe '" + recipe.getKey() + "': " + e.getMessage(), e);
             }
         }
-        logger.info("Registered " + registeredCount + " custom crafting recipes into Bukkit.");
+        int finalCount = registeredCount;
+        logger.debug(LogChannel.LOADER, () -> "Registered " + finalCount + " custom crafting recipes into Bukkit.");
         return registeredCount;
     }
 
@@ -84,7 +104,7 @@ public class PaperCraftingRecipeService {
 
         ItemStack result = createResultStack(recipe.resultItemKey(), recipe.resultAmount());
         if (result == null || isAir(result.getType())) {
-            logger.warning("Skipping recipe '" + recipe.getKey() + "': invalid result item '" + recipe.resultItemKey() + "'");
+            logger.warn(LogChannel.LOADER, "Skipping recipe '" + recipe.getKey() + "': invalid result item '" + recipe.resultItemKey() + "'");
             return false;
         }
 
@@ -137,7 +157,7 @@ public class PaperCraftingRecipeService {
         }
         int count = registeredKeys.size();
         registeredKeys.clear();
-        logger.info("Unregistered " + count + " custom crafting recipes from Bukkit.");
+        logger.debug(LogChannel.LOADER, () -> "Unregistered " + count + " custom crafting recipes from Bukkit.");
     }
 
     /**

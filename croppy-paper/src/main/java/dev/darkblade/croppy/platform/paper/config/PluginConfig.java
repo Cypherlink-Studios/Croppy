@@ -1,6 +1,16 @@
 package dev.darkblade.croppy.platform.paper.config;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.LogLevel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
+import dev.darkblade.croppy.platform.paper.logging.LogStyle;
 import org.bukkit.configuration.file.FileConfiguration;
+
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 
 import java.util.Objects;
 
@@ -44,10 +54,20 @@ public class PluginConfig {
     // Crafting Settings
     private boolean craftingAutoDiscoverRecipes = true;
 
+    // Logging Settings
+    private LogLevel loggingLevel = LogLevel.INFO;
+    private LogStyle loggingStyle = LogStyle.RICH;
+    private Set<LogChannel> loggingDebugChannels = Set.of();
+
     public void load(FileConfiguration config) {
+        load(config, NoOpCroppyLogger.INSTANCE);
+    }
+
+    public void load(FileConfiguration config, CroppyLogger logger) {
         if (config == null) {
             return;
         }
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
 
         this.growthTickInterval = Math.max(1L, config.getLong("growth.tick-interval", 20L));
         this.growthBaseProgress = Math.max(0.01, config.getDouble("growth.base-progress", 1.0));
@@ -89,6 +109,36 @@ public class PluginConfig {
 
         // Crafting configuration
         this.craftingAutoDiscoverRecipes = config.getBoolean("crafting.auto-discover-recipes", true);
+
+        // Logging configuration
+        String rawLevel = config.getString("logging.level", "INFO");
+        this.loggingLevel = LogLevel.fromString(rawLevel).orElseGet(() -> {
+            log.warn(LogChannel.CORE, "Invalid logging.level '" + rawLevel + "' in config.yml; falling back to INFO.");
+            return LogLevel.INFO;
+        });
+
+        String rawStyle = config.getString("logging.style", "RICH");
+        this.loggingStyle = LogStyle.fromString(rawStyle).orElseGet(() -> {
+            log.warn(LogChannel.CORE, "Invalid logging.style '" + rawStyle + "' in config.yml; falling back to RICH.");
+            return LogStyle.RICH;
+        });
+
+        List<String> rawChannels = config.getStringList("logging.debug-channels");
+        EnumSet<LogChannel> parsedChannels = EnumSet.noneOf(LogChannel.class);
+        if (rawChannels != null) {
+            for (String entry : rawChannels) {
+                if (entry == null || entry.isBlank()) {
+                    continue;
+                }
+                LogChannel.fromString(entry).ifPresentOrElse(
+                        parsedChannels::add,
+                        () -> log.warn(LogChannel.CORE, "Unknown logging.debug-channels entry '" + entry + "' ignored.")
+                );
+            }
+        }
+        this.loggingDebugChannels = parsedChannels.isEmpty()
+                ? Set.of()
+                : Collections.unmodifiableSet(parsedChannels);
     }
 
     public boolean isCraftingAutoDiscoverRecipes() {
@@ -185,5 +235,17 @@ public class PluginConfig {
 
     public String getResourcePackPrompt() {
         return resourcePackPrompt;
+    }
+
+    public LogLevel getLoggingLevel() {
+        return loggingLevel;
+    }
+
+    public LogStyle getLoggingStyle() {
+        return loggingStyle;
+    }
+
+    public Set<LogChannel> getLoggingDebugChannels() {
+        return loggingDebugChannels;
     }
 }

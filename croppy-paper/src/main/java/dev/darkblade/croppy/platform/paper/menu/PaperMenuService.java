@@ -2,6 +2,10 @@ package dev.darkblade.croppy.platform.paper.menu;
 
 import dev.darkblade.croppy.api.expression.EvaluationContext;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.menu.MenuDefinition;
 import dev.darkblade.croppy.api.menu.MenuRegistry;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
@@ -24,14 +28,18 @@ public final class PaperMenuService {
     private final PaperMenuRenderer renderer;
     private final ProcessRegistry processRegistry;
     private final PaperMenuTicker ticker;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     public PaperMenuService(MenuRegistry menuRegistry, PaperMenuRenderer renderer, ProcessRegistry processRegistry, PaperMenuTicker ticker, Logger logger) {
+        this(menuRegistry, renderer, processRegistry, ticker, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    public PaperMenuService(MenuRegistry menuRegistry, PaperMenuRenderer renderer, ProcessRegistry processRegistry, PaperMenuTicker ticker, CroppyLogger logger) {
         this.menuRegistry = Objects.requireNonNull(menuRegistry, "menuRegistry cannot be null");
         this.renderer = Objects.requireNonNull(renderer, "renderer cannot be null");
         this.processRegistry = processRegistry;
         this.ticker = Objects.requireNonNull(ticker, "ticker cannot be null");
-        this.logger = (logger != null) ? logger : Logger.getLogger(PaperMenuService.class.getName());
+        this.logger = (logger != null) ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     /**
@@ -50,7 +58,7 @@ public final class PaperMenuService {
         if (menuOpt.isEmpty()) {
             menuOpt = menuRegistry.get(StationDefinition.DEFAULT_MENU_KEY);
             if (menuOpt.isEmpty()) {
-                logger.warning("Could not find menu definition '" + menuKey + "' nor default '" + StationDefinition.DEFAULT_MENU_KEY + "' for station " + station.getStationKey());
+                logger.warn(LogChannel.STATION, "Could not find menu definition '" + menuKey + "' nor default '" + StationDefinition.DEFAULT_MENU_KEY + "' for station " + station.getStationKey());
                 return;
             }
         }
@@ -81,7 +89,7 @@ public final class PaperMenuService {
 
         Optional<MenuDefinition> menuOpt = menuRegistry.get(menuKey);
         if (menuOpt.isEmpty()) {
-            logger.warning("Menu definition not found: " + menuKey);
+            logger.warn(LogChannel.STATION, "Menu definition not found: " + menuKey);
             return;
         }
 

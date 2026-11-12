@@ -1,6 +1,10 @@
 package dev.darkblade.croppy.core.station;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.process.PhaseEffects;
 import dev.darkblade.croppy.api.process.PhaseParticle;
 import dev.darkblade.croppy.api.process.PhaseSound;
@@ -30,7 +34,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -190,12 +193,25 @@ public final class YamlStationLoader {
      *
      * @param directory directory to search
      * @param registry  registry to populate
-     * @param logger    logger for status messages
+     * @param logger    logger for status messages (may be null)
      * @return count of loaded stations
      */
     public int loadAll(Path directory, StationRegistry registry, Logger logger) {
+        return loadAll(directory, registry, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    /**
+     * Recursively loads all station YAML files from a directory into the given registry.
+     *
+     * @param directory directory to search
+     * @param registry  registry to populate
+     * @param logger    logger for status messages (may be null)
+     * @return count of loaded stations
+     */
+    public int loadAll(Path directory, StationRegistry registry, CroppyLogger logger) {
         Objects.requireNonNull(directory, "directory cannot be null");
         Objects.requireNonNull(registry, "registry cannot be null");
+        CroppyLogger log = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
         if (!Files.isDirectory(directory)) {
             return 0;
         }
@@ -211,16 +227,13 @@ public final class YamlStationLoader {
                     StationDefinition def = load(file);
                     registry.register(def);
                     loadedCount++;
+                    log.debug(LogChannel.LOADER, () -> "Loaded station definition: " + def.getKey() + " from " + file.getFileName());
                 } catch (Exception ex) {
-                    if (logger != null) {
-                        logger.log(Level.SEVERE, "Failed to load station definition from " + file, ex);
-                    }
+                    log.error(LogChannel.LOADER, "Failed to load station definition from " + file, ex);
                 }
             }
         } catch (IOException ex) {
-            if (logger != null) {
-                logger.log(Level.SEVERE, "Error reading station directory " + directory, ex);
-            }
+            log.error(LogChannel.LOADER, "Error reading station directory " + directory, ex);
         }
 
         return loadedCount;

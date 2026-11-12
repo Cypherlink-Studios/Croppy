@@ -94,6 +94,20 @@ command:
     staged-success: "<green>¡Actualización <yellow>v<version></yellow> preparada exitosamente en <white>plugins/update/<file></white>!</green><newline><gray>La actualización se aplicará automáticamente en el próximo reinicio del servidor.</gray>"
     failed: "<red>Error en la operación de actualización: <error>.</red>"
     login-notification: "<gold>Hay una nueva versión de Croppy disponible:</gold> <green>v<latest></green> <gray>(actual: v<current>)</gray> <click:run_command:'/croppy update apply'><hover:show_text:'<gray>Clic para actualizar</gray>'><yellow>[Actualizar ahora]</yellow></hover></click>"
+  debug:
+    unavailable: "<red>El controlador de logging no está inicializado.</red>"
+    invalid-channel: "<red>Canal de depuración desconocido: '<channel>'.</red> <gray>Canales válidos: <yellow><valid></yellow>.</gray>"
+    status-header: "<gold><bold>=== Estado de Logging Diagnóstico ===</bold></gold>"
+    status-config: "<dark_gray>├─</dark_gray> <gold>Nivel Base:</gold> <yellow><level></yellow> <dark_gray>|</dark_gray> <gold>Estilo:</gold> <aqua><style></aqua> <dark_gray>|</dark_gray> <gold>Solo Consola</gold>"
+    status-channels-header: "<dark_gray>└─</dark_gray> <gold>Canales Debug:</gold> <gray>(clic para alternar)</gray>"
+    channel-entry-on: " <green>[✔]</green> <click:run_command:'/croppy debug toggle {channel}'><hover:show_text:'<gray>Clic para desactivar logs debug de <yellow>{channel}</yellow></gray>'><green>{channel}</green></hover></click>"
+    channel-entry-off: " <dark_gray>[✖]</dark_gray> <click:run_command:'/croppy debug toggle {channel}'><hover:show_text:'<gray>Clic para activar logs debug de <yellow>{channel}</yellow></gray>'><gray>{channel}</gray></hover></click>"
+    enabled: "<green>Logs de depuración en consola activados para el canal <yellow><channel></yellow>.</green>"
+    disabled: "<yellow>Logs de depuración en consola desactivados para el canal <white><channel></white>.</yellow>"
+    already-enabled: "<gray>El canal <yellow><channel></yellow> ya tiene la depuración activada.</gray>"
+    already-disabled: "<gray>El canal <white><channel></white> ya tiene la depuración desactivada.</gray>"
+    all-enabled: "<green>Depuración en consola activada para <yellow>todos los <count></yellow> canales.</green>"
+    all-disabled: "<yellow>Se han limpiado todas las anulaciones temporales de canales debug.</yellow>"
 
 crop:
   plant:

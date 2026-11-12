@@ -29,7 +29,7 @@ class ResourcePackMergerTest {
     @BeforeEach
     void setUp() {
         packDir = tempDir.resolve("resourcepack");
-        merger = new ResourcePackMerger(packDir, null);
+        merger = new ResourcePackMerger(packDir, dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
     }
 
     private AddonDescription createDesc(String id, String namespace) {

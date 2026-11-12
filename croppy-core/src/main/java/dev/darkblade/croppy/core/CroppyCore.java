@@ -33,6 +33,11 @@ import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.DefaultStationRegistry;
 
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
+
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -46,7 +51,7 @@ import java.util.logging.Logger;
  */
 public class CroppyCore {
 
-    private final Logger logger;
+    private final CroppyLogger logger;
     private final Map<Class<? extends Service>, Service> services = new ConcurrentHashMap<>();
     private final DefaultSpeciesRegistry speciesRegistry = new DefaultSpeciesRegistry();
     private final DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
@@ -69,12 +74,16 @@ public class CroppyCore {
     private CropStorage storage;
     private final AtomicBoolean active = new AtomicBoolean(false);
 
-    public CroppyCore(Logger logger) {
+    public CroppyCore(CroppyLogger logger) {
         this.logger = Objects.requireNonNull(logger, "Logger cannot be null");
     }
 
+    public CroppyCore(Logger logger) {
+        this(new JulCroppyLogger(Objects.requireNonNull(logger, "Logger cannot be null")));
+    }
+
     public CroppyCore() {
-        this(Logger.getLogger(CroppyCore.class.getName()));
+        this(NoOpCroppyLogger.INSTANCE);
     }
 
     /**
@@ -86,7 +95,7 @@ public class CroppyCore {
         if (active.get()) {
             throw new IllegalStateException("CroppyCore is already initialized");
         }
-        logger.info("Initializing Croppy core domain services...");
+        logger.debug(LogChannel.CORE, "Initializing Croppy core domain services...");
         speciesRegistry.clear();
         itemRegistry.clear();
         itemCategoryRegistry.clear();
@@ -117,14 +126,14 @@ public class CroppyCore {
         registerService(CropManager.class, cropManager);
         registerService(GrowthEngine.class, growthEngine);
         active.set(true);
-        logger.info("Croppy core domain services initialized successfully.");
+        logger.debug(LogChannel.CORE, "Croppy core domain services initialized successfully.");
     }
 
     /**
      * Shuts down all active core services and clears state.
      */
     public synchronized void shutdown() {
-        logger.info("Shutting down Croppy core domain services...");
+        logger.debug(LogChannel.CORE, "Shutting down Croppy core domain services...");
         speciesRegistry.clear();
         itemRegistry.clear();
         itemCategoryRegistry.clear();
@@ -146,7 +155,7 @@ public class CroppyCore {
         }
         services.clear();
         active.set(false);
-        logger.info("Croppy core domain services shut down cleanly.");
+        logger.debug(LogChannel.CORE, "Croppy core domain services shut down cleanly.");
     }
 
     /**
@@ -318,7 +327,7 @@ public class CroppyCore {
         return Optional.ofNullable((S) services.get(serviceClass));
     }
 
-    public Logger getLogger() {
+    public CroppyLogger getLogger() {
         return logger;
     }
 }

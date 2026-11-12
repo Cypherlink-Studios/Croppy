@@ -1,6 +1,10 @@
 package dev.darkblade.croppy.platform.paper.resourcepack;
 
 import dev.darkblade.croppy.api.addon.AddonDescription;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
+import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,7 +15,6 @@ import java.util.Enumeration;
 import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -25,11 +28,15 @@ public class ResourcePackMerger {
     public static final String CORE_NAMESPACE = "croppy";
 
     private final Path basePackDirectory;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     public ResourcePackMerger(Path basePackDirectory, Logger logger) {
+        this(basePackDirectory, logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
+    }
+
+    public ResourcePackMerger(Path basePackDirectory, CroppyLogger logger) {
         this.basePackDirectory = Objects.requireNonNull(basePackDirectory, "basePackDirectory cannot be null");
-        this.logger = logger != null ? logger : Logger.getLogger(ResourcePackMerger.class.getName());
+        this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
     /**
@@ -108,13 +115,13 @@ public class ResourcePackMerger {
 
             // Protect core namespace from unauthorized overrides unless the addon specifically claims it
             if (CORE_NAMESPACE.equalsIgnoreCase(namespace) && !CORE_NAMESPACE.equalsIgnoreCase(addon.namespace())) {
-                logger.warning("Addon '" + addon.id() + "' attempted to overwrite core assets in 'assets/croppy/'. Rejected.");
+                logger.warn(LogChannel.PACK, "Addon '" + addon.id() + "' attempted to overwrite core assets in 'assets/croppy/'. Rejected.");
                 return false;
             }
 
             for (String segment : segments) {
                 if (!PATH_SEGMENT_PATTERN.matcher(segment).matches()) {
-                    logger.warning("Invalid resource pack asset path segment '" + segment + "' in addon '" + addon.id() + "'. Skipping.");
+                    logger.warn(LogChannel.PACK, "Invalid resource pack asset path segment '" + segment + "' in addon '" + addon.id() + "'. Skipping.");
                     return false;
                 }
             }
@@ -127,7 +134,7 @@ public class ResourcePackMerger {
             Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
             return true;
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to copy asset file " + relativePath + " from addon " + addon.id(), e);
+            logger.warn(LogChannel.PACK, "Failed to copy asset file " + relativePath + " from addon " + addon.id(), e);
             return false;
         }
     }

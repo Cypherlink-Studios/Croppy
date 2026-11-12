@@ -4,6 +4,9 @@ import dev.darkblade.croppy.api.discovery.DiscoveryContext;
 import dev.darkblade.croppy.api.discovery.DiscoveryResult;
 import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.logging.CroppyLogger;
+import dev.darkblade.croppy.api.logging.JulCroppyLogger;
+import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.recipe.KnowledgeState;
 import dev.darkblade.croppy.api.recipe.RecipeDefinition;
 import dev.darkblade.croppy.api.recipe.RecipeRegistry;
@@ -25,7 +28,6 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Locale;
 import java.util.Objects;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -38,7 +40,7 @@ public final class BukkitRecipeDiscoveryListener implements Listener {
     private final RecipeRegistry recipeRegistry;
     private final RecipeKnowledgeStorage storage;
     private final dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackProvider feedbackHelper;
-    private final Logger logger;
+    private final CroppyLogger logger;
 
     private final NamespacedKey itemIdKey;
     private final AutomaticDiscoveryMethod automaticMethod = new AutomaticDiscoveryMethod();
@@ -49,6 +51,22 @@ public final class BukkitRecipeDiscoveryListener implements Listener {
             RecipeKnowledgeStorage storage,
             dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackProvider feedbackHelper,
             Logger logger
+    ) {
+        this(
+                discoveryEngine,
+                recipeRegistry,
+                storage,
+                feedbackHelper,
+                new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null"))
+        );
+    }
+
+    public BukkitRecipeDiscoveryListener(
+            RecipeDiscoveryEngine discoveryEngine,
+            RecipeRegistry recipeRegistry,
+            RecipeKnowledgeStorage storage,
+            dev.darkblade.croppy.platform.paper.discovery.DiscoveryFeedbackProvider feedbackHelper,
+            CroppyLogger logger
     ) {
         this.discoveryEngine = Objects.requireNonNull(discoveryEngine, "discoveryEngine cannot be null");
         this.recipeRegistry = Objects.requireNonNull(recipeRegistry, "recipeRegistry cannot be null");
@@ -64,7 +82,7 @@ public final class BukkitRecipeDiscoveryListener implements Listener {
         storage.loadKnowledge(player.getUniqueId()).thenAccept(knowledgeMap -> {
             discoveryEngine.loadPlayerKnowledge(player.getUniqueId(), knowledgeMap);
         }).exceptionally(ex -> {
-            logger.log(Level.SEVERE, "Failed to load recipe knowledge for player: " + player.getName(), ex);
+            logger.error(LogChannel.CORE, "Failed to load recipe knowledge for player: " + player.getName(), ex);
             return null;
         });
     }

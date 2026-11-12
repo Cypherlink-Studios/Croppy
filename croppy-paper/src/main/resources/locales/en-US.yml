@@ -94,6 +94,20 @@ command:
     staged-success: "<green>Update <yellow>v<version></yellow> successfully staged to <white>plugins/update/<file></white>!</green><newline><gray>The update will automatically take effect on the next server restart.</gray>"
     failed: "<red>Update operation failed: <error>.</red>"
     login-notification: "<gold>A newer version of Croppy is available:</gold> <green>v<latest></green> <gray>(current: v<current>)</gray> <click:run_command:'/croppy update apply'><hover:show_text:'<gray>Click to apply update</gray>'><yellow>[Update Now]</yellow></hover></click>"
+  debug:
+    unavailable: "<red>Logging controller is not initialized.</red>"
+    invalid-channel: "<red>Unknown debug channel '<channel>'.</red> <gray>Valid channels: <yellow><valid></yellow>.</gray>"
+    status-header: "<gold><bold>=== Diagnostic Logging Status ===</bold></gold>"
+    status-config: "<dark_gray>├─</dark_gray> <gold>Base Level:</gold> <yellow><level></yellow> <dark_gray>|</dark_gray> <gold>Style:</gold> <aqua><style></aqua> <dark_gray>|</dark_gray> <gold>Console Only</gold>"
+    status-channels-header: "<dark_gray>└─</dark_gray> <gold>Debug Channels:</gold> <gray>(click to toggle)</gray>"
+    channel-entry-on: " <green>[✔]</green> <click:run_command:'/croppy debug toggle {channel}'><hover:show_text:'<gray>Click to disable <yellow>{channel}</yellow> debug logs</gray>'><green>{channel}</green></hover></click>"
+    channel-entry-off: " <dark_gray>[✖]</dark_gray> <click:run_command:'/croppy debug toggle {channel}'><hover:show_text:'<gray>Click to enable <yellow>{channel}</yellow> debug logs</gray>'><gray>{channel}</gray></hover></click>"
+    enabled: "<green>Enabled console debug logging for channel <yellow><channel></yellow>.</green>"
+    disabled: "<yellow>Disabled console debug logging for channel <white><channel></white>.</yellow>"
+    already-enabled: "<gray>Channel <yellow><channel></yellow> already has debug logging enabled.</gray>"
+    already-disabled: "<gray>Channel <white><channel></white> already has debug logging disabled.</gray>"
+    all-enabled: "<green>Enabled console debug logging across <yellow>all <count></yellow> channels.</green>"
+    all-disabled: "<yellow>Cleared all runtime debug channel overrides.</yellow>"
 
 crop:
   plant:
