@@ -1,0 +1,14 @@
+id: "croppy:display_critical_headroom"
+name: "Display Critical Headroom Fallback"
+trigger: "DISPLAY_LAYOUT"
+severity: "WARNING"
+priority: 100
+conditions:
+  - "display.headroom < 0.5"
+actions:
+  - type: "TEXT_DISPLAY_FALLBACK"
+    target: "ACTION_BAR"
+    look_angle: 15
+    max_distance: 4.0
+    interval_ticks: 10
+    separator: " <dark_gray>•</dark_gray> "

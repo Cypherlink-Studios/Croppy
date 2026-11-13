@@ -243,6 +243,13 @@ public class PacketEventsStationRenderer {
      * Spawns the floating holographic Text Display entity for a player.
      */
     public void spawnTextDisplay(Player player, PacketStationDisplay display, TextDisplayTemplate template, Component text) {
+        spawnTextDisplay(player, display, template, text, null);
+    }
+
+    /**
+     * Spawns the floating holographic Text Display entity for a player with transform override.
+     */
+    public void spawnTextDisplay(Player player, PacketStationDisplay display, TextDisplayTemplate template, Component text, DisplayTransform transformOverride) {
         if (!template.enabled()) return;
 
         BlockPosition pos = display.getPosition();
@@ -263,17 +270,25 @@ public class PacketEventsStationRenderer {
         );
         sendPacket(player, spawnPacket);
 
-        updateTextDisplayMetadata(player, display, template, text);
+        updateTextDisplayMetadata(player, display, template, text, transformOverride);
     }
 
     /**
      * Updates the status text metadata on a client's Text Display entity.
      */
     public void updateTextDisplayMetadata(Player player, PacketStationDisplay display, TextDisplayTemplate template, Component text) {
+        updateTextDisplayMetadata(player, display, template, text, null);
+    }
+
+    /**
+     * Updates the status text metadata on a client's Text Display entity with transform override.
+     */
+    public void updateTextDisplayMetadata(Player player, PacketStationDisplay display, TextDisplayTemplate template, Component text, DisplayTransform transformOverride) {
         int entityId = display.getEntityId(VisualTier.TEXT_DISPLAY);
         List<EntityData<?>> metadata = new ArrayList<>();
 
-        applyTransformMetadata(metadata, template.transform(), template.billboard(), 0, display.getStation().getYaw());
+        DisplayTransform effectiveTransform = (transformOverride != null) ? transformOverride : template.transform();
+        applyTransformMetadata(metadata, effectiveTransform, template.billboard(), 0, display.getStation().getYaw());
 
         Component cleanText = (text == null) ? Component.empty() : text;
         metadata.add(new EntityData(INDEX_TEXT, EntityDataTypes.ADV_COMPONENT, cleanText));

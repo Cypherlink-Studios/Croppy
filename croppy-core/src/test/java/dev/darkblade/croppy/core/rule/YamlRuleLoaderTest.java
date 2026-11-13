@@ -4,14 +4,18 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.rule.RuleDefinition;
 import dev.darkblade.croppy.api.rule.RuleSeverity;
 import dev.darkblade.croppy.api.rule.RuleTrigger;
+import dev.darkblade.croppy.api.rule.StationScope;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class YamlRuleLoaderTest {
 
@@ -47,6 +51,57 @@ class YamlRuleLoaderTest {
         assertEquals(2, rule.actions().size());
         assertEquals("REPLACE_OUTPUT", rule.actions().get(0).type());
         assertEquals("croppy:burnt_food", rule.actions().get(0).parameters().get("target_item"));
+        assertTrue(rule.stations().matches(Key.of("croppy", "cooking_pot")));
+    }
+
+    @Test
+    @DisplayName("Parses stations shorthand list filter")
+    void testStationsShorthandListParsing() {
+        String yaml = """
+                id: "croppy:tight_display"
+                name: "Tight Display"
+                trigger: "DISPLAY_LAYOUT"
+                stations:
+                  - "croppy:cooking_pot"
+                  - "skillet"
+                conditions:
+                  - "display.headroom < 0.85"
+                actions:
+                  - type: "TEXT_DISPLAY_FIT"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        RuleDefinition rule = loader.load(in, "layout.yml");
+
+        assertEquals(RuleTrigger.DISPLAY_LAYOUT, rule.trigger());
+        assertEquals(StationScope.Mode.INCLUDE, rule.stations().mode());
+        assertEquals(Set.of(Key.of("croppy", "cooking_pot"), Key.of("croppy", "skillet")), rule.stations().stationKeys());
+        assertTrue(rule.stations().matches(Key.of("croppy", "cooking_pot")));
+        assertTrue(rule.stations().matches(Key.of("croppy", "skillet")));
+        assertFalse(rule.stations().matches(Key.of("croppy", "stove")));
+    }
+
+    @Test
+    @DisplayName("Parses stations mapping with EXCLUDE mode")
+    void testStationsExcludeMappingParsing() {
+        String yaml = """
+                id: "croppy:exclude_stove"
+                trigger: "STATION_INTERACT"
+                stations:
+                  mode: EXCLUDE
+                  ids:
+                    - "croppy:stove"
+                actions:
+                  - type: "DAMAGE_PLAYER"
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        RuleDefinition rule = loader.load(in, "exclude.yml");
+
+        assertEquals(StationScope.Mode.EXCLUDE, rule.stations().mode());
+        assertEquals(Set.of(Key.of("croppy", "stove")), rule.stations().stationKeys());
+        assertFalse(rule.stations().matches(Key.of("croppy", "stove")));
+        assertTrue(rule.stations().matches(Key.of("croppy", "cooking_pot")));
     }
 
     @Test

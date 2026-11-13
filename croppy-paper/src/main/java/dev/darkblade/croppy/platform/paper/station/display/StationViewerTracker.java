@@ -1,5 +1,6 @@
 package dev.darkblade.croppy.platform.paper.station.display;
 
+import dev.darkblade.croppy.api.expression.EvaluationContext;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.logging.CroppyLogger;
@@ -10,6 +11,8 @@ import dev.darkblade.croppy.api.process.ProcessDefinition;
 import dev.darkblade.croppy.api.process.ProcessInstance;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.process.ProcessState;
+import dev.darkblade.croppy.api.rule.RuleAction;
+import dev.darkblade.croppy.api.rule.RuleTrigger;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StationStateDefinition;
@@ -26,6 +29,8 @@ import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
 import dev.darkblade.croppy.api.station.visual.TextDisplayTemplate;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.api.world.ChunkPosition;
+import dev.darkblade.croppy.core.rule.RuleEngine;
+import dev.darkblade.croppy.core.rule.RuleExecution;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.StationStateEvaluator;
 import dev.darkblade.croppy.core.station.visual.StationPlaceholderFormatter;
@@ -38,11 +43,17 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.BoundingBox;
+import org.bukkit.util.Vector;
+import org.bukkit.util.VoxelShape;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
@@ -64,27 +75,37 @@ public class StationViewerTracker {
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final CroppyLogger logger;
     private final ProcessRegistry processRegistry;
+    private final RuleEngine ruleEngine;
 
     private final Map<BlockPosition, PacketStationDisplay> activeDisplays = new ConcurrentHashMap<>();
 
-    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, CroppyLogger logger, ProcessRegistry processRegistry) {
+    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, CroppyLogger logger, ProcessRegistry processRegistry, RuleEngine ruleEngine) {
         this.server = Objects.requireNonNull(server, "server cannot be null");
         this.renderer = Objects.requireNonNull(renderer, "renderer cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.logger = Objects.requireNonNull(logger, "logger cannot be null");
         this.processRegistry = processRegistry;
+        this.ruleEngine = ruleEngine;
+    }
+
+    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, CroppyLogger logger, ProcessRegistry processRegistry) {
+        this(server, renderer, itemFactory, logger, processRegistry, null);
     }
 
     public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, CroppyLogger logger) {
-        this(server, renderer, itemFactory, logger, null);
+        this(server, renderer, itemFactory, logger, null, null);
+    }
+
+    public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger, ProcessRegistry processRegistry, RuleEngine ruleEngine) {
+        this(server, renderer, itemFactory, new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")), processRegistry, ruleEngine);
     }
 
     public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger, ProcessRegistry processRegistry) {
-        this(server, renderer, itemFactory, new JulCroppyLogger(Objects.requireNonNull(logger, "logger cannot be null")), processRegistry);
+        this(server, renderer, itemFactory, logger, processRegistry, null);
     }
 
     public StationViewerTracker(Server server, PacketEventsStationRenderer renderer, ItemFactory itemFactory, Logger logger) {
-        this(server, renderer, itemFactory, logger, null);
+        this(server, renderer, itemFactory, logger, null, null);
     }
 
     public PacketStationDisplay getOrCreateDisplay(StationInstance station) {
@@ -199,17 +220,90 @@ public class StationViewerTracker {
         Optional<Key> itemKeyOpt = displayComp.getDisplayedItem();
         ItemStack processItem = itemKeyOpt.map(this::resolveItemStack).orElse(null);
 
-        // Format Text Component
+        // Format Text Component and Evaluate Adaptive Headroom Rules
         TextDisplayTemplate textTemplate = visual.getTextDisplay().orElse(null);
         Component textComponent = null;
+        String rawText = null;
+
+        Double cachedHeadroom = display.getCachedHeadroom();
+        double headroom;
+        if (cachedHeadroom != null) {
+            headroom = cachedHeadroom;
+        } else {
+            headroom = calculateHeadroom(station, world);
+            display.setCachedHeadroom(headroom);
+        }
+
+        DisplayTransform effectiveTextTransform = (textTemplate != null) ? textTemplate.transform() : DisplayTransform.DEFAULT;
+        String effectiveFormat = (textTemplate != null) ? textTemplate.format() : TextDisplayTemplate.DEFAULT_FORMAT;
+        boolean fallbackActive = false;
+        Map<String, Object> fallbackActionParams = null;
+
+        if (ruleEngine != null && textTemplate != null) {
+            EvaluationContext layoutCtx = EvaluationContext.empty()
+                    .with("display.headroom", headroom)
+                    .with("station.temperature", temp)
+                    .with("station.thermal_zone", thermalZone != null ? thermalZone : "COLD")
+                    .with("process.state", stateStr)
+                    .with("process.progress", (double) progress)
+                    .with("has_inputs", hasInputs)
+                    .with("has_outputs", hasOutputs);
+
+            List<RuleExecution> layoutExecs = ruleEngine.evaluateAndApply(RuleTrigger.DISPLAY_LAYOUT, station, layoutCtx);
+            if (!layoutExecs.isEmpty()) {
+                RuleExecution layoutRule = layoutExecs.get(0);
+                for (RuleAction action : layoutRule.appliedActions()) {
+                    String actionType = action.type().toUpperCase(Locale.ROOT);
+                    if ("TEXT_DISPLAY_FALLBACK".equals(actionType)) {
+                        fallbackActive = true;
+                        fallbackActionParams = action.parameters();
+                    } else if ("TEXT_DISPLAY_FIT".equals(actionType)) {
+                        double stationTop = 0.55;
+                        if (visual.getBaseModel().isPresent()) {
+                            stationTop = visual.getBaseModel().get().transform().translationY() + 0.05;
+                        }
+                        double targetY = stationTop + (headroom / 2.0);
+                        effectiveTextTransform = effectiveTextTransform.withTranslation(
+                                effectiveTextTransform.translationX(),
+                                targetY,
+                                effectiveTextTransform.translationZ()
+                        );
+                    } else if ("TEXT_DISPLAY_SCALE".equals(actionType)) {
+                        Object rawScale = action.parameters().get("scale");
+                        float scaleFactor = 0.75f;
+                        if (rawScale instanceof Number n) {
+                            scaleFactor = n.floatValue();
+                        }
+                        effectiveTextTransform = effectiveTextTransform.withScale(
+                                scaleFactor,
+                                scaleFactor,
+                                scaleFactor
+                        );
+                        Object rawFormat = action.parameters().get("format");
+                        if (rawFormat != null && !rawFormat.toString().isBlank()) {
+                            effectiveFormat = rawFormat.toString().trim();
+                        }
+                    }
+                }
+            }
+        }
+
+        display.setActionFallbackActive(fallbackActive);
+        display.setFallbackParams(fallbackActionParams);
+
+        DisplayTransform previousTransform = display.getEffectiveTextTransform();
+        boolean transformChanged = !Objects.equals(previousTransform, effectiveTextTransform);
+        if (transformChanged) {
+            display.setEffectiveTextTransform(effectiveTextTransform);
+        }
+
         if (textTemplate != null && textTemplate.enabled()) {
-            String rawText;
             String statusText = displayComp.getStatusText();
 
             if (hasProcess && (pState == ProcessState.RUNNING || pState == ProcessState.AWAITING_INPUT)) {
-                if (textTemplate.format().contains("{status_message}")) {
+                if (effectiveFormat.contains("{status_message}")) {
                     rawText = StationPlaceholderFormatter.format(
-                            textTemplate.format(),
+                            effectiveFormat,
                             recipeName,
                             recipeDisplay,
                             progress,
@@ -227,7 +321,7 @@ public class StationViewerTracker {
                     rawText = statusText;
                 } else {
                     rawText = StationPlaceholderFormatter.format(
-                            textTemplate.format(),
+                            effectiveFormat,
                             recipeName,
                             recipeDisplay,
                             progress,
@@ -250,7 +344,7 @@ public class StationViewerTracker {
                 }
             } else {
                 rawText = StationPlaceholderFormatter.format(
-                        textTemplate.format(),
+                        effectiveFormat,
                         recipeName,
                         recipeDisplay,
                         progress,
@@ -275,6 +369,7 @@ public class StationViewerTracker {
         boolean isIdle = !isProcessActive && !hasInputs && !hasOutputs && isCold;
         boolean textDisplayVisible = textTemplate != null
                 && textTemplate.enabled()
+                && !fallbackActive
                 && (!textTemplate.hideWhenIdle() || !isIdle);
 
         Component lastRenderedText = display.getLastRenderedText();
@@ -377,13 +472,17 @@ public class StationViewerTracker {
                 if (inRange && textDisplayVisible && textComponent != null) {
                     if (!viewing) {
                         display.addViewer(VisualTier.TEXT_DISPLAY, playerId);
-                        renderer.spawnTextDisplay(player, display, textTemplate, textComponent);
-                    } else if (isDirty || textChanged) {
-                        renderer.updateTextDisplayMetadata(player, display, textTemplate, textComponent);
+                        renderer.spawnTextDisplay(player, display, textTemplate, textComponent, effectiveTextTransform);
+                    } else if (isDirty || textChanged || transformChanged) {
+                        renderer.updateTextDisplayMetadata(player, display, textTemplate, textComponent, effectiveTextTransform);
                     }
                 } else if (viewing) {
                     display.removeViewer(VisualTier.TEXT_DISPLAY, playerId);
                     renderer.destroyEntities(player, display.getEntityId(VisualTier.TEXT_DISPLAY));
+                }
+
+                if (fallbackActive) {
+                    handleActionBarFallback(player, display, rawText, distSq, centerX, centerY, centerZ);
                 }
             }
 
@@ -608,5 +707,109 @@ public class StationViewerTracker {
                 return null;
             }
         }
+    }
+
+    public double calculateHeadroom(StationInstance station, World world) {
+        if (station == null || world == null) {
+            return 3.0;
+        }
+        BlockPosition pos = station.getPosition();
+        double ceilingY = 3.0;
+
+        Block blockAbove1 = null;
+        try {
+            blockAbove1 = world.getBlockAt(pos.x(), pos.y() + 1, pos.z());
+        } catch (Exception ignored) {}
+
+        if (blockAbove1 != null) {
+            VoxelShape shape1 = blockAbove1.getCollisionShape();
+            if (shape1 != null && !shape1.getBoundingBoxes().isEmpty()) {
+                double minY = shape1.getBoundingBoxes().stream()
+                        .mapToDouble(BoundingBox::getMinY)
+                        .min()
+                        .orElse(0.0);
+                ceilingY = 1.0 + minY;
+            } else {
+                Block blockAbove2 = null;
+                try {
+                    blockAbove2 = world.getBlockAt(pos.x(), pos.y() + 2, pos.z());
+                } catch (Exception ignored) {}
+                if (blockAbove2 != null) {
+                    VoxelShape shape2 = blockAbove2.getCollisionShape();
+                    if (shape2 != null && !shape2.getBoundingBoxes().isEmpty()) {
+                        double minY = shape2.getBoundingBoxes().stream()
+                                .mapToDouble(BoundingBox::getMinY)
+                                .min()
+                                .orElse(0.0);
+                        ceilingY = 2.0 + minY;
+                    }
+                }
+            }
+        }
+
+        double stationTop = 0.55;
+        if (station.getDefinition() != null && station.getDefinition().getVisualDefinition().isPresent()) {
+            StationVisualDefinition visual = station.getDefinition().getVisualDefinition().get();
+            if (visual.getBaseModel().isPresent()) {
+                stationTop = visual.getBaseModel().get().transform().translationY() + 0.05;
+            }
+        }
+
+        return Math.max(0.0, ceilingY - stationTop);
+    }
+
+    public void invalidateHeadroom(BlockPosition pos) {
+        if (pos == null) return;
+        PacketStationDisplay display = activeDisplays.get(pos);
+        if (display != null) {
+            display.invalidateHeadroom();
+        }
+    }
+
+    private void handleActionBarFallback(Player player, PacketStationDisplay display, String rawText, double distSq, double cx, double cy, double cz) {
+        if (player == null || rawText == null || rawText.isBlank()) return;
+        Map<String, Object> params = display.getFallbackParams();
+        double maxDist = 4.0;
+        double lookAngle = 15.0;
+        String separator = " <dark_gray>•</dark_gray> ";
+        if (params != null) {
+            Object dObj = params.get("max_distance");
+            if (dObj instanceof Number n) maxDist = n.doubleValue();
+            Object aObj = params.get("look_angle");
+            if (aObj instanceof Number n) lookAngle = n.doubleValue();
+            Object sObj = params.get("separator");
+            if (sObj != null) separator = sObj.toString();
+        }
+
+        if (distSq > maxDist * maxDist) return;
+
+        Location eye = player.getEyeLocation();
+        Vector toStation = new Vector(cx - eye.getX(), cy - eye.getY(), cz - eye.getZ()).normalize();
+        double dot = eye.getDirection().dot(toStation);
+        double minDot = Math.cos(Math.toRadians(lookAngle));
+        if (dot < minDot) return;
+
+        long now = System.currentTimeMillis();
+        long lastSent = display.getLastActionBarTime();
+        String flatText = flattenText(rawText, separator);
+
+        if (!flatText.equals(display.getLastActionBarText()) || (now - lastSent >= 2000)) {
+            player.sendActionBar(miniMessage.deserialize(flatText));
+            display.setLastActionBarText(flatText);
+            display.setLastActionBarTime(now);
+        }
+    }
+
+    public static String flattenText(String multiLineText, String separator) {
+        if (multiLineText == null) return "";
+        String[] lines = multiLineText.split("\\r?\\n");
+        List<String> validLines = new ArrayList<>();
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty()) {
+                validLines.add(trimmed);
+            }
+        }
+        return String.join(separator != null ? separator : " • ", validLines);
     }
 }

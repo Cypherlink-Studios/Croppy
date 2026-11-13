@@ -1,0 +1,12 @@
+id: "croppy:display_tight_headroom"
+name: "Display Tight Headroom Layout"
+trigger: "DISPLAY_LAYOUT"
+severity: "INFO"
+priority: 50
+conditions:
+  - "display.headroom >= 0.15"
+  - "display.headroom < 1.5"
+actions:
+  - type: "TEXT_DISPLAY_FIT"
+  - type: "TEXT_DISPLAY_SCALE"
+    scale: 0.6

@@ -10,6 +10,7 @@ import dev.darkblade.croppy.api.rule.RuleDefinition;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.rule.RuleSeverity;
 import dev.darkblade.croppy.api.rule.RuleTrigger;
+import dev.darkblade.croppy.api.rule.StationScope;
 import dev.darkblade.croppy.core.expression.ExpressionCompiler;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -21,10 +22,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -35,10 +38,20 @@ import java.util.stream.Stream;
 public final class YamlRuleLoader {
 
     private final Yaml yaml;
+    private final CroppyLogger log;
 
     public YamlRuleLoader() {
+        this(NoOpCroppyLogger.INSTANCE);
+    }
+
+    public YamlRuleLoader(CroppyLogger logger) {
         LoaderOptions options = new LoaderOptions();
         this.yaml = new Yaml(new SafeConstructor(options));
+        this.log = (logger != null) ? logger : NoOpCroppyLogger.INSTANCE;
+    }
+
+    public YamlRuleLoader(Logger logger) {
+        this(logger != null ? new JulCroppyLogger(logger) : NoOpCroppyLogger.INSTANCE);
     }
 
     /**
@@ -91,6 +104,9 @@ public final class YamlRuleLoader {
         // 5. Priority
         int priority = getInt(root, "priority", 0);
 
+        // 5b. Station Scope
+        StationScope stations = parseStationScope(root.get("stations"), sourceName);
+
         // 6. Conditions & Pre-compilation
         List<String> conditions = new ArrayList<>();
         Object rawConditions = root.get("conditions");
@@ -138,9 +154,59 @@ public final class YamlRuleLoader {
                 trigger,
                 severity,
                 priority,
+                stations,
                 conditions,
                 actions
         );
+    }
+
+    private StationScope parseStationScope(Object rawStations, String sourceName) {
+        if (rawStations == null) {
+            return StationScope.all();
+        }
+
+        StationScope.Mode mode = StationScope.Mode.INCLUDE;
+        Set<Key> keys = new HashSet<>();
+
+        if (rawStations instanceof List<?> list) {
+            // Shorthand list: stations: ["croppy:cooking_pot"]
+            for (Object item : list) {
+                if (item != null && !item.toString().isBlank()) {
+                    keys.add(parseKey(item.toString().trim()));
+                }
+            }
+            return new StationScope(StationScope.Mode.INCLUDE, keys);
+        } else if (rawStations instanceof Map<?, ?> map) {
+            Object rawMode = map.get("mode");
+            if (rawMode != null && !rawMode.toString().isBlank()) {
+                String modeStr = rawMode.toString().trim().toUpperCase(Locale.ROOT);
+                try {
+                    mode = StationScope.Mode.valueOf(modeStr);
+                } catch (IllegalArgumentException ex) {
+                    log.warn(LogChannel.LOADER, () -> "Unknown station scope mode '" + modeStr + "' in " + sourceName + ", defaulting to INCLUDE");
+                    mode = StationScope.Mode.INCLUDE;
+                }
+            }
+
+            Object rawIds = map.get("ids");
+            if (rawIds == null) {
+                rawIds = map.get("stations");
+            }
+            if (rawIds instanceof List<?> list) {
+                for (Object item : list) {
+                    if (item != null && !item.toString().isBlank()) {
+                        keys.add(parseKey(item.toString().trim()));
+                    }
+                }
+            }
+            return new StationScope(mode, keys);
+        }
+
+        return StationScope.all();
+    }
+
+    private Key parseKey(String keyStr) {
+        return keyStr.contains(":") ? Key.parse(keyStr) : Key.of("croppy", keyStr);
     }
 
     /**

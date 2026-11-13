@@ -178,6 +178,46 @@ public final class StationBlockListener implements Listener {
                         + event.getPlayer().getName(), ex);
             }
         }
+
+        checkAndInvalidateHeadroom(block);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCeilingBlockChange(BlockPlaceEvent event) {
+        checkAndInvalidateHeadroom(event.getBlock());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCeilingBlockBreak(BlockBreakEvent event) {
+        checkAndInvalidateHeadroom(event.getBlock());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonExtend(org.bukkit.event.block.BlockPistonExtendEvent event) {
+        if (viewerTracker == null) return;
+        for (Block b : event.getBlocks()) {
+            checkAndInvalidateHeadroom(b);
+            checkAndInvalidateHeadroom(b.getRelative(event.getDirection()));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonRetract(org.bukkit.event.block.BlockPistonRetractEvent event) {
+        if (viewerTracker == null) return;
+        for (Block b : event.getBlocks()) {
+            checkAndInvalidateHeadroom(b);
+            checkAndInvalidateHeadroom(b.getRelative(event.getDirection()));
+        }
+    }
+
+    private void checkAndInvalidateHeadroom(Block block) {
+        if (viewerTracker == null || block == null) return;
+        World world = block.getWorld();
+        int x = block.getX();
+        int y = block.getY();
+        int z = block.getZ();
+        viewerTracker.invalidateHeadroom(new BlockPosition(world.getName(), x, y - 1, z));
+        viewerTracker.invalidateHeadroom(new BlockPosition(world.getName(), x, y - 2, z));
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

@@ -34,6 +34,14 @@ public final class PacketStationDisplay {
     private final Map<VisualTier, Set<UUID>> tierViewers = new ConcurrentHashMap<>();
     private volatile net.kyori.adventure.text.Component lastRenderedText;
 
+    private volatile Double cachedHeadroom;
+    private volatile boolean actionFallbackActive;
+    private volatile dev.darkblade.croppy.api.station.visual.DisplayTransform effectiveTextTransform;
+    private volatile String compactFormat;
+    private volatile Map<String, Object> fallbackParams;
+    private volatile String lastActionBarText;
+    private volatile long lastActionBarTime;
+
     public PacketStationDisplay(StationInstance station) {
         this.station = Objects.requireNonNull(station, "station cannot be null");
         this.position = station.getPosition();
@@ -136,5 +144,65 @@ public final class PacketStationDisplay {
 
     public void setLastRenderedText(net.kyori.adventure.text.Component lastRenderedText) {
         this.lastRenderedText = lastRenderedText;
+    }
+
+    public Double getCachedHeadroom() {
+        return cachedHeadroom;
+    }
+
+    public void setCachedHeadroom(Double cachedHeadroom) {
+        this.cachedHeadroom = cachedHeadroom;
+    }
+
+    public void invalidateHeadroom() {
+        this.cachedHeadroom = null;
+    }
+
+    public boolean isActionFallbackActive() {
+        return actionFallbackActive;
+    }
+
+    public void setActionFallbackActive(boolean actionFallbackActive) {
+        this.actionFallbackActive = actionFallbackActive;
+    }
+
+    public dev.darkblade.croppy.api.station.visual.DisplayTransform getEffectiveTextTransform() {
+        return effectiveTextTransform;
+    }
+
+    public void setEffectiveTextTransform(dev.darkblade.croppy.api.station.visual.DisplayTransform effectiveTextTransform) {
+        this.effectiveTextTransform = effectiveTextTransform;
+    }
+
+    public String getCompactFormat() {
+        return compactFormat;
+    }
+
+    public void setCompactFormat(String compactFormat) {
+        this.compactFormat = compactFormat;
+    }
+
+    public Map<String, Object> getFallbackParams() {
+        return fallbackParams;
+    }
+
+    public void setFallbackParams(Map<String, Object> fallbackParams) {
+        this.fallbackParams = fallbackParams;
+    }
+
+    public String getLastActionBarText() {
+        return lastActionBarText;
+    }
+
+    public void setLastActionBarText(String lastActionBarText) {
+        this.lastActionBarText = lastActionBarText;
+    }
+
+    public long getLastActionBarTime() {
+        return lastActionBarTime;
+    }
+
+    public void setLastActionBarTime(long lastActionBarTime) {
+        this.lastActionBarTime = lastActionBarTime;
     }
 }

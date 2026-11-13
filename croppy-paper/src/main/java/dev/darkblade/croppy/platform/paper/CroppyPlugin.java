@@ -530,7 +530,7 @@ public class CroppyPlugin extends JavaPlugin {
         // Station & Process listeners
         this.stationInteractListener = new dev.darkblade.croppy.platform.paper.station.listener.StationInteractListener(
                 core.getStationManager(), core.getProcessEngine(), this.itemFactory, this.menuService,
-                core.getInteractionRouter(), core.getRuleEngine(), this.messageService, this, this.croppyLogger);
+                core.getInteractionRouter(), core.getRuleEngine(), this.messageService, this, this.stationViewerTracker, this.croppyLogger);
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
                 core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory,
                 this.stationViewerTracker, getProtectionPort(), this.croppyLogger);
@@ -721,9 +721,11 @@ public class CroppyPlugin extends JavaPlugin {
                 Files.createDirectories(dir);
             } catch (Exception ignored) {
             }
-            saveResourceIfNotExists("rules/overcooking_burn.yml");
-            saveResourceIfNotExists("rules/thermal_burn.yml");
         }
+        saveResourceIfNotExists("rules/overcooking_burn.yml");
+        saveResourceIfNotExists("rules/thermal_burn.yml");
+        saveResourceIfNotExists("rules/display_tight_headroom.yml");
+        saveResourceIfNotExists("rules/display_critical_headroom.yml");
 
         dev.darkblade.croppy.core.rule.YamlRuleLoader loader = new dev.darkblade.croppy.core.rule.YamlRuleLoader();
         int loaded = loader.loadAll(dir, core.getRuleRegistry(), this.croppyLogger);
@@ -889,7 +891,7 @@ public class CroppyPlugin extends JavaPlugin {
         this.packetStationRenderer = new dev.darkblade.croppy.platform.paper.station.display.PacketEventsStationRenderer(
                 this.croppyLogger);
         this.stationViewerTracker = new dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker(
-                getServer(), this.packetStationRenderer, this.itemFactory, this.croppyLogger, core.getProcessRegistry());
+                getServer(), this.packetStationRenderer, this.itemFactory, this.croppyLogger, core.getProcessRegistry(), core.getRuleEngine());
 
         this.stationTicker = new dev.darkblade.croppy.platform.paper.station.PaperStationTicker(
                 this,

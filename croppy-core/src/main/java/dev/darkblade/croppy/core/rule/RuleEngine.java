@@ -30,6 +30,7 @@ public final class RuleEngine {
 
     /**
      * Evaluates all rules bound to the specified trigger and executes consequences on matching conditions.
+     * For {@link RuleTrigger#DISPLAY_LAYOUT}, evaluates with first-match semantics (highest priority matching rule wins).
      *
      * @param trigger the event trigger
      * @param station the target station instance
@@ -41,8 +42,10 @@ public final class RuleEngine {
         Objects.requireNonNull(station, "station cannot be null");
         EvaluationContext evalCtx = (context == null) ? EvaluationContext.empty() : context;
 
-        List<RuleDefinition> rules = ruleRegistry.getRulesByTrigger(trigger);
+        Key stationKey = (station.getDefinition() != null) ? station.getDefinition().getKey() : null;
+        List<RuleDefinition> rules = ruleRegistry.getRules(trigger, stationKey);
         List<RuleExecution> executed = new ArrayList<>();
+        boolean isFirstMatchOnly = (trigger == RuleTrigger.DISPLAY_LAYOUT);
 
         for (RuleDefinition rule : rules) {
             boolean conditionsMet = true;
@@ -66,6 +69,10 @@ public final class RuleEngine {
             // Apply in-memory domain state consequences
             applyDomainActions(station, rule.actions());
             executed.add(new RuleExecution(rule, rule.actions()));
+
+            if (isFirstMatchOnly) {
+                break;
+            }
         }
 
         return executed;

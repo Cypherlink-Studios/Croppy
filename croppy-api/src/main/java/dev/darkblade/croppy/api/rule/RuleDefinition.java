@@ -14,6 +14,7 @@ import java.util.Objects;
  * @param trigger event trigger point
  * @param severity rule severity level
  * @param priority execution order priority (higher evaluated first)
+ * @param stations station scope filter targeting specific station identifiers
  * @param conditions list of expression strings evaluated via Pratt AST
  * @param actions consequence actions executed when conditions are met
  */
@@ -23,6 +24,7 @@ public record RuleDefinition(
         RuleTrigger trigger,
         RuleSeverity severity,
         int priority,
+        StationScope stations,
         List<String> conditions,
         List<RuleAction> actions
 ) implements Keyed {
@@ -32,8 +34,21 @@ public record RuleDefinition(
         Objects.requireNonNull(name, "name cannot be null");
         Objects.requireNonNull(trigger, "trigger cannot be null");
         Objects.requireNonNull(severity, "severity cannot be null");
+        stations = (stations == null) ? StationScope.all() : stations;
         conditions = (conditions == null) ? List.of() : List.copyOf(conditions);
         actions = (actions == null) ? List.of() : List.copyOf(actions);
+    }
+
+    public RuleDefinition(
+            Key key,
+            String name,
+            RuleTrigger trigger,
+            RuleSeverity severity,
+            int priority,
+            List<String> conditions,
+            List<RuleAction> actions
+    ) {
+        this(key, name, trigger, severity, priority, StationScope.all(), conditions, actions);
     }
 
     @Override

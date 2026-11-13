@@ -8,5 +8,6 @@ public enum RuleTrigger {
     STATION_INTERACT,
     PROCESS_TICK,
     PROCESS_FINISH,
-    PROCESS_FAIL
+    PROCESS_FAIL,
+    DISPLAY_LAYOUT
 }

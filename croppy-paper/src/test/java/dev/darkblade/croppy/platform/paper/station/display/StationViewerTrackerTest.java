@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -30,6 +31,8 @@ class StationViewerTrackerTest {
         int updateTextCallCount = 0;
         Component lastSpawnedText;
         Component lastUpdatedText;
+        dev.darkblade.croppy.api.station.visual.DisplayTransform lastSpawnTextTransform;
+        dev.darkblade.croppy.api.station.visual.DisplayTransform lastUpdateTextTransform;
         int spawnBaseCallCount = 0;
         dev.darkblade.croppy.api.station.visual.DisplayTransform lastSpawnBaseTransform;
         int updateBaseCallCount = 0;
@@ -77,14 +80,26 @@ class StationViewerTrackerTest {
 
         @Override
         public void spawnTextDisplay(Player player, PacketStationDisplay display, dev.darkblade.croppy.api.station.visual.TextDisplayTemplate template, Component text) {
+            spawnTextDisplay(player, display, template, text, null);
+        }
+
+        @Override
+        public void spawnTextDisplay(Player player, PacketStationDisplay display, dev.darkblade.croppy.api.station.visual.TextDisplayTemplate template, Component text, dev.darkblade.croppy.api.station.visual.DisplayTransform transformOverride) {
             spawnTextCallCount++;
             lastSpawnedText = text;
+            lastSpawnTextTransform = transformOverride;
         }
 
         @Override
         public void updateTextDisplayMetadata(Player player, PacketStationDisplay display, dev.darkblade.croppy.api.station.visual.TextDisplayTemplate template, Component text) {
+            updateTextDisplayMetadata(player, display, template, text, null);
+        }
+
+        @Override
+        public void updateTextDisplayMetadata(Player player, PacketStationDisplay display, dev.darkblade.croppy.api.station.visual.TextDisplayTemplate template, Component text, dev.darkblade.croppy.api.station.visual.DisplayTransform transformOverride) {
             updateTextCallCount++;
             lastUpdatedText = text;
+            lastUpdateTextTransform = transformOverride;
         }
     }
 
@@ -432,5 +447,148 @@ class StationViewerTrackerTest {
         assertEquals(2, testRenderer.updateInteractionCallCount);
         assertEquals(0.8f, testRenderer.lastUpdateInteractionWidth, 0.001f);
         assertEquals(0.8f, testRenderer.lastUpdateInteractionHeight, 0.001f);
+    }
+
+    @Test
+    void testFlattenTextUtility() {
+        String multiLine = "Line 1\nLine 2\nLine 3";
+        String flat = StationViewerTracker.flattenText(multiLine, " • ");
+        assertEquals("Line 1 • Line 2 • Line 3", flat);
+
+        assertEquals("", StationViewerTracker.flattenText(null, " • "));
+        assertEquals("Single", StationViewerTracker.flattenText("Single", " • "));
+    }
+
+    @Test
+    void testAdaptiveHeadroomLayoutRules() {
+        dev.darkblade.croppy.core.rule.DefaultRuleRegistry registry = new dev.darkblade.croppy.core.rule.DefaultRuleRegistry();
+        dev.darkblade.croppy.core.rule.RuleEngine ruleEngine = new dev.darkblade.croppy.core.rule.RuleEngine(registry);
+
+        registry.register(new dev.darkblade.croppy.api.rule.RuleDefinition(
+                Key.of("croppy", "tight_headroom"),
+                "Tight Headroom",
+                dev.darkblade.croppy.api.rule.RuleTrigger.DISPLAY_LAYOUT,
+                dev.darkblade.croppy.api.rule.RuleSeverity.INFO,
+                50,
+                dev.darkblade.croppy.api.rule.StationScope.all(),
+                List.of("display.headroom < 0.85"),
+                List.of(
+                        dev.darkblade.croppy.api.rule.RuleAction.of("TEXT_DISPLAY_FIT"),
+                        dev.darkblade.croppy.api.rule.RuleAction.of("TEXT_DISPLAY_SCALE", Map.of("scale", 0.75f, "format", "<yellow>{recipe_name}</yellow>"))
+                )
+        ));
+
+        StationViewerTracker customTracker = new StationViewerTracker(
+                createMockOrNullServer(),
+                testRenderer,
+                itemFactory,
+                Logger.getLogger("test"),
+                null,
+                ruleEngine
+        );
+
+        dev.darkblade.croppy.api.station.visual.TextDisplayTemplate textDef = new dev.darkblade.croppy.api.station.visual.TextDisplayTemplate(
+                true,
+                "<green>{recipe_name}</green>",
+                dev.darkblade.croppy.api.station.visual.DisplayTransform.of(0.0, 1.35, 0.0, 1.0f, 1.0f, 1.0f),
+                dev.darkblade.croppy.api.station.visual.BillboardMode.CENTER,
+                8,
+                200,
+                0,
+                false,
+                true
+        );
+        dev.darkblade.croppy.api.station.visual.StationVisualDefinition visual = new dev.darkblade.croppy.api.station.visual.StationVisualDefinition(
+                null, null, textDef, false, null
+        );
+
+        StationDefinition def = new StationDefinition(
+                Key.of("croppy", "cooking_pot"),
+                "Cooking Pot",
+                "barrier",
+                StationInteractionType.HYBRID,
+                6, 2, null, true, List.of(), Map.of(), visual
+        );
+        DefaultStationInstance pot = new DefaultStationInstance(def.key(), new BlockPosition("world", 10, 64, 20), def);
+        pot.setComponent(dev.darkblade.croppy.api.station.component.DisplayComponent.class, new dev.darkblade.croppy.core.station.component.DefaultDisplayComponent());
+
+        PacketStationDisplay disp = customTracker.getOrCreateDisplay(pot);
+        // Simulate ceiling at Y+1 giving headroom = 0.45
+        disp.setCachedHeadroom(0.45);
+
+        Player dummyPlayer = (Player) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{Player.class},
+                (proxy, method, args) -> {
+                    if ("getUniqueId".equals(method.getName())) return UUID.randomUUID();
+                    if ("getLocation".equals(method.getName())) return new org.bukkit.Location(null, 10.5, 64.0, 20.5);
+                    if ("isOnline".equals(method.getName())) return true;
+                    return null;
+                }
+        );
+
+        org.bukkit.World dummyWorld = (org.bukkit.World) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{org.bukkit.World.class},
+                (proxy, method, args) -> {
+                    if ("getPlayers".equals(method.getName())) return List.of(dummyPlayer);
+                    if ("getName".equals(method.getName())) return "world";
+                    return null;
+                }
+        );
+
+        customTracker.syncStation(pot, dummyWorld, null);
+
+        assertEquals(1, testRenderer.spawnTextCallCount);
+        assertNotNull(testRenderer.lastSpawnTextTransform);
+        // Headroom 0.45 -> targetY = 0.55 + (0.45 / 2.0) = 0.775
+        assertEquals(0.775, testRenderer.lastSpawnTextTransform.translationY(), 0.001);
+        // Scale reduced to 0.75
+        assertEquals(0.75f, testRenderer.lastSpawnTextTransform.scaleX(), 0.001f);
+    }
+
+    @Test
+    void testCalculateHeadroomAndInvalidation() {
+        org.bukkit.util.VoxelShape shape = (org.bukkit.util.VoxelShape) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{org.bukkit.util.VoxelShape.class},
+                (proxy, method, args) -> {
+                    if ("getBoundingBoxes".equals(method.getName())) {
+                        return List.of(new org.bukkit.util.BoundingBox(0.0, 0.2, 0.0, 1.0, 1.0, 1.0));
+                    }
+                    return null;
+                }
+        );
+
+        org.bukkit.block.Block blockY1 = (org.bukkit.block.Block) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{org.bukkit.block.Block.class},
+                (proxy, method, args) -> {
+                    if ("getCollisionShape".equals(method.getName())) return shape;
+                    return null;
+                }
+        );
+
+        org.bukkit.World testWorld = (org.bukkit.World) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{org.bukkit.World.class},
+                (proxy, method, args) -> {
+                    if ("getBlockAt".equals(method.getName())) {
+                        int y = (int) args[1];
+                        if (y == 65) return blockY1;
+                    }
+                    return null;
+                }
+        );
+
+        double headroom = tracker.calculateHeadroom(station, testWorld);
+        assertEquals(0.65, headroom, 0.001);
+
+        PacketStationDisplay display = tracker.getOrCreateDisplay(station);
+        display.setCachedHeadroom(0.65);
+        assertEquals(0.65, display.getCachedHeadroom());
+
+        tracker.invalidateHeadroom(station.getPosition());
+        assertNull(display.getCachedHeadroom());
     }
 }

@@ -72,6 +72,7 @@ public final class StationInteractListener implements Listener {
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final NamespacedKey durabilityKey = new NamespacedKey("croppy", "durability");
     private final Plugin plugin;
+    private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
     private final CroppyLogger logger;
 
     public StationInteractListener(
@@ -82,7 +83,7 @@ public final class StationInteractListener implements Listener {
             InteractionRouter interactionRouter,
             RuleEngine ruleEngine
     ) {
-        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, null, null,
+        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, null, null, null,
                 NoOpCroppyLogger.INSTANCE);
     }
 
@@ -96,7 +97,7 @@ public final class StationInteractListener implements Listener {
             PaperMessageService messageService
     ) {
         this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, messageService,
-                null, NoOpCroppyLogger.INSTANCE);
+                null, null, NoOpCroppyLogger.INSTANCE);
     }
 
     public StationInteractListener(
@@ -110,7 +111,7 @@ public final class StationInteractListener implements Listener {
             Plugin plugin
     ) {
         this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, messageService,
-                plugin, NoOpCroppyLogger.INSTANCE);
+                plugin, null, NoOpCroppyLogger.INSTANCE);
     }
 
     public StationInteractListener(
@@ -124,6 +125,22 @@ public final class StationInteractListener implements Listener {
             Plugin plugin,
             CroppyLogger logger
     ) {
+        this(stationManager, processEngine, itemFactory, menuService, interactionRouter, ruleEngine, messageService,
+                plugin, null, logger);
+    }
+
+    public StationInteractListener(
+            DefaultStationManager stationManager,
+            ProcessEngine processEngine,
+            ItemFactory itemFactory,
+            PaperMenuService menuService,
+            InteractionRouter interactionRouter,
+            RuleEngine ruleEngine,
+            PaperMessageService messageService,
+            Plugin plugin,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            CroppyLogger logger
+    ) {
         this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
         this.processEngine = Objects.requireNonNull(processEngine, "processEngine cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
@@ -132,6 +149,7 @@ public final class StationInteractListener implements Listener {
         this.ruleEngine = Objects.requireNonNull(ruleEngine, "ruleEngine cannot be null");
         this.messageService = messageService;
         this.plugin = plugin;
+        this.viewerTracker = viewerTracker;
         this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
@@ -190,6 +208,18 @@ public final class StationInteractListener implements Listener {
         String handMaterial = emptyHand ? null : handItem.getType().name().toLowerCase(Locale.ROOT);
         if (handMaterial != null && !handMaterial.contains(":")) {
             handMaterial = "minecraft:" + handMaterial;
+        }
+
+        // If station text display is suppressed under critical headroom, dispatch Action Bar telemetry on click
+        if (viewerTracker != null) {
+            viewerTracker.getDisplay(station.getPosition()).ifPresent(disp -> {
+                if (disp.isActionFallbackActive()) {
+                    String flat = disp.getLastActionBarText();
+                    if (flat != null && !flat.isBlank()) {
+                        player.sendActionBar(miniMessage.deserialize(flat));
+                    }
+                }
+            });
         }
 
         // Build evaluation context
