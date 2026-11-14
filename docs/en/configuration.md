@@ -129,4 +129,4 @@ crafting:
 
 ## 6. Custom Items & Inspection Tool Customization
 
-The Crop Inspector tool (`croppy:inspection_tool`) is defined through Croppy's centralized **Item Registry** in `plugins/Croppy/items/tools/inspector.yml`. To customize its material, display name, item model, or lore, edit its YAML definition directly or consult the [Items & Tools Guide](./items-and-tools.md).
+The Crop Inspector tool (`croppy:inspection_tool`) is defined through Croppy's centralized **Item Registry** in `plugins/Croppy/items/tools/inspector.yml` (using base material `minecraft:stick` to avoid conflicts with administrative navigation wands). To customize its material, display name, item model, or lore, edit its YAML definition directly or consult the [Items & Tools Guide](./items-and-tools.md).

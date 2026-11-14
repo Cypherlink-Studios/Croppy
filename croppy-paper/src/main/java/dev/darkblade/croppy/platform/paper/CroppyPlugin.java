@@ -93,6 +93,7 @@ public class CroppyPlugin extends JavaPlugin {
     private PaperDisplaySynchronizer displaySynchronizer;
     private PluginConfig pluginConfig;
     private CropInspectorService inspectorService;
+    private dev.darkblade.croppy.platform.paper.service.CropTargetResolver cropTargetResolver;
 
     // Soil moisture & fertilizer services
     private ItemFactory itemFactory;
@@ -516,7 +517,7 @@ public class CroppyPlugin extends JavaPlugin {
         pm.registerEvents(new CropBreakListener(core, this.displaySynchronizer, getProtectionPort(), this.itemFactory),
                 this);
         pm.registerEvents(new CropPhysicsListener(core, this.virtualBlockDisplayTracker), this);
-        pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.pluginConfig), this);
+        pm.registerEvents(new InspectionToolListener(this, this.inspectorService, this.cropTargetResolver), this);
         pm.registerEvents(
                 new WateringListener(this.wateringCanService, core.getCropManager(), this.messageService,
                         getProtectionPort()),
@@ -994,8 +995,9 @@ public class CroppyPlugin extends JavaPlugin {
         commands.setChatPromptService(this.chatPromptService);
         commands.setItemCatalogController(this.itemCatalogController);
         commands.setItemCategoryRegistry(this.core.getItemCategoryRegistry());
-        commands.setTargetResolver(new dev.darkblade.croppy.platform.paper.service.CropTargetResolver(
-                this.core.getCropManager(), this.virtualBlockDisplayTracker, this.croppyLogger));
+        this.cropTargetResolver = new dev.darkblade.croppy.platform.paper.service.CropTargetResolver(
+                this.core.getCropManager(), this.virtualBlockDisplayTracker, this.croppyLogger);
+        commands.setTargetResolver(this.cropTargetResolver);
         commands.setSpeciesRegistry(this.core.getSpeciesRegistry());
         commands.setDisplaySynchronizer(this.displaySynchronizer);
         commands.setAddonManager(this.addonManager);
@@ -1287,6 +1289,10 @@ public class CroppyPlugin extends JavaPlugin {
 
     public CropInspectorService getInspectorService() {
         return inspectorService;
+    }
+
+    public dev.darkblade.croppy.platform.paper.service.CropTargetResolver getCropTargetResolver() {
+        return cropTargetResolver;
     }
 
     public PaperDisplaySynchronizer getDisplaySynchronizer() {

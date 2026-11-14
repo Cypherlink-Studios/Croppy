@@ -129,4 +129,4 @@ crafting:
 
 ## 6. Personalización de Herramientas y la Herramienta de Inspección
 
-La herramienta de inspección (`croppy:inspection_tool`) se define de forma modular a través del **Registro de Ítems** en `plugins/Croppy/items/tools/inspector.yml`. Para personalizar su material, nombre visible, modelo 3D o lore, edita directamente su definición YAML o consulta la [Guía de Ítems y Herramientas](./items-and-tools.md).
+La herramienta de inspección (`croppy:inspection_tool`) se define de forma modular a través del **Registro de Ítems** en `plugins/Croppy/items/tools/inspector.yml` (utilizando el material base neutro `minecraft:stick` para evitar conflictos con varitas de navegación administrativas). Para personalizar su material, nombre visible, modelo 3D o lore, edita directamente su definición YAML o consulta la [Guía de Ítems y Herramientas](./items-and-tools.md).

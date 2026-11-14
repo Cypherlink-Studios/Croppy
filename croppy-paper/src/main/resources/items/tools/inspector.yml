@@ -1,6 +1,6 @@
 id: "croppy:inspection_tool"
 category: "tools"
-material: "COMPASS"
+material: "minecraft:stick"
 item-model: "croppy:inspection_tool"
 name: "<gold><bold>Crop Inspector</bold></gold>"
 lore:
