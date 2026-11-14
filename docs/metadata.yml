@@ -30,6 +30,14 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.9.1"
+    releaseDate: "2026-11-14"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Migrated croppy:inspection_tool base material from COMPASS to minecraft:stick with custom item model to permanently prevent WorldEdit/FAWE //thru navigation wand conflicts; hardened InspectionToolListener to EventPriority.LOWEST with immediate cancellation on both block and air clicks; and integrated CropTargetResolver for accurate 5-block line-of-sight raytracing across virtual 3D interaction entities, physical crop blocks, and supporting farmland."
+    minecraft:
+      - "1.21.x"
+
   - version: "0.9.0"
     releaseDate: "2026-11-13"
     reference: "main"
