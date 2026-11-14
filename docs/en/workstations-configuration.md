@@ -393,6 +393,10 @@ The `visual.text_display.format` template supports the following live placeholde
 | `{status_message}` | Contextual diagnostic or error feedback message | `Missing Heat Source` |
 | `{state}` | High-level station status | `COOKING`, `IDLE`, `HEATING`, `PAUSED`, `COMPLETED`, `FAILED`, `OVERCOOKING` |
 
+> [!TIP]
+> **Adaptive Ceiling Clearance & Layout Rules**:
+> In tight interior spaces (such as standard 2-block ceilings or overhead cabinetry), floating text displays can automatically center in the available air gap, scale down, or redirect telemetry to the player's Action Bar without changing station YAML schemas. See [Rules & Station Interactions](./rules-and-interactions.md#2-dynamic-cooking--layout-rules-rulesyml) for configuring `DISPLAY_LAYOUT` rules.
+
 ---
 
 ## 7. Interaction Modes

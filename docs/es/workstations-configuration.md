@@ -393,6 +393,10 @@ La plantilla `visual.text_display.format` evalúa los siguientes valores dinámi
 | `{status_message}` | Mensaje diagnóstico contextual o mensaje de error | `Falta Fuente de Calor` |
 | `{state}` | Estado global de la estación | `COOKING`, `IDLE`, `HEATING`, `PAUSED`, `COMPLETED`, `FAILED`, `OVERCOOKING` |
 
+> [!TIP]
+> **Altura Libre Adaptativa y Reglas de Diseño**:
+> En construcciones interiores con techos bajos (como techos de 2 bloques o gabinetes superiores), los hologramas de texto pueden centrarse automáticamente en el espacio de aire restante, reducir su tamaño o redirigir la telemetría a la Action Bar del jugador sin modificar los esquemas YAML de las estaciones. Consulta [Reglas e Interacciones de Estaciones](./rules-and-interactions.md#2-reglas-dinámicas-de-cocina-y-diseño-visual-rulesyml) para configurar reglas `DISPLAY_LAYOUT`.
+
 ---
 
 ## 7. Modos de Interacción
