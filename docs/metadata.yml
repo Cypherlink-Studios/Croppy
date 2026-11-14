@@ -30,9 +30,20 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.9.0"
+    releaseDate: "2026-11-13"
+    reference: "main"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added responsive layout rules (DISPLAY_LAYOUT) and headroom detection to prevent station holograms from clipping into ceilings; introduced station scope filters on RuleDefinition; centered text displays in tight clearance gaps and scaled down with compact format overrides; added Action Bar telemetry streaming for critical clearance spaces; and shipped default layout rules display_tight_headroom.yml and display_critical_headroom.yml."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.8.2"
     releaseDate: "2026-11-12"
-    reference: "main"
+    reference: "v0.8.2"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
     changelog: "Fixed physical base block rendering and z-fighting on crafting stations upon player join by listening to Paper's PlayerChunkLoadEvent to mask base blocks with invisible barriers; evaluated and projected nearby station displays immediately upon player login; and queried DefaultStationManager directly in packet rewrite interceptors."
     minecraft:
