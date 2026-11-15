@@ -70,3 +70,6 @@ Cuando se activa la comprobación de riego diario, cada cultivo comprueba si ha 
 El motor permite aplicar potenciadores de velocidad a través de la tubería de modificadores:
 * **Fertilizantes de Crecimiento Rápido**: Aplican multiplicadores (ej. `1.25x` de velocidad) a los puntos otorgados por ciclo.
 * **Nutrientes del Suelo**: Niveles óptimos de N-P-K reducen el tiempo total necesario para alcanzar la cosecha.
+
+> [!TIP]
+> Los addons Java pueden registrar hooks `GrowthModifier`, `StageAdvanceInterceptor` y `WitherHandler` de forma programática. Consulta [Desarrollo de Addons en Java](./api/addon-development.md).

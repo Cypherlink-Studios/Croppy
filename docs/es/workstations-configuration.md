@@ -209,36 +209,23 @@ properties:
 Croppy v0.6.0 introduce un sistema declarativo de **Estados de Estación** (`Station States`). Las estaciones de trabajo reaccionan dinámicamente a sus condiciones físicas y ambientales (como nivel térmico, combustible restante, progreso de cocción o ítems almacenados), alterando su modelo 3D, transformaciones espaciales (escala/posición/rotación), dimensiones de su caja de interacción física (hitbox) y emitiendo partículas y bucles de audio ambiental.
 
 ### Arquitectura Reactiva sin Persistencia Sintética
-A diferencia de los cultivos que persisten etapas de crecimiento en el PDC del chunk, los estados de una estación se **evalúan de forma 100% reactiva en tiempo de ejecución** a partir de sus componentes físicos (`ThermalComponent`, `HeatSourceComponent`, `StorageComponent`, `ProcessComponent`). Al descargar o recargar chunks o tras reiniciar el servidor, el estado activo se recalcula al vuelo sin necesidad de almacenar campos de estado persistentes.
-
-```
-[Componentes Físicos: Temp / Combustible / Proceso / Almacenamiento]
-                                │
-                                ▼
-                 StationStateEvaluator.evaluate()
-                                │
-                                ▼ (Resuelve por prioridad descendente)
-                 [Definición del Estado Activo]
-                 ├── Sobrescritura de Modelo (item_model, cmd, traslación, escala, rotación)
-                 ├── Caja de Interacción Dinámica (width, height)
-                 └── Efectos de Fase (partículas y bucle de audio ambiental)
-                                │
-                                ▼ (Paquetes Hot Metadata sin Despawn)
-                 Sincronización Cliente con PacketEvents
-```
+A diferencia de los cultivos que persisten etapas de crecimiento en el PDC del chunk, los estados de una estación se **evalúan de forma 100% reactiva en tiempo de ejecución** a partir de las propiedades físicas de la estación (temperatura, combustible, almacenamiento y proceso activo). Al descargar o recargar chunks o tras reiniciar el servidor, el estado activo se recalcula al vuelo sin almacenar estado visual redundante.
 
 ### Expresiones Condicionales y Variables Disponibles
-Las transiciones de estado se configuran mediante expresiones condicionales booleanas en el campo `when:` (o `condition:`). Durante cada tick, los componentes modulares implementan `VariableProvider` para exportar su estado bajo namespaces por capacidad junto con las variables tipadas `var.*`:
+Las transiciones de estado se configuran mediante expresiones condicionales booleanas en el campo `when:` (o `condition:`). Durante cada tick, los componentes exponen sus métricas bajo namespaces por capacidad junto con las variables tipadas `var.*`:
+
+> [!TIP]
+> Para desarrolladores en Java que extiendan estaciones mediante `VariableProvider`, `EvaluationContext` o evaluación personalizada de `Expression`, consulta [Proveedores de Variables y Expresiones](./api/expressions-and-providers.md).
 
 | Namespace / Alias | Claves Exportadas y Tipo | Ejemplo de Condición |
 |---|---|---|
-| `thermal.*` (`ThermalComponent`) | `thermal.temp` (Double), `thermal.temperature` (Double), `thermal.temp_c` (String ej. `100.0°C`), `thermal.target_temp` (Double), `thermal.zone` (String: `COLD`..`BURNING`), `thermal.is_heated` (Boolean) | `thermal.temp >= 100.0 && thermal.is_heated == true` |
-| `heat.*` (`HeatSourceComponent`) | `heat.fuel_ticks` (Long), `heat.max_fuel_ticks` (Long), `heat.is_active` (Boolean), `heat.is_burning` (Boolean), `heat.target_temp` (Double), `heat.output_temp` (Double), `heat.output_temp_c` (String), `heat.min_temp` (Double), `heat.max_temp` (Double) | `heat.fuel_ticks > 0 && heat.is_active == true` |
-| `storage.*` (`StorageComponent`) | `storage.has_inputs` (Boolean), `storage.input_count` (Integer), `storage.input_amount` (Integer), `storage.has_outputs` (Boolean), `storage.output_count` (Integer), `storage.output_amount` (Integer), `storage.is_empty` (Boolean), `storage.input_capacity` (Integer), `storage.output_capacity` (Integer) | `storage.has_inputs == true && storage.input_amount >= 3` |
-| `process.*` (`ProcessComponent`) | `process.has_process` (Boolean), `process.state` (String: `IDLE`, `RUNNING`, `AWAITING_INPUT`, `COMPLETED`, `PAUSED`), `process.finished` (Boolean), `process.idle_ticks` (Long), `process.key` (String), `process.recipe_name` (String), `process.phase_index` (Integer), `process.phase_elapsed` (Double), `process.total_elapsed` (Double), `process.progress` (Double `0.0-1.0`), `process.progress_percent` (Integer), `process.progress_bar` (String) | `process.state == 'RUNNING' && process.progress >= 0.5` |
-| `display.*` (`DisplayComponent`) | `display.status_text` (String), `display.progress` (Double), `display.progress_percent` (Integer), `display.thermal_zone` (String) | `display.thermal_zone == 'BOILING'` |
-| `var.*` (`TypedVariableStore`) | Valores simples personalizados (`var.<nombre>`) y campos compuestos (`var.<nombre>.<campo>`) declarados vía `default_variables` o mutados en ejecución | `var.cleanliness > 50 && var.tank.fluid == 'water'` |
-| Aliases Legacy | Aliases de compatibilidad sin namespace: `temperature`, `temp`, `thermal_zone`, `fuel_ticks`, `is_active`, `process_state`, `has_inputs`, `input_count`, `has_outputs`, más `station.temperature`, `station.is_heated`, `station.thermal_zone`, `storage.is_empty` | `temperature >= 100.0 && process_state == 'RUNNING'` |
+| `thermal.*` | `thermal.temp` (Double), `thermal.temperature` (Double), `thermal.temp_c` (String ej. `100.0°C`), `thermal.target_temp` (Double), `thermal.zone` (String: `COLD`..`BURNING`), `thermal.is_heated` (Boolean) | `thermal.temp >= 100.0 && thermal.is_heated == true` |
+| `heat.*` | `heat.fuel_ticks` (Long), `heat.max_fuel_ticks` (Long), `heat.is_active` (Boolean), `heat.is_burning` (Boolean), `heat.target_temp` (Double), `heat.output_temp` (Double), `heat.output_temp_c` (String), `heat.min_temp` (Double), `heat.max_temp` (Double) | `heat.fuel_ticks > 0 && heat.is_active == true` |
+| `storage.*` | `storage.has_inputs` (Boolean), `storage.input_count` (Integer), `storage.input_amount` (Integer), `storage.has_outputs` (Boolean), `storage.output_count` (Integer), `storage.output_amount` (Integer), `storage.is_empty` (Boolean), `storage.input_capacity` (Integer), `storage.output_capacity` (Integer) | `storage.has_inputs == true && storage.input_amount >= 3` |
+| `process.*` | `process.has_process` (Boolean), `process.state` (String: `IDLE`, `RUNNING`, `AWAITING_INPUT`, `COMPLETED`, `PAUSED`), `process.finished` (Boolean), `process.idle_ticks` (Long), `process.key` (String), `process.recipe_name` (String), `process.phase_index` (Integer), `process.phase_elapsed` (Double), `process.total_elapsed` (Double), `process.progress` (Double `0.0-1.0`), `process.progress_percent` (Integer), `process.progress_bar` (String) | `process.state == 'RUNNING' && process.progress >= 0.5` |
+| `display.*` | `display.status_text` (String), `display.progress` (Double), `display.progress_percent` (Integer), `display.thermal_zone` (String) | `display.thermal_zone == 'BOILING'` |
+| `var.*` | Valores simples personalizados (`var.<nombre>`) y campos compuestos (`var.<nombre>.<campo>`) declarados vía `default_variables` o mutados en ejecución | `var.cleanliness > 50 && var.tank.fluid == 'water'` |
+| Aliases Legacy | Aliases de compatibilidad: `temperature`, `temp`, `thermal_zone`, `fuel_ticks`, `is_active`, `process_state`, `has_inputs`, `input_count`, `has_outputs`, más `station.temperature`, `station.is_heated`, `station.thermal_zone`, `station.empty` | `temperature >= 100.0 && process_state == 'RUNNING'` |
 
 Los estados se evalúan en **orden descendente de prioridad**. El primer estado cuya condición se evalúa como `true` se activa inmediatamente. Si ninguna condición coincide, la estación adopta la configuración base predeterminada.
 
@@ -263,12 +250,15 @@ default_variables:
       level: 0
 ```
 
-Tipos integrados registrados en `DataTypeRegistry`:
+Tipos integrados (y operaciones de mutación soportadas):
 - `croppy:integer` (`Long`) — Soporta `SET`, `ADD`, `SUBTRACT`, `MULTIPLY`, `CLAMP`
 - `croppy:decimal` (`Double`) — Soporta `SET`, `ADD`, `SUBTRACT`, `MULTIPLY`, `CLAMP`
 - `croppy:boolean` (`Boolean`) — Soporta `SET`, `TOGGLE`
 - `croppy:string` (`String`) — Soporta `SET`, `APPEND`
 - `croppy:compound` (`Map<String, Object>`) — Soporta `SET` (entradas compuestas anidadas exportadas con notación de punto `var.<nombre>.<campo>`)
+
+> [!NOTE]
+> Los addons Java pueden registrar esquemas `DataType<T>` propios y operadores `VariableOperation<T>` en `DataTypeRegistry` con persistencia binaria segura ante desinstalaciones. Consulta [Sistema de Variables Tipadas](./api/typed-variables.md).
 
 ---
 
@@ -403,7 +393,7 @@ states:
 
 ## 6. Placeholders Dinámicos del Text Display
 
-Los hologramas de texto utilizan `ContextualTextFormatter` para resolver cualquier token `{clave}` dinámicamente frente al `EvaluationContext` unificado de la estación en una sola pasada. Esto soporta tokens por capacidad de componente (p. ej. `{thermal.temp_c}`, `{heat.fuel_ticks}`, `{storage.input_amount}`, `{process.progress_bar}`), variables tipadas personalizadas (`{var.cleanliness}`, `{var.tank.fluid}`) y los tokens de cocción estándar:
+Los hologramas de texto resuelven cualquier token `{clave}` dinámicamente frente al contexto unificado de variables de la estación en una sola pasada. Esto soporta tokens por capacidad de componente (p. ej. `{thermal.temp_c}`, `{heat.fuel_ticks}`, `{storage.input_amount}`, `{process.progress_bar}`), variables tipadas personalizadas (`{var.cleanliness}`, `{var.tank.fluid}`) y los tokens de cocción estándar (consulta [Proveedores de Variables y Expresiones](./api/expressions-and-providers.md) para el contrato Java de `ContextualTextFormatter`):
 
 | Placeholder | Valor Reemplazado | Salida de Ejemplo |
 |---|---|---|

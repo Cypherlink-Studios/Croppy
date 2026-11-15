@@ -34,7 +34,7 @@ priority: 100
 
 # Optional conditions evaluated before dispatching actions
 conditions:
-  - "station.is_heated == true"
+  - "thermal.is_heated == true"
 
 # Action pipeline
 actions:
@@ -118,11 +118,11 @@ severity: "CRITICAL"
 # Priority order
 priority: 100
 
-# Pre-compiled Pratt AST boolean condition expressions
+# Pre-compiled boolean condition expressions
 conditions:
   - "process.finished == true"
   - "process.idle_ticks > 200"
-  - "station.temperature > 120"
+  - "thermal.temp > 120"
 
 # Failure and feedback actions
 actions:
@@ -174,26 +174,12 @@ actions:
 
 ---
 
-## 3. Pratt AST Condition Expression Grammar
+## 3. Condition Expressions Reference
 
-Conditions in Croppy rules are compiled into an Abstract Syntax Tree (AST) at server startup via `ExpressionCompiler`. This guarantees **zero heap allocations** during high-frequency server tick cycles.
+Conditions in Croppy rules and interactions are pre-compiled at server startup so tick evaluation runs with minimal overhead.
 
-```text
-+-----------------------------------------------------------------------------+
-|                      ZERO-ALLOCATION AST CONDITION PIPELINE                 |
-+-----------------------------------------------------------------------------+
-|                                                                             |
-|  "process.finished == true and station.temperature > 120"                   |
-|                                |                                            |
-|                                v  (Compiled by YamlRuleLoader on startup)   |
-|                    [Binary Operator: AND]                                   |
-|                    /                    \                                   |
-|       [Comparison: ==]                 [Comparison: >]                      |
-|       /              \                 /             \                      |
-|  [process.finished] [true]      [station.temperature] [120]                 |
-|                                                                             |
-+-----------------------------------------------------------------------------+
-```
+> [!TIP]
+> For the Java Pratt AST grammar, `VariableProvider`, `EvaluationContext`, and `Expression` interfaces, see [Expressions & Variable Providers](./api/expressions-and-providers.md).
 
 ### Supported Operators
 * **Equality & Comparison**: `==`, `!=`, `<`, `<=`, `>`, `>=`
@@ -208,13 +194,17 @@ Conditions in Croppy rules are compiled into an Abstract Syntax Tree (AST) at se
 | `process.progress` | Number | Active cooking progress from `0.0` to `1.0`. |
 | `process.state` | String | Active process state (`IDLE`, `RUNNING`, `PAUSED`, `COMPLETED`, `AWAITING_INPUT`). |
 | `process.idle_ticks` | Number | Ticks elapsed since the dish reached completion without being removed. |
-| `station.temperature` | Number | Current temperature in Celsius. |
-| `station.thermal_zone` | String | Current thermal zone (`COLD`, `WARM`, `SIMMER`, `BOIL`, `SEAR`). |
-| `station.is_heated` | Boolean | `true` if current temperature is above ambient room temperature (>25°C). |
-| `station.empty` | Boolean | `true` if the station has zero ingredients and zero outputs. |
-| `has_inputs` | Boolean | `true` if the station holds items in its input inventory. |
-| `has_outputs` | Boolean | `true` if the station holds items in its output inventory. |
+| `thermal.temp` | Number | Current temperature in Celsius. |
+| `thermal.zone` | String | Current thermal zone (`COLD`, `WARM`, `SIMMER`, `BOIL`, `SEAR`, `BURNING`). |
+| `thermal.is_heated` | Boolean | `true` if current temperature is above ambient room temperature (`> 25°C`). |
+| `storage.is_empty` | Boolean | `true` if the station has zero ingredients and zero outputs. |
+| `storage.has_inputs` | Boolean | `true` if the station holds items in its input inventory. |
+| `storage.has_outputs` | Boolean | `true` if the station holds items in its output inventory. |
 | `display.headroom` | Number | Clearance in blocks/meters between the station model top and the lowest collision box of ceiling blocks directly above. |
+| `var.<name>` | Any | Typed custom variables declared via `default_variables` (see [Typed Custom Variables](./api/typed-variables.md)). |
+
+> [!NOTE]
+> Un-namespaced and legacy `station.*` aliases (`station.temperature`, `station.thermal_zone`, `station.is_heated`, `station.empty`, `has_inputs`, `has_outputs`) remain supported for backward compatibility, though new rules should prefer `thermal.*`, `storage.*`, and `process.*` namespaces.
 
 ---
 

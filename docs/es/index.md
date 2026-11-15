@@ -64,6 +64,7 @@ Croppy está desarrollado siguiendo una estricta **Arquitectura Hexagonal (Puert
 - **Cero Bukkit en el Núcleo**: El motor de dominio (`croppy-core`) y los contratos públicos (`croppy-api`) están completamente desacoplados de las APIs de Minecraft. Ejecutan lógica pura en Java 21, facilitando pruebas unitarias rápidas y máxima estabilidad.
 - **Adaptador de Paper**: El módulo `croppy-paper` traduce los eventos del servidor, controla las entidades virtuales con PacketEvents, gestiona tareas asíncronas de base de datos e interactúa con el jugador.
 - **Validación Rápida al Iniciar (Fail-Fast)**: Todos los archivos YAML, definiciones de especies, recetas y menús se validan estrictamente al arrancar para detectar inconsistencias antes de que los jugadores ingresen.
+- **API de Desarrollo**: ¿Estás creando un addon Java o integrando con Croppy? Empieza por la [Referencia de API Java de Croppy](./api/index.md).
 
 ---
 

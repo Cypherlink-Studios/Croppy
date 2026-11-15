@@ -34,7 +34,7 @@ priority: 100
 
 # Condiciones opcionales evaluadas antes de ejecutar las acciones
 conditions:
-  - "station.is_heated == true"
+  - "thermal.is_heated == true"
 
 # Pipeline de acciones
 actions:
@@ -118,11 +118,11 @@ severity: "CRITICAL"
 # Orden de prioridad
 priority: 100
 
-# Expresiones booleanas pre-compiladas mediante Pratt AST
+# Expresiones booleanas pre-compiladas
 conditions:
   - "process.finished == true"
   - "process.idle_ticks > 200"
-  - "station.temperature > 120"
+  - "thermal.temp > 120"
 
 # Acciones de penalización y feedback
 actions:
@@ -174,26 +174,12 @@ actions:
 
 ---
 
-## 3. Gramática del Evaluador de Expresiones Pratt AST
+## 3. Referencia de Expresiones Condicionales
 
-Las condiciones de las reglas de Croppy son pre-compiladas en un Árbol de Sintaxis Abstracta (AST) durante el arranque del servidor mediante `ExpressionCompiler`. Esto asegura **cero asignaciones en memoria heap** durante los ciclos rápidos de simulación del servidor.
+Las condiciones de las reglas e interacciones en Croppy se pre-compilan al iniciar el servidor para evaluar cada tick con un impacto mínimo en memoria.
 
-```text
-+-----------------------------------------------------------------------------+
-|                     PIPELINE DE CONDICIONES AST SIN ASIGNACIÓN              |
-+-----------------------------------------------------------------------------+
-|                                                                             |
-|  "process.finished == true and station.temperature > 120"                   |
-|                                |                                            |
-|                                v  (Compilado por YamlRuleLoader al iniciar) |
-|                     [Operador Binario: AND]                                 |
-|                    /                       \                                |
-|       [Comparación: ==]                 [Comparación: >]                    |
-|       /               \                 /              \                    |
-|  [process.finished] [true]      [station.temperature]  [120]                |
-|                                                                             |
-+-----------------------------------------------------------------------------+
-```
+> [!TIP]
+> Para conocer la gramática Pratt AST en Java y las interfaces `VariableProvider`, `EvaluationContext` y `Expression`, consulta [Proveedores de Variables y Expresiones](./api/expressions-and-providers.md).
 
 ### Operadores Soportados
 * **Igualdad y Comparación**: `==`, `!=`, `<`, `<=`, `>`, `>=`
@@ -208,13 +194,17 @@ Las condiciones de las reglas de Croppy son pre-compiladas en un Árbol de Sinta
 | `process.progress` | Número | Progreso activo de cocción entre `0.0` y `1.0`. |
 | `process.state` | Texto | Estado activo del proceso (`IDLE`, `RUNNING`, `PAUSED`, `COMPLETED`, `AWAITING_INPUT`). |
 | `process.idle_ticks` | Número | Ticks transcurridos desde que el plato se completó sin ser retirado. |
-| `station.temperature` | Número | Temperatura superficial actual en grados Celsius. |
-| `station.thermal_zone` | Texto | Zona térmica activa (`COLD`, `WARM`, `SIMMER`, `BOIL`, `SEAR`). |
-| `station.is_heated` | Booleano | `true` si la temperatura está por encima de la temperatura ambiente (>25°C). |
-| `station.empty` | Booleano | `true` si la estación no contiene ingredientes ni platos terminados. |
-| `has_inputs` | Booleano | `true` si la estación contiene ingredientes en sus ranuras de entrada. |
-| `has_outputs` | Booleano | `true` si la estación contiene productos en sus ranuras de salida. |
+| `thermal.temp` | Número | Temperatura superficial actual en grados Celsius. |
+| `thermal.zone` | Texto | Zona térmica activa (`COLD`, `WARM`, `SIMMER`, `BOIL`, `SEAR`, `BURNING`). |
+| `thermal.is_heated` | Booleano | `true` si la temperatura está por encima de la temperatura ambiente (`> 25°C`). |
+| `storage.is_empty` | Booleano | `true` si la estación no contiene ingredientes ni platos terminados. |
+| `storage.has_inputs` | Booleano | `true` si la estación contiene ingredientes en sus ranuras de entrada. |
+| `storage.has_outputs` | Booleano | `true` si la estación contiene productos en sus ranuras de salida. |
 | `display.headroom` | Número | Espacio libre vertical en metros/bloques entre la parte superior de la estación y la caja de colisión del bloque superior. |
+| `var.<nombre>` | Cualquiera | Variables tipadas personalizadas declaradas en `default_variables` (consulta [Variables Tipadas](./api/typed-variables.md)). |
+
+> [!NOTE]
+> Los aliases sin namespace y heredados (`station.temperature`, `station.thermal_zone`, `station.is_heated`, `station.empty`, `has_inputs`, `has_outputs`) siguen soportados por compatibilidad hacia atrás, aunque las reglas nuevas deben preferir `thermal.*`, `storage.*` y `process.*`.
 
 ---
 

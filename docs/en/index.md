@@ -64,6 +64,7 @@ Croppy is engineered from the ground up following **Hexagonal Architecture (Port
 - **Zero Bukkit in Core**: The domain engine (`croppy-core`) and public contracts (`croppy-api`) are completely decoupled from platform APIs. They execute pure Java 21 logic, enabling fast unit testing and long-term maintainability.
 - **Paper Adapter**: `croppy-paper` translates platform events, manages packet-level virtual displays, schedules asynchronous database tasks, and handles user interactions.
 - **Fail-Fast Configuration**: All YAML configurations, species definitions, recipes, and menus are validated strictly at startup to catch mistakes before players join.
+- **Developer API**: Building a Java addon or integrating with Croppy? Start with the [Croppy Java API Reference](./api/index.md).
 
 ---
 

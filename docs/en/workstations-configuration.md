@@ -209,36 +209,23 @@ properties:
 Croppy v0.6.0 introduces a declarative **Station States** system. Workstations dynamically react to their environmental and physical state (such as heat levels, fuel remaining, cooking progress, or stored inputs) by altering their 3D item model, adjusting display scale/offsets, resizing their clickable interaction hitbox, and emitting ambient sensory particles and audio loops.
 
 ### Reactive Zero-Persistence Architecture
-Unlike crops which persist growth stages to chunk PDC, station states are **evaluated 100% reactively in runtime** from the workstation's physical components (`ThermalComponent`, `HeatSourceComponent`, `StorageComponent`, `ProcessComponent`). When chunks unload and reload, or when the server restarts, states are recalculated on the fly from physical properties without requiring synthetic state data.
-
-```
-[Physical Components: Temp / Fuel / Process / Storage]
-                     │
-                     ▼
-       StationStateEvaluator.evaluate()
-                     │
-                     ▼ (Resolves by descending priority)
-       [Active State Definition]
-       ├── Model Override (item_model, cmd, translation, scale, rotation)
-       ├── Hitbox Override (width, height)
-       └── Phase Effects (ambient particles, periodic audio loops)
-                     │
-                     ▼ (Zero-Despawn Hot Metadata Packets)
-       PacketEvents Clientbound Synchronization
-```
+Unlike crops which persist growth stages to chunk PDC, station states are **evaluated 100% reactively at runtime** from the workstation's physical properties (temperature, fuel, storage contents, and active process). When chunks unload and reload, or when the server restarts, states are recalculated immediately from physical properties without storing redundant visual state.
 
 ### Condition Expressions & Available Variables
-State transitions are governed by boolean AST condition expressions configured in `when:` (or `condition:`). During each station tick, modular components implement `VariableProvider` to export their state under capability namespaces alongside custom `var.*` typed variables:
+State transitions are governed by boolean condition expressions configured in `when:` (or `condition:`). During each station tick, workstation components expose metrics under capability namespaces alongside custom `var.*` typed variables:
+
+> [!TIP]
+> For Java developers extending station logic via `VariableProvider`, `EvaluationContext`, or custom `Expression` evaluation, see [Expressions & Variable Providers](./api/expressions-and-providers.md).
 
 | Namespace / Alias | Exported Keys & Type | Example Condition |
 |---|---|---|
-| `thermal.*` (`ThermalComponent`) | `thermal.temp` (Double), `thermal.temperature` (Double), `thermal.temp_c` (String e.g. `100.0°C`), `thermal.target_temp` (Double), `thermal.zone` (String: `COLD`..`BURNING`), `thermal.is_heated` (Boolean) | `thermal.temp >= 100.0 && thermal.is_heated == true` |
-| `heat.*` (`HeatSourceComponent`) | `heat.fuel_ticks` (Long), `heat.max_fuel_ticks` (Long), `heat.is_active` (Boolean), `heat.is_burning` (Boolean), `heat.target_temp` (Double), `heat.output_temp` (Double), `heat.output_temp_c` (String), `heat.min_temp` (Double), `heat.max_temp` (Double) | `heat.fuel_ticks > 0 && heat.is_active == true` |
-| `storage.*` (`StorageComponent`) | `storage.has_inputs` (Boolean), `storage.input_count` (Integer), `storage.input_amount` (Integer), `storage.has_outputs` (Boolean), `storage.output_count` (Integer), `storage.output_amount` (Integer), `storage.is_empty` (Boolean), `storage.input_capacity` (Integer), `storage.output_capacity` (Integer) | `storage.has_inputs == true && storage.input_amount >= 3` |
-| `process.*` (`ProcessComponent`) | `process.has_process` (Boolean), `process.state` (String: `IDLE`, `RUNNING`, `AWAITING_INPUT`, `COMPLETED`, `PAUSED`), `process.finished` (Boolean), `process.idle_ticks` (Long), `process.key` (String), `process.recipe_name` (String), `process.phase_index` (Integer), `process.phase_elapsed` (Double), `process.total_elapsed` (Double), `process.progress` (Double `0.0-1.0`), `process.progress_percent` (Integer), `process.progress_bar` (String) | `process.state == 'RUNNING' && process.progress >= 0.5` |
-| `display.*` (`DisplayComponent`) | `display.status_text` (String), `display.progress` (Double), `display.progress_percent` (Integer), `display.thermal_zone` (String) | `display.thermal_zone == 'BOILING'` |
-| `var.*` (`TypedVariableStore`) | Custom simple values (`var.<name>`) and compound fields (`var.<name>.<field>`) declared via `default_variables` or mutated at runtime | `var.cleanliness > 50 && var.tank.fluid == 'water'` |
-| Legacy Aliases | Un-namespaced compatibility aliases: `temperature`, `temp`, `thermal_zone`, `fuel_ticks`, `is_active`, `process_state`, `has_inputs`, `input_count`, `has_outputs`, plus `station.temperature`, `station.is_heated`, `station.thermal_zone`, `storage.is_empty` | `temperature >= 100.0 && process_state == 'RUNNING'` |
+| `thermal.*` | `thermal.temp` (Double), `thermal.temperature` (Double), `thermal.temp_c` (String e.g. `100.0°C`), `thermal.target_temp` (Double), `thermal.zone` (String: `COLD`..`BURNING`), `thermal.is_heated` (Boolean) | `thermal.temp >= 100.0 && thermal.is_heated == true` |
+| `heat.*` | `heat.fuel_ticks` (Long), `heat.max_fuel_ticks` (Long), `heat.is_active` (Boolean), `heat.is_burning` (Boolean), `heat.target_temp` (Double), `heat.output_temp` (Double), `heat.output_temp_c` (String), `heat.min_temp` (Double), `heat.max_temp` (Double) | `heat.fuel_ticks > 0 && heat.is_active == true` |
+| `storage.*` | `storage.has_inputs` (Boolean), `storage.input_count` (Integer), `storage.input_amount` (Integer), `storage.has_outputs` (Boolean), `storage.output_count` (Integer), `storage.output_amount` (Integer), `storage.is_empty` (Boolean), `storage.input_capacity` (Integer), `storage.output_capacity` (Integer) | `storage.has_inputs == true && storage.input_amount >= 3` |
+| `process.*` | `process.has_process` (Boolean), `process.state` (String: `IDLE`, `RUNNING`, `AWAITING_INPUT`, `COMPLETED`, `PAUSED`), `process.finished` (Boolean), `process.idle_ticks` (Long), `process.key` (String), `process.recipe_name` (String), `process.phase_index` (Integer), `process.phase_elapsed` (Double), `process.total_elapsed` (Double), `process.progress` (Double `0.0-1.0`), `process.progress_percent` (Integer), `process.progress_bar` (String) | `process.state == 'RUNNING' && process.progress >= 0.5` |
+| `display.*` | `display.status_text` (String), `display.progress` (Double), `display.progress_percent` (Integer), `display.thermal_zone` (String) | `display.thermal_zone == 'BOILING'` |
+| `var.*` | Custom simple values (`var.<name>`) and compound fields (`var.<name>.<field>`) declared via `default_variables` or mutated at runtime | `var.cleanliness > 50 && var.tank.fluid == 'water'` |
+| Legacy Aliases | Compatibility aliases: `temperature`, `temp`, `thermal_zone`, `fuel_ticks`, `is_active`, `process_state`, `has_inputs`, `input_count`, `has_outputs`, plus `station.temperature`, `station.is_heated`, `station.thermal_zone`, `station.empty` | `temperature >= 100.0 && process_state == 'RUNNING'` |
 
 States are evaluated in **descending priority order**. The first state whose condition expression evaluates to `true` becomes active. If no conditions match, the station falls back to the baseline default configuration.
 
@@ -263,12 +250,15 @@ default_variables:
       level: 0
 ```
 
-Built-in types registered in `DataTypeRegistry`:
+Built-in types (plus supported mutation operations):
 - `croppy:integer` (`Long`) — Supports `SET`, `ADD`, `SUBTRACT`, `MULTIPLY`, `CLAMP`
 - `croppy:decimal` (`Double`) — Supports `SET`, `ADD`, `SUBTRACT`, `MULTIPLY`, `CLAMP`
 - `croppy:boolean` (`Boolean`) — Supports `SET`, `TOGGLE`
 - `croppy:string` (`String`) — Supports `SET`, `APPEND`
 - `croppy:compound` (`Map<String, Object>`) — Supports `SET` (deep compound entries exported via dot notation `var.<name>.<field>`)
+
+> [!NOTE]
+> Java addons can register custom `DataType<T>` schemas and `VariableOperation<T>` handlers into `DataTypeRegistry` with uninstall-safe binary persistence. See [Typed Custom Variables](./api/typed-variables.md).
 
 ---
 
@@ -403,7 +393,7 @@ states:
 
 ## 6. Text Display Dynamic Placeholders
 
-Holographic text displays use `ContextualTextFormatter` to resolve any `{key}` token dynamically against the station's unified `EvaluationContext` in a single pass. This supports component capability tokens (e.g., `{thermal.temp_c}`, `{heat.fuel_ticks}`, `{storage.input_amount}`, `{process.progress_bar}`), typed custom variables (`{var.cleanliness}`, `{var.tank.fluid}`), and standard cooking display tokens:
+Holographic text displays resolve `{key}` tokens dynamically against the station's unified variable context in a single pass. This supports component capability tokens (e.g., `{thermal.temp_c}`, `{heat.fuel_ticks}`, `{storage.input_amount}`, `{process.progress_bar}`), typed custom variables (`{var.cleanliness}`, `{var.tank.fluid}`), and standard cooking display tokens (see [Expressions & Variable Providers](./api/expressions-and-providers.md) for the `ContextualTextFormatter` contract):
 
 | Placeholder | Replaced Value | Example Output |
 |---|---|---|

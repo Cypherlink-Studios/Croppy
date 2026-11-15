@@ -11,9 +11,8 @@ Croppy features an official, decoupled **Addon Engine** that enables both server
 
 The system is designed with strict boundaries:
 - **Declarative Content Packs**: Pure YAML definitions and resource pack assets without requiring Java compilation.
-- **Java Code Addons**: Modular JARs providing a `CroppyAddon` entrypoint, executed inside isolated `AddonClassLoader` environments.
-- **ClassLoader Graph (DAG)**: Deterministic topological dependency resolution supporting cross-addon class delegation (`Addon A -> Addon B -> Croppy Core`).
-- **5-Phase Decommissioning Protocol**: Guaranteed leak-proof hot-swapping (`/croppy addon disable` and `/croppy addon unload`) that cleans up Bukkit event listeners, drains background threads, and purges domain registries.
+- **Java Code Addons**: Modular JARs providing a `CroppyAddon` entrypoint inside isolated `AddonClassLoader` environments with DAG dependency delegation and safe 5-phase hot-swapping — see [Java Addon Development](./api/addon-development.md).
+- **Extensible Variables & Contracts**: Addons can register custom `DataType<T>` persistence schemas, `VariableProvider` namespaces, and `GrowthModifier` hooks — see the [API Reference](./api/index.md).
 - **Automated Resource Pack Merging**: Addon assets located under `assets/<namespace>/` are automatically aggregated into the server's companion resource pack.
 
 ---
@@ -88,139 +87,19 @@ softDependencies:
 
 ---
 
-## 3. ClassLoader Graph & Horizontal Delegation
+## 3. Java Developer API
 
-Java code addons are loaded using `AddonClassLoader`, a specialized `URLClassLoader`:
+Java code addons interact with Croppy exclusively through `croppy-api` contracts (with optional Paper platform bridging via `PaperAddonContext`). All technical specifications—classloader graph delegation, the 5-phase decommissioning protocol, typed custom variables, expression providers, and SPI ports—now live in the dedicated API Reference:
 
-```text
-                        +----------------------------+
-                        |  Paper Server ClassLoader  |
-                        +----------------------------+
-                                      |
-                                      v
-                        +----------------------------+
-                        |  CroppyPlugin ClassLoader  |
-                        |   (croppy-api, core, etc.) |
-                        +----------------------------+
-                                      | (Parent)
-               +----------------------+----------------------+
-               |                                             |
-               v                                             v
-+-----------------------------+               +-----------------------------+
-|    AddonClassLoader [A]     | ------------> |    AddonClassLoader [B]     |
-| (ej: "croppy-culinary-base")|  Horizontal   |  (ej: "pastry-expansion")   |
-+-----------------------------+  Delegation   +-----------------------------+
-```
-
-When an addon attempts to load a class:
-1. **Local Lookup**: Checks `findLoadedClass` and searches the addon's own JAR.
-2. **Horizontal Delegation**: If not found locally, it queries the `AddonClassLoader` of each addon declared under `dependencies:` or `softDependencies:`, allowing Addon B to safely access exported types from Addon A.
-3. **Parent Fallback**: If absent from all dependencies, it delegates to Croppy's parent classloader (`croppy-api`, Paper, Java runtime).
+- **[API Overview & Core Contracts](./api/index.md)**: Hexagonal architecture, Gradle setup, package map, and `Key` / `BlockPosition` value types.
+- **[Java Addon Development](./api/addon-development.md)**: `CroppyAddon`, `AddonContext`, `PaperAddonContext`, `AddonConfig`, `AddonClassLoader` DAG delegation, 5-phase hot-swapping, dormant crop safety, and growth hooks.
+- **[Typed Custom Variables](./api/typed-variables.md)**: Custom `DataType<T>` schemas, `DataTypeRegistry`, `TypedVariableStore`, `VariableOperation<T>`, and `VariableStoreBinaryCodec`.
+- **[Expressions & Variable Providers](./api/expressions-and-providers.md)**: Component `VariableProvider` namespaces, `EvaluationContext`, Pratt AST compilation, and `ContextualTextFormatter`.
+- **[Ports, Registries & Logging](./api/ports-and-registries.md)**: `Registry<T>`, domain registries, `CroppyLogger`, `ProtectionPort`, `EconomyPort`, and `TranslationProvider`.
 
 ---
 
-## 4. Safe Hot-Swapping: The 5-Phase Protocol
-
-To prevent JVM Metaspace leaks, ghost event listeners, and thread abandonment during runtime reload or unload, Croppy executes a strict 5-phase decommissioning protocol:
-
-```text
-[ Phase 1: Notification ] ──> Invokes CroppyAddon.onDisable(AddonContext).
-         |
-         v
-[ Phase 2: Unregistration] ──> Bukkit: HandlerList.unregisterAll() on all tracked listeners.
-         |                    Cancels all tracked BukkitTasks.
-         v
-[ Phase 3: Task Draining ] ──> ManagedExecutorService.shutdownNow() with a 2-second timeout.
-         |
-         v
-[ Phase 4: Registry Purge] ──> Atomic unregistration of species, items, recipes, processes,
-         |                    stations, and growth modifiers registered by this addon.
-         v
-[ Phase 5: Severing & GC ] ──> (Unload only) Closes URLClassLoader and clears graph references,
-                              allowing the Garbage Collector to reclaim Metaspace memory.
-```
-
-### Dormant Crop Safety
-If an addon is disabled or unloaded while its custom crops are planted in the Minecraft world, Croppy's simulation engine (`GrowthEngine`) automatically flags those crop instances as **dormant**. Growth ticks skip dormant crops without throwing `NullPointerException` or corrupting chunks. Once the addon is re-enabled, the crops seamlessly resume their growth cycles.
-
----
-
-## 5. Developer Guide: Creating a Java Addon
-
-### Step 1: Project Setup (Gradle)
-Add `croppy-api` as a compile-only dependency:
-
-```kotlin
-dependencies {
-    compileOnly("dev.darkblade.croppy:croppy-api:0.5.7")
-    compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
-}
-```
-
-### Step 2: Implement `CroppyAddon`
-Create your main addon class:
-
-```java
-package dev.darkblade.croppy.arcane;
-
-import dev.darkblade.croppy.api.addon.AddonContext;
-import dev.darkblade.croppy.api.addon.CroppyAddon;
-import dev.darkblade.croppy.api.growth.GrowthModifier;
-import dev.darkblade.croppy.platform.paper.addon.PaperAddonContext;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerInteractEvent;
-
-public class ArcaneFarmingAddon implements CroppyAddon, Listener {
-
-    @Override
-    public void onEnable(AddonContext context) {
-        context.getLogger().info("Arcane Farming initialized!");
-
-        // 1. Injected custom growth modifier: Crops accelerate at night
-        GrowthModifier moonlightModifier = ctx -> {
-            boolean isNight = ctx.environment().time() >= 13000 && ctx.environment().time() <= 23000;
-            return isNight ? 2.0 : 1.0;
-        };
-
-        // 2. Register Bukkit listener via Paper adapter
-        context.getPlatformAdapter(PaperAddonContext.class).ifPresent(paperCtx -> {
-            paperCtx.trackGrowthModifier(moonlightModifier);
-            paperCtx.registerListener(this);
-        });
-
-        // 3. Managed asynchronous background work
-        context.runAsync(() -> {
-            context.getLogger().info("Executing async arcane ritual calculation...");
-        });
-    }
-
-    @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        // Safe, tracked event handling
-    }
-
-    @Override
-    public void onDisable(AddonContext context) {
-        context.getLogger().info("Arcane Farming gracefully disabled.");
-    }
-}
-```
-
-### Extending Variables & Data Types (`croppy-api`)
-
-Addons can expose custom component metrics to state expressions, rules, and text holograms—as well as register custom persistent variable data types—using pure domain contracts in `dev.darkblade.croppy.api`:
-
-1. **Component `VariableProvider`**:
-   Implement `dev.darkblade.croppy.api.expression.VariableProvider` on custom `StationComponent`s (returning a unique namespace like `"alembic"`) to populate both raw numeric/boolean values and formatted display strings into `EvaluationContext` under `<namespace>.*`.
-2. **Custom `DataType<T>` & `VariableOperation<T>`**:
-   Implement `SimpleDataType<T>` or `CompoundDataType<T>` (`dev.darkblade.croppy.api.variable`) with custom binary serialization (`writeBinary` / `readBinary`), YAML parsing (`parse`), and strictly declared `VariableOperation<T>` mutations (`getSupportedOperations()`), and register the type into `DataTypeRegistry`.
-3. **Uninstall-Safe Persistence**:
-   If an addon declaring a custom `DataType` is temporarily removed, `VariableStoreBinaryCodec` preserves its serialized bytes verbatim inside `UnresolvedVariableData` instead of failing chunk loads or discarding player station data.
-
----
-
-## 6. Content Creator Guide: Declarative Packs
+## 4. Content Creator Guide: Declarative Packs
 
 A Declarative Content Pack requires zero Java knowledge. Simply place your files in `plugins/Croppy/addons/<your-pack>/`:
 
@@ -249,7 +128,7 @@ Croppy will automatically:
 
 ---
 
-## 7. Command Reference
+## 5. Command Reference
 
 All addon management commands require the `croppy.admin.addon` permission:
 

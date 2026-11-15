@@ -42,6 +42,9 @@ Croppy follows a strict **Hexagonal Architecture (Ports and Adapters)** to decou
 +--------------------------------------------------------+
 ```
 
+> [!NOTE]
+> Java addon authors looking to consume or provide localized messages through `TranslationProvider`, `MessageKey`, `LocaleRef`, or `PaperMessageService#arg` should consult [Ports, Registries & Logging](./api/ports-and-registries.md).
+
 ---
 
 ## 2. Deterministic Fallback Resolution

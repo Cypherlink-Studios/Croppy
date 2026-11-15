@@ -38,6 +38,9 @@ Croppy features an isolated, modular integrations subsystem (`croppy-integration
 
 When a supported plugin is detected on the Paper server, its integration module automatically activates. If the plugin is absent or disabled in `config.yml`, Croppy transparently falls back to safe `NoOp` adapters without logging runtime exceptions or interrupting simulation loops.
 
+> [!NOTE]
+> Looking for the Java contracts behind `ProtectionPort`, `ProtectionAction`, and `EconomyPort`? See [Ports, Registries & Logging](./api/ports-and-registries.md).
+
 ---
 
 ## 2. Configuration (`config.yml`)

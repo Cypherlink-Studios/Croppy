@@ -42,6 +42,9 @@ Croppy sigue una estricta **Arquitectura Hexagonal (Puertos y Adaptadores)** par
 +--------------------------------------------------------+
 ```
 
+> [!NOTE]
+> Los desarrolladores de addons Java que deseen consultar o proveer mensajes localizados mediante `TranslationProvider`, `MessageKey`, `LocaleRef` o `PaperMessageService#arg` deben consultar [Puertos, Logging y Registros](./api/ports-and-registries.md).
+
 ---
 
 ## 2. Resolución Determinista en Cascada (Fallback)

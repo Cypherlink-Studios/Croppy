@@ -38,6 +38,9 @@ Croppy cuenta con un subsistema modular y desacoplado de integraciones (`croppy-
 
 Cuando se detecta un plugin compatible en el servidor Paper, su módulo de integración se activa de forma automática. Si el plugin no está presente o se desactiva en `config.yml`, Croppy utiliza adaptadores transparentes `NoOp` sin generar excepciones en los registros ni interrumpir la simulación.
 
+> [!NOTE]
+> ¿Buscas los contratos Java detrás de `ProtectionPort`, `ProtectionAction` y `EconomyPort`? Consulta [Puertos, Logging y Registros](./api/ports-and-registries.md).
+
 ---
 
 ## 2. Configuración (`config.yml`)

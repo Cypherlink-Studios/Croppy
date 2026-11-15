@@ -69,3 +69,6 @@ When daily hydration tracking is enabled, crops monitor whether they have receiv
 The growth engine supports an extensible pipeline of `GrowthModifier` implementations:
 * **Speed-Gro Fertilizers**: Apply multiplier bonuses (e.g., `1.25x` or `1.50x` growth speed) directly to the accumulated progress points per cycle.
 * **Nutrient Richness**: Optimal soil N-P-K reserves provide additive bonuses, accelerating maturity.
+
+> [!TIP]
+> Java addons can register custom `GrowthModifier`, `StageAdvanceInterceptor`, and `WitherHandler` hooks programmatically. See [Java Addon Development](./api/addon-development.md).
