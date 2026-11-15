@@ -84,14 +84,20 @@ visual:
     hide_when_idle: true
     format: |
       <gradient:#ffaa00:#ff5555><bold>{recipe_name}</bold></gradient>
-      {progress_bar} <white>{progress_percent}%</white>
-      <gray>Calor: <aqua>{temperature_c}°C</aqua> (<gold>{thermal_zone}</gold>)</gray>
+      {process.progress_bar} <white>{process.progress_percent}%</white>
+      <gray>Calor: <aqua>{thermal.temp_c}</aqua> (<gold>{thermal.zone}</gold>)</gray>
+
+# Variables tipadas iniciales opcionales adjuntas a cada estación colocada
+default_variables:
+  cleanliness:
+    type: "croppy:integer"
+    default: 100
 
 # Estados Dinámicos y Reactivos (evaluados en tiempo real por prioridad descendente)
 states:
   - id: "boiling"
     priority: 30
-    when: "temperature >= 100.0 && process_state == 'RUNNING'"
+    when: "thermal.temp >= 100.0 && process.state == 'RUNNING'"
     model:
       item_model: "croppy:station/cooking_pot/boiling"
       scale: [1.02, 1.05, 1.02]
@@ -112,7 +118,7 @@ states:
 
   - id: "cooking"
     priority: 20
-    when: "process_state == 'RUNNING'"
+    when: "process.state == 'RUNNING'"
     model:
       item_model: "croppy:station/cooking_pot/cooking"
     effects:
@@ -222,21 +228,47 @@ A diferencia de los cultivos que persisten etapas de crecimiento en el PDC del c
 ```
 
 ### Expresiones Condicionales y Variables Disponibles
-Las transiciones de estado se configuran mediante expresiones condicionales booleanas en el campo `when:` (o `condition:`). Durante cada tick, se inyectan las métricas físicas de la estación:
+Las transiciones de estado se configuran mediante expresiones condicionales booleanas en el campo `when:` (o `condition:`). Durante cada tick, los componentes modulares implementan `VariableProvider` para exportar su estado bajo namespaces por capacidad junto con las variables tipadas `var.*`:
 
-| Variable | Tipo | Descripción | Ejemplo de Condición |
-|---|---|---|---|
-| `temperature` | Double | Temperatura superficial en grados Celsius. | `temperature >= 100.0` |
-| `temp` | Double | Alias de `temperature`. | `temp > 250.0` |
-| `thermal_zone` | String | Zona termodinámica: `COLD`, `WARM`, `SIMMERING`, `BOILING`, `SEARING`, `BURNING`. | `thermal_zone == 'BOILING'` |
-| `fuel_ticks` | Long | Ticks restantes de combustión de la fuente de calor subyacente. | `fuel_ticks > 0` |
-| `is_active` | Boolean | True si la estación está caliente (> 25°C), procesando o tiene combustible. | `is_active == true` |
-| `process_state` | String | Estado del proceso: `IDLE`, `RUNNING`, `AWAITING_INPUT`, `COMPLETED`, `PAUSED`. | `process_state == 'RUNNING'` |
-| `has_inputs` | Boolean | True si la entrada contiene al menos una pila de ítems. | `has_inputs == true` |
-| `input_count` | Integer | Cantidad total de pilas de ítems almacenadas en entradas. | `input_count >= 3` |
-| `has_outputs` | Boolean | True si la salida contiene al menos un ítem cocinado. | `has_outputs == true` |
+| Namespace / Alias | Claves Exportadas y Tipo | Ejemplo de Condición |
+|---|---|---|
+| `thermal.*` (`ThermalComponent`) | `thermal.temp` (Double), `thermal.temperature` (Double), `thermal.temp_c` (String ej. `100.0°C`), `thermal.target_temp` (Double), `thermal.zone` (String: `COLD`..`BURNING`), `thermal.is_heated` (Boolean) | `thermal.temp >= 100.0 && thermal.is_heated == true` |
+| `heat.*` (`HeatSourceComponent`) | `heat.fuel_ticks` (Long), `heat.max_fuel_ticks` (Long), `heat.is_active` (Boolean), `heat.is_burning` (Boolean), `heat.target_temp` (Double), `heat.output_temp` (Double), `heat.output_temp_c` (String), `heat.min_temp` (Double), `heat.max_temp` (Double) | `heat.fuel_ticks > 0 && heat.is_active == true` |
+| `storage.*` (`StorageComponent`) | `storage.has_inputs` (Boolean), `storage.input_count` (Integer), `storage.input_amount` (Integer), `storage.has_outputs` (Boolean), `storage.output_count` (Integer), `storage.output_amount` (Integer), `storage.is_empty` (Boolean), `storage.input_capacity` (Integer), `storage.output_capacity` (Integer) | `storage.has_inputs == true && storage.input_amount >= 3` |
+| `process.*` (`ProcessComponent`) | `process.has_process` (Boolean), `process.state` (String: `IDLE`, `RUNNING`, `AWAITING_INPUT`, `COMPLETED`, `PAUSED`), `process.finished` (Boolean), `process.idle_ticks` (Long), `process.key` (String), `process.recipe_name` (String), `process.phase_index` (Integer), `process.phase_elapsed` (Double), `process.total_elapsed` (Double), `process.progress` (Double `0.0-1.0`), `process.progress_percent` (Integer), `process.progress_bar` (String) | `process.state == 'RUNNING' && process.progress >= 0.5` |
+| `display.*` (`DisplayComponent`) | `display.status_text` (String), `display.progress` (Double), `display.progress_percent` (Integer), `display.thermal_zone` (String) | `display.thermal_zone == 'BOILING'` |
+| `var.*` (`TypedVariableStore`) | Valores simples personalizados (`var.<nombre>`) y campos compuestos (`var.<nombre>.<campo>`) declarados vía `default_variables` o mutados en ejecución | `var.cleanliness > 50 && var.tank.fluid == 'water'` |
+| Aliases Legacy | Aliases de compatibilidad sin namespace: `temperature`, `temp`, `thermal_zone`, `fuel_ticks`, `is_active`, `process_state`, `has_inputs`, `input_count`, `has_outputs`, más `station.temperature`, `station.is_heated`, `station.thermal_zone`, `storage.is_empty` | `temperature >= 100.0 && process_state == 'RUNNING'` |
 
 Los estados se evalúan en **orden descendente de prioridad**. El primer estado cuya condición se evalúa como `true` se activa inmediatamente. Si ninguna condición coincide, la estación adopta la configuración base predeterminada.
+
+### Variables Tipadas Personalizadas (`default_variables`)
+Cualquier estación puede declarar variables persistentes arbitrarias inicializadas al colocar el bloque mediante `default_variables:`:
+
+```yaml
+default_variables:
+  # Especificación explícita con tipo
+  cleanliness:
+    type: "croppy:integer"   # o abreviado: integer, decimal, boolean, string, compound
+    default: 100
+
+  # Inferencia automática por valor escalar (inferido como croppy:boolean)
+  is_covered: false
+
+  # Variable compuesta estructurada (campos exportados como var.tank.fluid y var.tank.level)
+  tank:
+    type: "croppy:compound"
+    default:
+      fluid: "water"
+      level: 0
+```
+
+Tipos integrados registrados en `DataTypeRegistry`:
+- `croppy:integer` (`Long`) — Soporta `SET`, `ADD`, `SUBTRACT`, `MULTIPLY`, `CLAMP`
+- `croppy:decimal` (`Double`) — Soporta `SET`, `ADD`, `SUBTRACT`, `MULTIPLY`, `CLAMP`
+- `croppy:boolean` (`Boolean`) — Soporta `SET`, `TOGGLE`
+- `croppy:string` (`String`) — Soporta `SET`, `APPEND`
+- `croppy:compound` (`Map<String, Object>`) — Soporta `SET` (entradas compuestas anidadas exportadas con notación de punto `var.<nombre>.<campo>`)
 
 ---
 
@@ -248,7 +280,7 @@ El bloque `model:` permite sobreescribir el modelo 3D base, CustomModelData y tr
 states:
   - id: "boiling"
     priority: 30
-    when: "temperature >= 100.0 && process_state == 'RUNNING'"
+    when: "thermal.temp >= 100.0 && process.state == 'RUNNING'"
     model:
       # Definición de modelo de ítem nativo de Minecraft 1.21.4+
       item_model: "croppy:station/cooking_pot/boiling"
@@ -346,6 +378,7 @@ states:
 | `visual.text_display.line_width` | Entero | `200` | Ancho máximo de línea antes del ajuste de línea en el cliente. |
 | `visual.text_display.hide_when_idle` | Booleano | `false` | Oculta dinámicamente el holograma cuando la estación está fría (<= 25°C), vacía e inactiva. |
 | `visual.text_display.format` | String | — | Plantilla MiniMessage multilínea con placeholders dinámicos. |
+| `default_variables` | Mapa | `{}` | Variables tipadas iniciales (`{ type, default }` o escalar inferido) adjuntas a cada estación colocada y persistidas en almacenamiento binario. |
 | `states` | Lista | `[]` | Lista de estados declarativos evaluados por prioridad. |
 | `states[].id` | String | **Requerido** | Identificador único del estado (ej. `boiling`, `lit`, `idle`). |
 | `states[].priority` | Entero | `0` | Prioridad de evaluación (valores mayores se evalúan primero). |
@@ -370,7 +403,7 @@ states:
 
 ## 6. Placeholders Dinámicos del Text Display
 
-La plantilla `visual.text_display.format` evalúa los siguientes valores dinámicos en cada tick de la simulación:
+Los hologramas de texto utilizan `ContextualTextFormatter` para resolver cualquier token `{clave}` dinámicamente frente al `EvaluationContext` unificado de la estación en una sola pasada. Esto soporta tokens por capacidad de componente (p. ej. `{thermal.temp_c}`, `{heat.fuel_ticks}`, `{storage.input_amount}`, `{process.progress_bar}`), variables tipadas personalizadas (`{var.cleanliness}`, `{var.tank.fluid}`) y los tokens de cocción estándar:
 
 | Placeholder | Valor Reemplazado | Salida de Ejemplo |
 |---|---|---|

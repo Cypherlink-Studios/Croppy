@@ -207,6 +207,17 @@ public class ArcaneFarmingAddon implements CroppyAddon, Listener {
 }
 ```
 
+### Extensión de Variables y Tipos de Datos (`croppy-api`)
+
+Los addons pueden exponer métricas propias de componentes hacia expresiones de estado, reglas y hologramas—así como registrar tipos de datos persistentes personalizados—mediante los contratos puros de `dev.darkblade.croppy.api`:
+
+1. **Proveedores por Componente (`VariableProvider`)**:
+   Implementa `dev.darkblade.croppy.api.expression.VariableProvider` en tus `StationComponent` personalizados (definiendo un namespace propio, por ejemplo `"alembic"`) para exportar tanto valores crudos como cadenas formateadas al `EvaluationContext` bajo `<namespace>.*`.
+2. **Tipos de Datos (`DataType<T>`) y Operaciones (`VariableOperation<T>`)**:
+   Implementa `SimpleDataType<T>` o `CompoundDataType<T>` (`dev.darkblade.croppy.api.variable`) con su serialización binaria (`writeBinary` / `readBinary`), parseo desde YAML (`parse`) y catálogo estricto de mutaciones permitidas (`getSupportedOperations()`), registrándolo en `DataTypeRegistry`.
+3. **Persistencia Resiliente ante Desinstalación**:
+   Si un addon que define un `DataType` personalizado se retira temporalmente, `VariableStoreBinaryCodec` preserva intactos sus bytes originales en `UnresolvedVariableData` sin romper la carga del chunk ni perder datos de las estaciones.
+
 ---
 
 ## 6. Guía para Creadores de Contenido: Packs Declarativos
