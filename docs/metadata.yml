@@ -32,9 +32,9 @@ versions:
   # -------------------------------------------------------------
   - version: "0.10.0"
     releaseDate: "2026-11-15"
-    reference: "main"
+    reference: "21b0eba"
     downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
-    changelog: "Introduced generic component VariableProvider namespaces (thermal.*, heat.*, storage.*, process.*, display.*), an extensible TypedVariableStore (var.*) with DataTypeRegistry, type-safe VariableOperation mutations, resilient v5 binary persistence preserving UnresolvedVariableData for missing addon types, YAML default_variables support, and dynamic ContextualTextFormatter hologram rendering."
+    changelog: "Introduced generic component VariableProvider namespaces (thermal.*, heat.*, storage.*, process.*, display.*), an extensible TypedVariableStore (var.*) with DataTypeRegistry, type-safe VariableOperation mutations, resilient v5 binary persistence preserving UnresolvedVariableData for missing addon types, YAML default_variables support, dynamic ContextualTextFormatter hologram rendering, and reorganized developer API documentation into a dedicated api/ subsection."
     minecraft:
       - "1.21.x"
 
