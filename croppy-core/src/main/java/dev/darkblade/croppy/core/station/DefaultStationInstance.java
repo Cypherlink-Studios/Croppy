@@ -4,7 +4,9 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.component.StationComponent;
+import dev.darkblade.croppy.api.variable.TypedVariableStore;
 import dev.darkblade.croppy.api.world.BlockPosition;
+import dev.darkblade.croppy.core.variable.DefaultTypedVariableStore;
 
 import java.util.Collections;
 import java.util.Map;
@@ -21,6 +23,7 @@ public final class DefaultStationInstance implements StationInstance {
     private final BlockPosition position;
     private final StationDefinition definition;
     private final Map<Class<? extends StationComponent>, StationComponent> components = new ConcurrentHashMap<>();
+    private volatile DefaultTypedVariableStore variableStore;
     private volatile float yaw;
     private volatile String activeStateId = "default";
 
@@ -90,5 +93,25 @@ public final class DefaultStationInstance implements StationInstance {
     @Override
     public void setActiveStateId(String activeStateId) {
         this.activeStateId = (activeStateId == null || activeStateId.isBlank()) ? "default" : activeStateId;
+    }
+
+    @Override
+    public Optional<TypedVariableStore> getVariableStore() {
+        return Optional.ofNullable(variableStore);
+    }
+
+    @Override
+    public TypedVariableStore ensureVariableStore() {
+        DefaultTypedVariableStore current = variableStore;
+        if (current == null) {
+            synchronized (this) {
+                current = variableStore;
+                if (current == null) {
+                    current = new DefaultTypedVariableStore();
+                    variableStore = current;
+                }
+            }
+        }
+        return current;
     }
 }

@@ -1,10 +1,34 @@
 package dev.darkblade.croppy.api.station.component;
 
+import dev.darkblade.croppy.api.expression.VariableProvider;
+
+import java.util.Locale;
+import java.util.Map;
+
 /**
  * Component managing active heat emission, fuel combustion, target temperature regulation,
  * and thermal operational limits for heat-generating stations.
  */
-public interface HeatSourceComponent extends StationComponent {
+public interface HeatSourceComponent extends StationComponent, VariableProvider {
+
+    @Override
+    default String getVariableNamespace() {
+        return "heat";
+    }
+
+    @Override
+    default void populateVariables(Map<String, Object> variables) {
+        double outTemp = getOutputTemperature();
+        variables.put("fuel_ticks", getBurnTicksRemaining());
+        variables.put("max_fuel_ticks", getMaxBurnTicks());
+        variables.put("is_active", isActive());
+        variables.put("is_burning", isBurning());
+        variables.put("target_temp", getTargetTemperature());
+        variables.put("output_temp", outTemp);
+        variables.put("output_temp_c", String.format(Locale.ROOT, "%.1f°C", outTemp));
+        variables.put("min_temp", getMinTemperature());
+        variables.put("max_temp", getMaxTemperature());
+    }
 
     /**
      * @return true if the heat source is powered on / active

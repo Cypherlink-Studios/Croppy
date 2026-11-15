@@ -51,6 +51,7 @@ public final class StationBlockListener implements Listener {
     private final ItemFactory itemFactory;
     private final dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker;
     private final dev.darkblade.croppy.api.protection.ProtectionPort protectionPort;
+    private final dev.darkblade.croppy.api.variable.DataTypeRegistry dataTypeRegistry;
     private final CroppyLogger logger;
 
     public StationBlockListener(
@@ -62,7 +63,7 @@ public final class StationBlockListener implements Listener {
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort
     ) {
         this(stationManager, stationRegistry, stationStorage, itemFactory, viewerTracker, protectionPort,
-                NoOpCroppyLogger.INSTANCE);
+                null, NoOpCroppyLogger.INSTANCE);
     }
 
     public StationBlockListener(
@@ -74,12 +75,28 @@ public final class StationBlockListener implements Listener {
             dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
             CroppyLogger logger
     ) {
+        this(stationManager, stationRegistry, stationStorage, itemFactory, viewerTracker, protectionPort, null, logger);
+    }
+
+    public StationBlockListener(
+            DefaultStationManager stationManager,
+            StationRegistry stationRegistry,
+            StationStorage stationStorage,
+            ItemFactory itemFactory,
+            dev.darkblade.croppy.platform.paper.station.display.StationViewerTracker viewerTracker,
+            dev.darkblade.croppy.api.protection.ProtectionPort protectionPort,
+            dev.darkblade.croppy.api.variable.DataTypeRegistry dataTypeRegistry,
+            CroppyLogger logger
+    ) {
         this.stationManager = Objects.requireNonNull(stationManager, "stationManager cannot be null");
         this.stationRegistry = Objects.requireNonNull(stationRegistry, "stationRegistry cannot be null");
         this.stationStorage = Objects.requireNonNull(stationStorage, "stationStorage cannot be null");
         this.itemFactory = Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.viewerTracker = viewerTracker;
         this.protectionPort = protectionPort;
+        this.dataTypeRegistry = dataTypeRegistry != null
+                ? dataTypeRegistry
+                : new dev.darkblade.croppy.core.variable.DefaultDataTypeRegistry();
         this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
@@ -162,6 +179,11 @@ public final class StationBlockListener implements Listener {
                     false, minTemp, DefaultHeatSourceComponent.DEFAULT_AMBIENT_TEMPERATURE, 0L, 0L,
                     minTemp, maxTemp, heatingRate, coolingRate, fuelMult
             ));
+        }
+
+        if (!def.defaultVariables().isEmpty()
+                && station.ensureVariableStore() instanceof dev.darkblade.croppy.core.variable.DefaultTypedVariableStore varStore) {
+            varStore.initializeFromSpecs(def.defaultVariables(), dataTypeRegistry);
         }
 
         stationManager.addStation(station);

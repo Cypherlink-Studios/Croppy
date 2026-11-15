@@ -2,6 +2,7 @@ package dev.darkblade.croppy.api.station;
 
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.station.component.StationComponent;
+import dev.darkblade.croppy.api.variable.TypedVariableStore;
 import dev.darkblade.croppy.api.world.BlockPosition;
 
 import java.util.Map;
@@ -78,5 +79,25 @@ public interface StationInstance {
      * @param stateId active state identifier
      */
     default void setActiveStateId(String stateId) {
+    }
+
+    /**
+     * Retrieves the typed variable store attached to this station instance, if initialized.
+     *
+     * @return optional containing the typed variable store
+     */
+    default Optional<TypedVariableStore> getVariableStore() {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the attached typed variable store, initializing one lazily if supported.
+     *
+     * @return the typed variable store
+     * @throws UnsupportedOperationException if this station implementation does not support variable storage
+     */
+    default TypedVariableStore ensureVariableStore() {
+        return getVariableStore().orElseThrow(() ->
+                new UnsupportedOperationException("Variable store is not supported by " + getClass().getSimpleName()));
     }
 }

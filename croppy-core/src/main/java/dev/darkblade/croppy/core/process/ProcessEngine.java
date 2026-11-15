@@ -383,6 +383,7 @@ public final class ProcessEngine implements Service {
         display.setStatusText(formatted);
         long targetTicks = phase.durationTicks() > 0 ? phase.durationTicks() : phase.timeoutTicks();
         float fraction = targetTicks > 0 ? Math.min(1.0f, (float) instance.getPhaseElapsedTicks() / targetTicks) : 1.0f;
+        instance.setContextVariable("progress", (double) fraction);
         display.setProgress(fraction);
         display.setDirty(true);
     }
@@ -398,6 +399,7 @@ public final class ProcessEngine implements Service {
         display.setStatusText("<yellow>Paused: </yellow>" + formatted);
         long targetTicks = phase.durationTicks() > 0 ? phase.durationTicks() : phase.timeoutTicks();
         float fraction = targetTicks > 0 ? Math.min(1.0f, (float) instance.getPhaseElapsedTicks() / targetTicks) : 0.0f;
+        instance.setContextVariable("progress", (double) fraction);
         display.setProgress(fraction);
         display.setDirty(true);
     }

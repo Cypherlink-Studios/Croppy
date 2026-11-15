@@ -13,6 +13,7 @@ import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInteractionType;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.station.StationStateDefinition;
+import dev.darkblade.croppy.api.variable.VariableSpec;
 import dev.darkblade.croppy.api.station.visual.BillboardMode;
 import dev.darkblade.croppy.api.station.visual.DisplayLayerConfig;
 import dev.darkblade.croppy.api.station.visual.DisplayTransform;
@@ -157,6 +158,9 @@ public final class YamlStationLoader {
                 : null;
         List<StationStateDefinition> states = parseStates(root, baseTransform, baseHitbox);
 
+        // 13. Default Variables
+        List<VariableSpec> defaultVariables = parseDefaultVariables(root);
+
         return new StationDefinition(
                 key,
                 displayName,
@@ -170,7 +174,8 @@ public final class YamlStationLoader {
                 properties,
                 visualDefinition,
                 rotationMode,
-                states
+                states,
+                defaultVariables
         );
     }
 
@@ -648,5 +653,87 @@ public final class YamlStationLoader {
         }
 
         return new PhaseEffects(particle, sound);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<VariableSpec> parseDefaultVariables(Map<String, Object> root) {
+        Object rawVars = root.get("default_variables");
+        if (rawVars == null) {
+            rawVars = root.get("default-variables");
+        }
+        if (!(rawVars instanceof Map<?, ?> rawMap) || rawMap.isEmpty()) {
+            return List.of();
+        }
+
+        List<VariableSpec> specs = new ArrayList<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            if (entry.getKey() == null) {
+                continue;
+            }
+            String varName = entry.getKey().toString().trim();
+            if (varName.isEmpty()) {
+                throw new IllegalArgumentException("Variable name in 'default_variables' cannot be blank");
+            }
+
+            Object rawDef = entry.getValue();
+            Key typeKey;
+            Object initialValue;
+
+            if (rawDef instanceof Map<?, ?> defMapRaw && defMapRaw.containsKey("type")) {
+                Map<String, Object> defMap = (Map<String, Object>) defMapRaw;
+                String typeStr = getString(defMap, "type", null);
+                if (typeStr == null || typeStr.isBlank()) {
+                    throw new IllegalArgumentException("Variable '" + varName + "' must declare a non-blank 'type'");
+                }
+                typeKey = resolveDataTypeKey(typeStr);
+                if (defMap.containsKey("default")) {
+                    initialValue = defMap.get("default");
+                } else if (defMap.containsKey("initial")) {
+                    initialValue = defMap.get("initial");
+                } else {
+                    initialValue = defMap.get("value");
+                }
+            } else {
+                // Shorthand value inference
+                typeKey = inferDataTypeKey(rawDef, varName);
+                initialValue = rawDef;
+            }
+
+            specs.add(new VariableSpec(varName, typeKey, initialValue));
+        }
+        return List.copyOf(specs);
+    }
+
+    private Key resolveDataTypeKey(String rawType) {
+        String normalized = rawType.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "int", "integer" -> Key.of("croppy", "integer");
+            case "double", "float", "decimal", "number" -> Key.of("croppy", "decimal");
+            case "bool", "boolean" -> Key.of("croppy", "boolean");
+            case "str", "string", "text" -> Key.of("croppy", "string");
+            case "map", "compound", "object" -> Key.of("croppy", "compound");
+            default -> normalized.contains(":") ? Key.parse(normalized) : Key.of("croppy", normalized);
+        };
+    }
+
+    private Key inferDataTypeKey(Object rawValue, String varName) {
+        if (rawValue instanceof Boolean) {
+            return Key.of("croppy", "boolean");
+        }
+        if (rawValue instanceof Integer || rawValue instanceof Long || rawValue instanceof Short || rawValue instanceof Byte) {
+            return Key.of("croppy", "integer");
+        }
+        if (rawValue instanceof Double || rawValue instanceof Float) {
+            return Key.of("croppy", "decimal");
+        }
+        if (rawValue instanceof String) {
+            return Key.of("croppy", "string");
+        }
+        if (rawValue instanceof Map<?, ?>) {
+            return Key.of("croppy", "compound");
+        }
+        throw new IllegalArgumentException(
+                "Cannot infer data type for variable '" + varName + "' with value: " + rawValue + "; specify explicit 'type'"
+        );
     }
 }

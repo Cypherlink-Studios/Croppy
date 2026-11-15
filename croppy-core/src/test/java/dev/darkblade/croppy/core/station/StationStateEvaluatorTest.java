@@ -10,15 +10,20 @@ import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
 import dev.darkblade.croppy.api.station.visual.StationModelOverride;
+import dev.darkblade.croppy.api.variable.TypedVariableStore;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.process.DefaultProcessInstance;
 import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
 import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
+import dev.darkblade.croppy.core.variable.BooleanDataType;
+import dev.darkblade.croppy.core.variable.IntegerDataType;
+import dev.darkblade.croppy.core.variable.MapCompoundDataType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -128,5 +133,77 @@ class StationStateEvaluatorTest {
         Optional<StationStateDefinition> result = StationStateEvaluator.evaluate(station);
         assertTrue(result.isPresent());
         assertEquals("has_items", result.get().id());
+    }
+
+    @Test
+    void testNamespacedConditionsAndTypedVariables() {
+        StationStateDefinition compoundMatch = new StationStateDefinition(
+                "tank_ready",
+                40,
+                "var.tank.fluid == 'water' && var.tank.level >= 50",
+                new StationModelOverride(Key.of("croppy", "station/pot/tank_ready"))
+        );
+        StationStateDefinition varMatch = new StationStateDefinition(
+                "covered_clean",
+                35,
+                "var.is_covered == true && var.cleanliness > 50",
+                new StationModelOverride(Key.of("croppy", "station/pot/covered"))
+        );
+        StationStateDefinition namespacedBoiling = new StationStateDefinition(
+                "ns_boiling",
+                30,
+                "thermal.temp >= 100.0 && process.state == 'RUNNING'",
+                new StationModelOverride(Key.of("croppy", "station/pot/boiling"))
+        );
+        StationStateDefinition namespacedLit = new StationStateDefinition(
+                "ns_lit",
+                20,
+                "heat.fuel_ticks > 0",
+                new StationModelOverride(Key.of("croppy", "station/pot/lit"))
+        );
+        StationStateDefinition idle = new StationStateDefinition(
+                "idle",
+                0,
+                null,
+                new StationModelOverride(Key.of("croppy", "station/pot/empty"))
+        );
+
+        StationDefinition nsDef = new StationDefinition(
+                Key.of("croppy", "namespaced_pot"),
+                "Namespaced Pot",
+                "minecraft:barrier",
+                StationInteractionType.HYBRID,
+                6,
+                2,
+                StationDefinition.DEFAULT_MENU_KEY,
+                true,
+                List.of(),
+                Map.of(),
+                null,
+                dev.darkblade.croppy.api.species.RotationMode.CARDINAL_4,
+                List.of(idle, namespacedLit, namespacedBoiling, varMatch, compoundMatch)
+        );
+        DefaultStationInstance nsStation = new DefaultStationInstance(
+                nsDef.key(), new BlockPosition("world", 10, 64, 10), nsDef);
+
+        DefaultHeatSourceComponent heat = new DefaultHeatSourceComponent();
+        heat.startBurn(50);
+        nsStation.setComponent(HeatSourceComponent.class, heat);
+        assertEquals("ns_lit", StationStateEvaluator.evaluate(nsStation).orElseThrow().id());
+
+        DefaultThermalComponent thermal = new DefaultThermalComponent();
+        thermal.setTemperature(105.0);
+        nsStation.setComponent(ThermalComponent.class, thermal);
+        DefaultProcessInstance process = new DefaultProcessInstance(
+                Key.of("croppy", "broth"), ProcessState.RUNNING, 0, 20L, 40L);
+        assertEquals("ns_boiling", StationStateEvaluator.evaluate(nsStation, process).orElseThrow().id());
+
+        TypedVariableStore store = nsStation.ensureVariableStore();
+        store.define("is_covered", BooleanDataType.INSTANCE, true);
+        store.define("cleanliness", IntegerDataType.INSTANCE, 80L);
+        assertEquals("covered_clean", StationStateEvaluator.evaluate(nsStation, process).orElseThrow().id());
+
+        store.define("tank", MapCompoundDataType.INSTANCE, Map.of("fluid", "water", "level", 75L));
+        assertEquals("tank_ready", StationStateEvaluator.evaluate(nsStation, process).orElseThrow().id());
     }
 }

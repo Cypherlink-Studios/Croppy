@@ -44,7 +44,7 @@ The system SHALL organize station visual layers into discrete distance threshold
 - **THEN** the virtual Text Display entity is destroyed for tracking players within the interaction threshold until heat or items are introduced
 
 ### Requirement: Templated MiniMessage Text Holograms
-The system SHALL render dynamic status holograms formatted with configurable MiniMessage templates and contextual placeholders, adapting content across idle, active, paused, and completed states.
+The system SHALL render dynamic status holograms formatted with configurable MiniMessage templates and contextual placeholders resolved dynamically from the unified evaluation context, adapting content across idle, active, paused, and completed states without requiring dedicated Java parameter bindings.
 
 #### Scenario: Format dynamic status text with placeholders
 - **WHEN** a station with an active process is evaluated for text rendering
@@ -64,7 +64,15 @@ The system SHALL render dynamic status holograms formatted with configurable Min
 
 #### Scenario: Packet caching prevents redundant metadata dispatches
 - **WHEN** a station display is evaluated for synchronization but the serialized rendered text component matches the previous cycle's text
-- **THEN** redundant entity metadata packets are suppressed to conserve client and network bandwidth
+- **THEN** redundant packet dispatches are skipped
+
+#### Scenario: Format text display with namespaced component tokens
+- **WHEN** a non-cooking station (such as a stove or burner) configures a text display format using `{heat.fuel_ticks}` or `{thermal.temp_c}`
+- **THEN** the tokens are dynamically resolved from the evaluation context and rendered without process placeholder dependencies
+
+#### Scenario: Format text display with typed custom variable tokens
+- **WHEN** a station configures a text display format referencing typed variables like `{var.cleanliness}` or `{var.tank.fluid}`
+- **THEN** the values are extracted from the station's typed variable store and rendered into the MiniMessage text
 
 ### Requirement: Client-Interpolated Thermal Animations
 The system SHALL dispatch transformation metadata with client interpolation duration to render smooth visual animations based on station thermal and process states.
@@ -159,4 +167,3 @@ The system SHALL suppress virtual Text Display entities when vertical headroom i
 #### Scenario: Dispatch Action Bar telemetry on station interaction
 - **WHEN** a player interacts with a station configured with an active Action Bar fallback
 - **THEN** the station status, progress, and thermal telemetry are dispatched immediately to the player's Action Bar
-

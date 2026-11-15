@@ -14,6 +14,7 @@ import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.CropStorage;
+import dev.darkblade.croppy.api.variable.DataTypeRegistry;
 import dev.darkblade.croppy.core.crafting.DefaultCraftingRecipeRegistry;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.discovery.DefaultRecipeDiscoveryEngine;
@@ -32,6 +33,7 @@ import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.DefaultStationRegistry;
+import dev.darkblade.croppy.core.variable.DefaultDataTypeRegistry;
 
 import dev.darkblade.croppy.api.logging.CroppyLogger;
 import dev.darkblade.croppy.api.logging.JulCroppyLogger;
@@ -64,6 +66,7 @@ public class CroppyCore {
     private final DefaultRecipeRegistry recipeRegistry = new DefaultRecipeRegistry();
     private final DefaultRecipeCategoryRegistry recipeCategoryRegistry = new DefaultRecipeCategoryRegistry();
     private final DefaultCraftingRecipeRegistry craftingRecipeRegistry = new DefaultCraftingRecipeRegistry();
+    private final DefaultDataTypeRegistry dataTypeRegistry = new DefaultDataTypeRegistry();
     private final DefaultRecipeDiscoveryEngine recipeDiscoveryEngine = new DefaultRecipeDiscoveryEngine();
     private final CropManager cropManager = new CropManager();
     private final DefaultStationManager stationManager = new DefaultStationManager();
@@ -109,6 +112,8 @@ public class CroppyCore {
         recipeCategoryRegistry.clear();
         recipeCategoryRegistry.registerDefaults();
         craftingRecipeRegistry.clear();
+        dataTypeRegistry.clear();
+        dataTypeRegistry.registerDefaults();
         cropManager.clear();
         stationManager.clear();
         registerService(SpeciesRegistry.class, speciesRegistry);
@@ -119,6 +124,7 @@ public class CroppyCore {
         registerService(RecipeRegistry.class, recipeRegistry);
         registerService(RecipeCategoryRegistry.class, recipeCategoryRegistry);
         registerService(CraftingRecipeRegistry.class, craftingRecipeRegistry);
+        registerService(DataTypeRegistry.class, dataTypeRegistry);
         registerService(RecipeDiscoveryEngine.class, recipeDiscoveryEngine);
         registerService(InteractionRegistry.class, interactionRegistry);
         registerService(RuleRegistry.class, ruleRegistry);
@@ -146,6 +152,8 @@ public class CroppyCore {
         recipeRegistry.clear();
         recipeCategoryRegistry.clear();
         craftingRecipeRegistry.clear();
+        dataTypeRegistry.clear();
+        dataTypeRegistry.registerDefaults();
         cropManager.clear();
         stationManager.clear();
         growthEngine.shutdown();
@@ -245,6 +253,13 @@ public class CroppyCore {
      */
     public CraftingRecipeRegistry getCraftingRecipeRegistry() {
         return craftingRecipeRegistry;
+    }
+
+    /**
+     * @return the central data type registry for typed variables
+     */
+    public DataTypeRegistry getDataTypeRegistry() {
+        return dataTypeRegistry;
     }
 
     /**

@@ -27,7 +27,7 @@ visual:
 states:
   - id: "lit"
     priority: 10
-    when: "fuel_ticks > 0"
+    when: "heat.fuel_ticks > 0"
     model:
       item_model: "croppy:station/stove/lit"
       translation: [0.0, 0.5, 0.0]
@@ -59,3 +59,8 @@ properties:
   heating_rate: "5.0"
   cooling_rate: "2.0"
   fuel_burn_multiplier: "1.0"
+
+default_variables:
+  ash_level:
+    type: "croppy:integer"
+    default: 0

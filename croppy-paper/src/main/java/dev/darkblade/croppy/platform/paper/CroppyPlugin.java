@@ -291,7 +291,7 @@ public class CroppyPlugin extends JavaPlugin {
                 this.storage = CropStorageFactory.create(this, libbyLoader, logger);
                 this.core.setStorage(storage);
                 this.stationStorage = new dev.darkblade.croppy.platform.paper.storage.PdcStationStorage(this,
-                        core.getStationRegistry());
+                        core.getStationRegistry(), core.getDataTypeRegistry());
                 return this.pluginConfig.getStorageType().toUpperCase(Locale.ROOT) + " backend ready";
             });
 
@@ -534,7 +534,7 @@ public class CroppyPlugin extends JavaPlugin {
                 core.getInteractionRouter(), core.getRuleEngine(), this.messageService, this, this.stationViewerTracker, this.croppyLogger);
         this.stationBlockListener = new dev.darkblade.croppy.platform.paper.station.listener.StationBlockListener(
                 core.getStationManager(), core.getStationRegistry(), this.stationStorage, this.itemFactory,
-                this.stationViewerTracker, getProtectionPort(), this.croppyLogger);
+                this.stationViewerTracker, getProtectionPort(), core.getDataTypeRegistry(), this.croppyLogger);
 
         pm.registerEvents(this.chatPromptService, this);
         pm.registerEvents(this.menuListener, this);

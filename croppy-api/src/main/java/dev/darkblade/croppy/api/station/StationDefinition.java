@@ -4,6 +4,7 @@ import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.identifier.Keyed;
 import dev.darkblade.croppy.api.species.RotationMode;
 import dev.darkblade.croppy.api.station.visual.StationVisualDefinition;
+import dev.darkblade.croppy.api.variable.VariableSpec;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.Optional;
  * @param visualDefinition  optional visual layers and packet display configuration
  * @param rotationMode      spatial placement rotation mode (defaults to CARDINAL_4)
  * @param states            declarative state definitions with condition-driven overrides
+ * @param defaultVariables  declarative initial typed variables for newly placed instances
  */
 public record StationDefinition(
         Key key,
@@ -40,7 +42,8 @@ public record StationDefinition(
         Map<String, String> properties,
         StationVisualDefinition visualDefinition,
         RotationMode rotationMode,
-        List<StationStateDefinition> states
+        List<StationStateDefinition> states,
+        List<VariableSpec> defaultVariables
 ) implements Keyed {
 
     public static final Key DEFAULT_MENU_KEY = Key.of("croppy", "default_station");
@@ -55,6 +58,28 @@ public record StationDefinition(
         properties = (properties == null) ? Map.of() : Map.copyOf(properties);
         rotationMode = (rotationMode == null) ? RotationMode.CARDINAL_4 : rotationMode;
         states = (states == null) ? List.of() : List.copyOf(states);
+        defaultVariables = (defaultVariables == null) ? List.of() : List.copyOf(defaultVariables);
+    }
+
+    /**
+     * Backward-compatible constructor defaulting {@code defaultVariables} to empty list.
+     */
+    public StationDefinition(
+            Key key,
+            String displayName,
+            String baseBlockMaterial,
+            StationInteractionType interactionType,
+            int inputCapacity,
+            int outputCapacity,
+            Key menuKey,
+            boolean hasDisplay,
+            List<Key> allowedRecipes,
+            Map<String, String> properties,
+            StationVisualDefinition visualDefinition,
+            RotationMode rotationMode,
+            List<StationStateDefinition> states
+    ) {
+        this(key, displayName, baseBlockMaterial, interactionType, inputCapacity, outputCapacity, menuKey, hasDisplay, allowedRecipes, properties, visualDefinition, rotationMode, states, List.of());
     }
 
     /**

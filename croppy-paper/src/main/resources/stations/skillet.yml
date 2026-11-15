@@ -30,18 +30,18 @@ visual:
   text_display:
     enabled: true
     translation: [0.0, 1.15, 0.0]
-    billboard: "FIXED"
+    billboard: "VERTICAL"
     view_distance: 8
     line_width: 220
     format: |
       <gradient:#ffaa00:#ff3300><bold>{recipe_name}</bold></gradient>
-      {progress_bar} <white>{progress_percent}%</white>
-      <gray>Temp: <gold>{temperature_c}</gold> (<yellow>{thermal_zone}</yellow>)</gray>
+      {process.progress_bar} <white>{process.progress_percent}%</white>
+      <gray>Temp: <gold>{thermal.temp_c}</gold> (<yellow>{thermal.zone}</yellow>)</gray>
 
 states:
   - id: "sizzling"
     priority: 20
-    when: "temperature >= 120.0 && has_inputs == true"
+    when: "thermal.temp >= 120.0 && storage.has_inputs == true"
     model:
       item_model: "croppy:station/skillet/hot"
       translation: [0.0, 0.5, 0.0]
@@ -69,3 +69,8 @@ states:
 properties:
   thermal: "true"
   has_thermal: "true"
+
+default_variables:
+  seasoning:
+    type: "croppy:integer"
+    default: 0

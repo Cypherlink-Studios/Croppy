@@ -466,4 +466,40 @@ class YamlStationLoaderTest {
         var state4 = def.states().get(4);
         assertTrue(state4.getHitbox().isEmpty());
     }
+
+    @Test
+    void testLoadDefaultVariables() {
+        String yaml = """
+                id: "croppy:fermenter"
+                block: "barrel"
+                default_variables:
+                  cleanliness:
+                    type: "croppy:integer"
+                    default: 100
+                  is_covered: false
+                  tank:
+                    type: "compound"
+                    default:
+                      fluid: "water"
+                      level: 0
+                """;
+
+        ByteArrayInputStream in = new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8));
+        StationDefinition def = loader.load(in, "fermenter.yml");
+
+        assertEquals(3, def.defaultVariables().size());
+        var byName = def.defaultVariables().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        dev.darkblade.croppy.api.variable.VariableSpec::name,
+                        s -> s));
+
+        assertEquals(Key.of("croppy", "integer"), byName.get("cleanliness").typeKey());
+        assertEquals(100, byName.get("cleanliness").initialValue());
+
+        assertEquals(Key.of("croppy", "boolean"), byName.get("is_covered").typeKey());
+        assertEquals(false, byName.get("is_covered").initialValue());
+
+        assertEquals(Key.of("croppy", "compound"), byName.get("tank").typeKey());
+        assertTrue(byName.get("tank").initialValue() instanceof java.util.Map<?, ?>);
+    }
 }

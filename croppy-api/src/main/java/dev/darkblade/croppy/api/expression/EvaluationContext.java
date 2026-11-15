@@ -30,6 +30,39 @@ public interface EvaluationContext {
     EvaluationContext with(String key, Object value);
 
     /**
+     * Returns a new context containing all specified variable bindings.
+     *
+     * @param additionalVariables map of variable keys to values
+     * @return a new context with the variables added
+     */
+    default EvaluationContext withAll(Map<String, Object> additionalVariables) {
+        EvaluationContext ctx = this;
+        if (additionalVariables != null) {
+            for (Map.Entry<String, Object> entry : additionalVariables.entrySet()) {
+                if (entry.getKey() != null) {
+                    ctx = ctx.with(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+        return ctx;
+    }
+
+    /**
+     * Returns a new context enriched with all namespaced variables exported by the provider.
+     *
+     * @param provider the variable provider
+     * @return a new context with the provider's variables added
+     */
+    default EvaluationContext withProvider(VariableProvider provider) {
+        if (provider == null) {
+            return this;
+        }
+        Map<String, Object> exported = new HashMap<>();
+        provider.exportNamespaced(exported);
+        return withAll(exported);
+    }
+
+    /**
      * Returns a new context including an additional variable resolver.
      *
      * @param resolver the resolver to register

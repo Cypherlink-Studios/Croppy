@@ -3,6 +3,7 @@ package dev.darkblade.croppy.platform.paper.storage;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.StationStorage;
+import dev.darkblade.croppy.api.variable.DataTypeRegistry;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.storage.StationBinaryCodec;
 import org.bukkit.Chunk;
@@ -27,18 +28,29 @@ public final class PdcStationStorage implements StationStorage {
     private final Server server;
     private final NamespacedKey storageKey;
     private final StationRegistry stationRegistry;
+    private final DataTypeRegistry dataTypeRegistry;
 
     public PdcStationStorage(Plugin plugin, StationRegistry stationRegistry) {
+        this(plugin, stationRegistry, null);
+    }
+
+    public PdcStationStorage(Plugin plugin, StationRegistry stationRegistry, DataTypeRegistry dataTypeRegistry) {
         Objects.requireNonNull(plugin, "plugin cannot be null");
         this.server = plugin.getServer();
         this.storageKey = new NamespacedKey(plugin, "stations");
         this.stationRegistry = Objects.requireNonNull(stationRegistry, "stationRegistry cannot be null");
+        this.dataTypeRegistry = dataTypeRegistry;
     }
 
     public PdcStationStorage(Server server, NamespacedKey storageKey, StationRegistry stationRegistry) {
+        this(server, storageKey, stationRegistry, null);
+    }
+
+    public PdcStationStorage(Server server, NamespacedKey storageKey, StationRegistry stationRegistry, DataTypeRegistry dataTypeRegistry) {
         this.server = Objects.requireNonNull(server, "server cannot be null");
         this.storageKey = Objects.requireNonNull(storageKey, "storageKey cannot be null");
         this.stationRegistry = Objects.requireNonNull(stationRegistry, "stationRegistry cannot be null");
+        this.dataTypeRegistry = dataTypeRegistry;
     }
 
     @Override
@@ -55,7 +67,7 @@ public final class PdcStationStorage implements StationStorage {
             return Collections.emptyList();
         }
 
-        return StationBinaryCodec.deserialize(bytes, stationRegistry::get);
+        return StationBinaryCodec.deserialize(bytes, stationRegistry::get, dataTypeRegistry);
     }
 
     @Override

@@ -1,9 +1,31 @@
 package dev.darkblade.croppy.api.station.component;
 
+import dev.darkblade.croppy.api.expression.VariableProvider;
+
+import java.util.Locale;
+import java.util.Map;
+
 /**
  * Component managing temperature, heat source presence, and thermal operational zones for crafting stations.
  */
-public interface ThermalComponent extends StationComponent {
+public interface ThermalComponent extends StationComponent, VariableProvider {
+
+    @Override
+    default String getVariableNamespace() {
+        return "thermal";
+    }
+
+    @Override
+    default void populateVariables(Map<String, Object> variables) {
+        double temp = getTemperature();
+        ThermalZone zone = getThermalZone();
+        variables.put("temp", temp);
+        variables.put("temperature", temp);
+        variables.put("temp_c", String.format(Locale.ROOT, "%.1f°C", temp));
+        variables.put("target_temp", getTargetTemperature());
+        variables.put("zone", zone != null ? zone.name() : "COLD");
+        variables.put("is_heated", isHeated());
+    }
 
     /**
      * @return current temperature in Celsius degrees

@@ -11,6 +11,8 @@ import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
+import dev.darkblade.croppy.api.variable.DataTypeRegistry;
+import dev.darkblade.croppy.api.variable.TypedVariableStore;
 import dev.darkblade.croppy.api.world.BlockPosition;
 import dev.darkblade.croppy.core.process.DefaultProcessInstance;
 import dev.darkblade.croppy.core.station.DefaultStationInstance;
@@ -19,6 +21,8 @@ import dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 import dev.darkblade.croppy.core.station.component.DefaultStorageComponent;
 import dev.darkblade.croppy.core.station.component.DefaultThermalComponent;
+import dev.darkblade.croppy.core.variable.DefaultDataTypeRegistry;
+import dev.darkblade.croppy.core.variable.DefaultTypedVariableStore;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -38,7 +42,8 @@ import java.util.function.Function;
 public final class StationBinaryCodec {
 
     private static final int MAGIC = 0x53544154; // 'STAT'
-    public static final int CURRENT_VERSION = 4;
+    public static final int CURRENT_VERSION = 5;
+    private static final DataTypeRegistry DEFAULT_DATA_TYPE_REGISTRY = new DefaultDataTypeRegistry();
 
     private StationBinaryCodec() {}
 
@@ -143,6 +148,14 @@ public final class StationBinaryCodec {
                     out.writeDouble(heatSource.getCoolingRate());
                     out.writeDouble(heatSource.getFuelBurnMultiplier());
                 }
+
+                // 6. Typed Variable Store (version 5+)
+                Optional<TypedVariableStore> varStoreOpt = station.getVariableStore();
+                boolean hasVariables = varStoreOpt.isPresent() && !varStoreOpt.get().isEmpty();
+                out.writeBoolean(hasVariables);
+                if (hasVariables) {
+                    VariableStoreBinaryCodec.write(out, varStoreOpt.get());
+                }
             }
         } catch (IOException e) {
             throw new IllegalStateException("Failed to serialize station collection", e);
@@ -152,16 +165,33 @@ public final class StationBinaryCodec {
     }
 
     /**
-     * Deserializes binary data into a list of station instances.
+     * Deserializes binary data into a list of station instances using the default data type registry.
      *
      * @param data             binary data bytes
      * @param definitionLookup function resolving definitions for keys
      * @return list of restored station instances
      */
     public static List<StationInstance> deserialize(byte[] data, Function<Key, Optional<StationDefinition>> definitionLookup) {
+        return deserialize(data, definitionLookup, DEFAULT_DATA_TYPE_REGISTRY);
+    }
+
+    /**
+     * Deserializes binary data into a list of station instances using the provided data type registry.
+     *
+     * @param data             binary data bytes
+     * @param definitionLookup function resolving definitions for keys
+     * @param dataTypeRegistry registry resolving custom and standard data types
+     * @return list of restored station instances
+     */
+    public static List<StationInstance> deserialize(
+            byte[] data,
+            Function<Key, Optional<StationDefinition>> definitionLookup,
+            DataTypeRegistry dataTypeRegistry
+    ) {
         if (data == null || data.length == 0) {
             return Collections.emptyList();
         }
+        DataTypeRegistry effectiveRegistry = (dataTypeRegistry != null) ? dataTypeRegistry : DEFAULT_DATA_TYPE_REGISTRY;
 
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(data))) {
             int magic = in.readInt();
@@ -273,6 +303,18 @@ public final class StationBinaryCodec {
                     }
                 }
 
+                // 6. Typed Variable Store (version 5+)
+                if (version >= 5) {
+                    boolean hasVariables = in.readBoolean();
+                    if (hasVariables) {
+                        VariableStoreBinaryCodec.read(in, station.ensureVariableStore(), effectiveRegistry);
+                    }
+                }
+                if (!def.defaultVariables().isEmpty()) {
+                    ((DefaultTypedVariableStore) station.ensureVariableStore())
+                            .initializeFromSpecs(def.defaultVariables(), effectiveRegistry);
+                }
+
                 list.add(station);
             }
 
@@ -325,6 +367,12 @@ public final class StationBinaryCodec {
                 in.readDouble();
                 in.readDouble();
                 in.readDouble();
+            }
+        }
+        if (version >= 5) {
+            boolean hasVariables = in.readBoolean();
+            if (hasVariables) {
+                VariableStoreBinaryCodec.skip(in);
             }
         }
     }

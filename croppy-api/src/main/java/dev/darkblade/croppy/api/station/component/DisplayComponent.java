@@ -1,13 +1,28 @@
 package dev.darkblade.croppy.api.station.component;
 
+import dev.darkblade.croppy.api.expression.VariableProvider;
 import dev.darkblade.croppy.api.identifier.Key;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
  * Component tracking the visual and display state of a station in the world.
  */
-public interface DisplayComponent extends StationComponent {
+public interface DisplayComponent extends StationComponent, VariableProvider {
+
+    @Override
+    default String getVariableNamespace() {
+        return "display";
+    }
+
+    @Override
+    default void populateVariables(Map<String, Object> variables) {
+        variables.put("status_text", getStatusText());
+        variables.put("progress", (double) getProgress());
+        variables.put("progress_percent", Math.round(getProgress() * 100.0f));
+        variables.put("thermal_zone", getThermalZone());
+    }
 
     /**
      * @return current custom item key rendered as floating display icon

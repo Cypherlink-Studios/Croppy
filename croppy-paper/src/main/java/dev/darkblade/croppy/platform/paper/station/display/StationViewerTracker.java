@@ -33,6 +33,7 @@ import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.rule.RuleExecution;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.StationStateEvaluator;
+import dev.darkblade.croppy.core.station.visual.ContextualTextFormatter;
 import dev.darkblade.croppy.core.station.visual.StationPlaceholderFormatter;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import net.kyori.adventure.text.Component;
@@ -234,22 +235,20 @@ public class StationViewerTracker {
             display.setCachedHeadroom(headroom);
         }
 
+        String statusText = displayComp.getStatusText();
+        EvaluationContext displayCtx = buildDisplayContext(
+                station, process, headroom, progress, temp, thermalZone, statusText,
+                recipeName, recipeDisplay, phaseName, phaseIndex, phaseTotal,
+                remainingTicks, elapsedTicks, stateStr
+        );
+
         DisplayTransform effectiveTextTransform = (textTemplate != null) ? textTemplate.transform() : DisplayTransform.DEFAULT;
         String effectiveFormat = (textTemplate != null) ? textTemplate.format() : TextDisplayTemplate.DEFAULT_FORMAT;
         boolean fallbackActive = false;
         Map<String, Object> fallbackActionParams = null;
 
         if (ruleEngine != null && textTemplate != null) {
-            EvaluationContext layoutCtx = EvaluationContext.empty()
-                    .with("display.headroom", headroom)
-                    .with("station.temperature", temp)
-                    .with("station.thermal_zone", thermalZone != null ? thermalZone : "COLD")
-                    .with("process.state", stateStr)
-                    .with("process.progress", (double) progress)
-                    .with("has_inputs", hasInputs)
-                    .with("has_outputs", hasOutputs);
-
-            List<RuleExecution> layoutExecs = ruleEngine.evaluateAndApply(RuleTrigger.DISPLAY_LAYOUT, station, layoutCtx);
+            List<RuleExecution> layoutExecs = ruleEngine.evaluateAndApply(RuleTrigger.DISPLAY_LAYOUT, station, displayCtx);
             if (!layoutExecs.isEmpty()) {
                 RuleExecution layoutRule = layoutExecs.get(0);
                 for (RuleAction action : layoutRule.appliedActions()) {
@@ -298,43 +297,11 @@ public class StationViewerTracker {
         }
 
         if (textTemplate != null && textTemplate.enabled()) {
-            String statusText = displayComp.getStatusText();
-
             if (hasProcess && (pState == ProcessState.RUNNING || pState == ProcessState.AWAITING_INPUT)) {
-                if (effectiveFormat.contains("{status_message}")) {
-                    rawText = StationPlaceholderFormatter.format(
-                            effectiveFormat,
-                            recipeName,
-                            recipeDisplay,
-                            progress,
-                            temp,
-                            thermalZone,
-                            statusText,
-                            remainingTicks,
-                            elapsedTicks,
-                            phaseName,
-                            phaseIndex,
-                            phaseTotal,
-                            stateStr
-                    );
-                } else if (statusText != null && !statusText.isBlank()) {
-                    rawText = statusText;
+                if (effectiveFormat.contains("{status_message}") || statusText == null || statusText.isBlank()) {
+                    rawText = ContextualTextFormatter.format(effectiveFormat, displayCtx);
                 } else {
-                    rawText = StationPlaceholderFormatter.format(
-                            effectiveFormat,
-                            recipeName,
-                            recipeDisplay,
-                            progress,
-                            temp,
-                            thermalZone,
-                            statusText,
-                            remainingTicks,
-                            elapsedTicks,
-                            phaseName,
-                            phaseIndex,
-                            phaseTotal,
-                            stateStr
-                    );
+                    rawText = statusText;
                 }
             } else if (hasProcess && pState == ProcessState.COMPLETED) {
                 if (statusText != null && !statusText.isBlank()) {
@@ -343,21 +310,7 @@ public class StationViewerTracker {
                     rawText = "<green><bold>Cooking Complete!</bold></green>\n<gray>Ready to serve</gray>";
                 }
             } else {
-                rawText = StationPlaceholderFormatter.format(
-                        effectiveFormat,
-                        recipeName,
-                        recipeDisplay,
-                        progress,
-                        temp,
-                        thermalZone,
-                        statusText,
-                        remainingTicks,
-                        elapsedTicks,
-                        phaseName,
-                        phaseIndex,
-                        phaseTotal,
-                        stateStr
-                );
+                rawText = ContextualTextFormatter.format(effectiveFormat, displayCtx);
             }
 
             textComponent = miniMessage.deserialize(rawText);
@@ -811,5 +764,68 @@ public class StationViewerTracker {
             }
         }
         return String.join(separator != null ? separator : " • ", validLines);
+    }
+
+    private EvaluationContext buildDisplayContext(
+            StationInstance station,
+            ProcessInstance process,
+            double headroom,
+            float progress,
+            double temp,
+            String thermalZone,
+            String statusText,
+            String recipeName,
+            String recipeDisplay,
+            String phaseName,
+            int phaseIndex,
+            int phaseTotal,
+            long remainingTicks,
+            long elapsedTicks,
+            String stateStr
+    ) {
+        int clampedPercent = (int) Math.round(Math.max(0f, Math.min(1f, progress)) * 100f);
+        int remainingPercent = 100 - clampedPercent;
+        long remTicks = Math.max(0L, remainingTicks);
+        long elTicks = Math.max(0L, elapsedTicks);
+        String bar = StationPlaceholderFormatter.buildProgressBar(progress, 10);
+        String timeStr = remainingTicks >= 0 ? StationPlaceholderFormatter.formatRemainingTime(remainingTicks) : "0s";
+        String safeZone = (thermalZone != null && !thermalZone.isBlank()) ? thermalZone : "NONE";
+        String safeRecipeName = (recipeName != null && !recipeName.isBlank()) ? recipeName : "Idle";
+        String safeRecipeDisplay = (recipeDisplay != null && !recipeDisplay.isBlank()) ? recipeDisplay : safeRecipeName;
+        String safePhaseName = (phaseName != null && !phaseName.isBlank()) ? phaseName : "";
+        String safeStatus = statusText != null ? statusText : "";
+        String safeState = (stateStr != null && !stateStr.isBlank()) ? stateStr : "IDLE";
+
+        Map<String, Object> extra = new java.util.HashMap<>();
+        extra.put("display.headroom", headroom);
+        extra.put("recipe_name", safeRecipeName);
+        extra.put("recipe_display", safeRecipeDisplay);
+        extra.put("phase_name", safePhaseName);
+        extra.put("phase_index", phaseIndex);
+        extra.put("phase_total", phaseTotal);
+        extra.put("progress_percent", clampedPercent);
+        extra.put("progress_percent_left", remainingPercent);
+        extra.put("progress_bar", bar);
+        extra.put("progress_ticks", elTicks);
+        extra.put("progress_ticks_left", remTicks);
+        extra.put("progress_seconds", elTicks / 20L);
+        extra.put("progress_seconds_left", remTicks / 20L);
+        extra.put("time_remaining", timeStr);
+        extra.put("state", safeState);
+        extra.put("temperature_c", String.format(Locale.ROOT, "%.1f°C", temp));
+        extra.put("thermal_zone", safeZone);
+        extra.put("status_message", safeStatus);
+        extra.put("process.progress", (double) progress);
+        extra.put("process.progress_percent", clampedPercent);
+        extra.put("process.progress_bar", bar);
+        extra.put("process.recipe_name", safeRecipeName);
+        extra.put("process.recipe_display", safeRecipeDisplay);
+        extra.put("process.phase_name", safePhaseName);
+        extra.put("process.phase_index", phaseIndex);
+        extra.put("process.phase_total", phaseTotal);
+        extra.put("process.time_remaining", timeStr);
+        extra.put("process.state", safeState);
+
+        return StationStateEvaluator.buildContext(station, process).withAll(extra);
     }
 }

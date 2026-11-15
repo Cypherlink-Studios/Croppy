@@ -216,37 +216,19 @@ public final class PaperStationTicker implements Runnable {
 
         Optional<ThermalComponent> thermalOpt = station.getComponent(ThermalComponent.class);
         double temp = thermalOpt.map(ThermalComponent::getTemperature).orElse(20.0);
-        boolean isHeated = thermalOpt.map(ThermalComponent::isHeated).orElse(false);
-        String thermalZone = thermalOpt.map(t -> t.getThermalZone().name()).orElse("COLD");
 
         Optional<ProcessComponent> processOpt = station.getComponent(ProcessComponent.class);
         ProcessInstance process = (processOpt.isPresent() && processOpt.get().hasActiveProcess())
                 ? processOpt.get().getActiveProcess().get()
                 : null;
 
-        boolean processFinished = process != null && process.getState() == ProcessState.COMPLETED;
-        long idleTicks = processFinished ? process.getPhaseElapsedTicks() : 0L;
-
         Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
         boolean hasInputs = storageOpt.isPresent() && !storageOpt.get().getInputs().isEmpty();
-        boolean hasOutputs = storageOpt.isPresent() && !storageOpt.get().getOutputs().isEmpty();
-        int inputCount = storageOpt.map(s -> s.getInputs().stream().mapToInt(StoredItem::amount).sum()).orElse(0);
-        boolean isEmpty = !hasInputs && !hasOutputs;
 
-        EvaluationContext context = EvaluationContext.empty()
+        EvaluationContext context = StationStateEvaluator.buildContext(station, process)
                 .with("world.name", world.getName())
                 .with("world.time", world.getTime())
-                .with("station.light", world.getBlockAt(pos.x(), pos.y(), pos.z()).getLightLevel())
-                .with("station.temperature", temp)
-                .with("station.is_heated", isHeated)
-                .with("station.thermal_zone", thermalZone)
-                .with("process.state", process != null ? process.getState().name() : "NONE")
-                .with("process.finished", processFinished)
-                .with("process.idle_ticks", idleTicks)
-                .with("storage.has_inputs", hasInputs)
-                .with("storage.has_outputs", hasOutputs)
-                .with("storage.is_empty", isEmpty)
-                .with("storage.input_count", inputCount);
+                .with("station.light", world.getBlockAt(pos.x(), pos.y(), pos.z()).getLightLevel());
 
         // 2. Process Engine Tick & Auto-Initiation
         if (process != null && (process.getState() == ProcessState.RUNNING || process.getState() == ProcessState.AWAITING_INPUT)) {

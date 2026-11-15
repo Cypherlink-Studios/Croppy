@@ -28,6 +28,7 @@ import dev.darkblade.croppy.core.process.ProcessEngine;
 import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.rule.RuleExecution;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
+import dev.darkblade.croppy.core.station.StationStateEvaluator;
 import dev.darkblade.croppy.platform.paper.i18n.PaperMessageService;
 import dev.darkblade.croppy.platform.paper.item.ItemFactory;
 import dev.darkblade.croppy.platform.paper.menu.PaperMenuService;
@@ -222,36 +223,16 @@ public final class StationInteractListener implements Listener {
             });
         }
 
-        // Build evaluation context
-        Optional<ThermalComponent> thermalOpt = station.getComponent(ThermalComponent.class);
-        double temp = thermalOpt.map(ThermalComponent::getTemperature).orElse(20.0);
-        boolean isHeated = thermalOpt.map(ThermalComponent::isHeated).orElse(false);
-        String thermalZone = thermalOpt.map(t -> t.getThermalZone().name()).orElse("COLD");
+        // Build unified evaluation context using all component providers and typed variables
+        ProcessInstance activeProcess = station.getComponent(ProcessComponent.class)
+                .flatMap(ProcessComponent::getActiveProcess)
+                .orElse(null);
 
-        Optional<ProcessComponent> processOpt = station.getComponent(ProcessComponent.class);
-        boolean processFinished = processOpt.isPresent()
-                && processOpt.get().hasActiveProcess()
-                && processOpt.get().getActiveProcess().get().getState() == ProcessState.COMPLETED;
-
-        Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
-        boolean hasInputs = storageOpt.isPresent() && !storageOpt.get().getInputs().isEmpty();
-        boolean hasOutputs = storageOpt.isPresent() && !storageOpt.get().getOutputs().isEmpty();
-        int inputCount = storageOpt.map(s -> s.getInputs().stream().mapToInt(StoredItem::amount).sum()).orElse(0);
-        boolean isEmpty = !hasInputs && !hasOutputs;
-
-        EvaluationContext evalCtx = EvaluationContext.empty()
+        EvaluationContext evalCtx = StationStateEvaluator.buildContext(station, activeProcess)
                 .with("player", player)
                 .with("player.is_sneaking", player.isSneaking())
-                .with("station.temperature", temp)
-                .with("station.is_heated", isHeated)
-                .with("station.thermal_zone", thermalZone)
-                .with("process.finished", processFinished)
                 .with("hand.is_empty", emptyHand)
-                .with("hand.item", handItemKey != null ? handItemKey.asString() : "")
-                .with("storage.has_inputs", hasInputs)
-                .with("storage.has_outputs", hasOutputs)
-                .with("storage.is_empty", isEmpty)
-                .with("storage.input_count", inputCount);
+                .with("hand.item", handItemKey != null ? handItemKey.asString() : "");
 
         // 1. Evaluate RuleEngine triggers for STATION_INTERACT
         List<RuleExecution> ruleExecutions = ruleEngine.evaluateAndApply(RuleTrigger.STATION_INTERACT, station, evalCtx);
