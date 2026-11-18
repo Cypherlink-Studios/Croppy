@@ -1,4 +1,4 @@
-# Croppy
+<h1 align="center">Croppy</h1>
 
 <p align="center">
   <strong>Extensible, modular agriculture, soil simulation, and culinary engine for modern Minecraft Paper servers.</strong>
