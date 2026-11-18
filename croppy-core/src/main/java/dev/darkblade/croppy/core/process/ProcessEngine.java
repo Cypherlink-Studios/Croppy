@@ -15,16 +15,23 @@ import dev.darkblade.croppy.core.recipe.RecipeMatcher;
 import dev.darkblade.croppy.core.station.component.DefaultProcessComponent;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Finite state machine execution engine governing process lifecycles and transitions.
  */
 public final class ProcessEngine implements Service {
 
+    private static final Logger LOGGER = Logger.getLogger(ProcessEngine.class.getName());
+
     private final ProcessRegistry processRegistry;
     private final RecipeRegistry recipeRegistry;
     private final RecipeMatcher recipeMatcher;
     private final ProcessDisplayFormatter displayFormatter;
+    private final List<ProcessListener> listeners = new CopyOnWriteArrayList<>();
 
     public ProcessEngine(ProcessRegistry processRegistry) {
         this(processRegistry, null, new RecipeMatcher(), new ProcessDisplayFormatter());
@@ -44,6 +51,44 @@ public final class ProcessEngine implements Service {
         this.recipeRegistry = recipeRegistry;
         this.recipeMatcher = recipeMatcher != null ? recipeMatcher : new RecipeMatcher();
         this.displayFormatter = displayFormatter != null ? displayFormatter : new ProcessDisplayFormatter();
+    }
+
+    /**
+     * Registers a lifecycle listener to receive process events.
+     *
+     * @param listener listener to add
+     */
+    public void addListener(ProcessListener listener) {
+        Objects.requireNonNull(listener, "listener cannot be null");
+        listeners.add(listener);
+    }
+
+    /**
+     * Unregisters a previously registered lifecycle listener.
+     *
+     * @param listener listener to remove
+     */
+    public void removeListener(ProcessListener listener) {
+        if (listener != null) {
+            listeners.remove(listener);
+        }
+    }
+
+    /**
+     * Clears all registered process listeners.
+     */
+    public void clearListeners() {
+        listeners.clear();
+    }
+
+    private void notifyListeners(Consumer<ProcessListener> action) {
+        for (ProcessListener listener : listeners) {
+            try {
+                action.accept(listener);
+            } catch (Throwable t) {
+                LOGGER.log(Level.WARNING, "ProcessListener threw an exception", t);
+            }
+        }
     }
 
     /**
@@ -72,6 +117,9 @@ public final class ProcessEngine implements Service {
 
         StorageComponent storage = storageOpt.get();
         List<StoredItem> currentInputs = storage.getInputs();
+        if (currentInputs.isEmpty()) {
+            return false;
+        }
         Key stationKey = station.getStationKey();
 
         // 1. Try matching registered culinary recipes first
@@ -112,6 +160,7 @@ public final class ProcessEngine implements Service {
 
                         processComp.setActiveProcess(instance);
                         updateStationDisplay(station, procDef, instance, initialPhase, context);
+                        notifyListeners(l -> l.onProcessStart(station, procDef, instance));
                         return true;
                     }
                 }
@@ -121,6 +170,10 @@ public final class ProcessEngine implements Service {
         // 2. Fallback: match standalone process definitions directly
         for (ProcessDefinition def : processRegistry.values()) {
             if (!def.stationKey().equals(stationKey)) {
+                continue;
+            }
+
+            if (def.inputRequirements().isEmpty() && isRecipeBackedProcess(def.key())) {
                 continue;
             }
 
@@ -150,10 +203,45 @@ public final class ProcessEngine implements Service {
 
             processComp.setActiveProcess(instance);
             updateStationDisplay(station, def, instance, initialPhase, context);
+            notifyListeners(l -> l.onProcessStart(station, def, instance));
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Clears a finished ({@link ProcessState#COMPLETED} or {@link ProcessState#FAILED}) process and resets
+     * the station's display state when no outputs remain in storage.
+     *
+     * @param station station instance
+     * @return true if a finished process was cleared
+     */
+    public boolean clearFinishedProcessIfOutputsEmpty(StationInstance station) {
+        Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
+        if (storageOpt.isPresent() && !storageOpt.get().getOutputs().isEmpty()) {
+            return false;
+        }
+
+        Optional<ProcessComponent> processOpt = station.getComponent(ProcessComponent.class);
+        if (processOpt.isEmpty() || !processOpt.get().hasActiveProcess()) {
+            return false;
+        }
+
+        ProcessState state = processOpt.get().getActiveProcess().get().getState();
+        if (state != ProcessState.COMPLETED && state != ProcessState.FAILED) {
+            return false;
+        }
+
+        processOpt.get().clearActiveProcess();
+        station.getComponent(DisplayComponent.class).ifPresent(display -> {
+            List<StoredItem> inputs = storageOpt.map(StorageComponent::getInputs).orElse(List.of());
+            display.setDisplayedItem(inputs.isEmpty() ? null : inputs.get(0).itemKey());
+            display.setStatusText(null);
+            display.setProgress(0.0f);
+            display.setDirty(true);
+        });
+        return true;
     }
 
     /**
@@ -188,6 +276,8 @@ public final class ProcessEngine implements Service {
         }
 
         PhaseDefinition phase = def.phases().get(instance.getCurrentPhaseIndex());
+
+        notifyListeners(l -> l.onProcessTick(station, def, instance, deltaTicks));
 
         // Evaluation context enriched with process variables
         EvaluationContext phaseContext = context
@@ -281,7 +371,8 @@ public final class ProcessEngine implements Service {
      * Advances to the next phase or finishes the process.
      */
     public void advancePhase(StationInstance station, ProcessDefinition def, ProcessInstance instance, EvaluationContext context) {
-        int nextIndex = instance.getCurrentPhaseIndex() + 1;
+        int previousIndex = instance.getCurrentPhaseIndex();
+        int nextIndex = previousIndex + 1;
         instance.resetPhaseElapsedTicks();
 
         if (nextIndex >= def.phases().size()) {
@@ -295,6 +386,7 @@ public final class ProcessEngine implements Service {
                 instance.setState(ProcessState.RUNNING);
             }
             updateStationDisplay(station, def, instance, nextPhase, context);
+            notifyListeners(l -> l.onPhaseAdvance(station, def, instance, previousIndex, nextIndex));
         }
     }
 
@@ -307,6 +399,7 @@ public final class ProcessEngine implements Service {
 
         Optional<StorageComponent> storageOpt = station.getComponent(StorageComponent.class);
         Key resultDisplayKey = null;
+        List<StoredItem> resolvedOutputs = List.of();
 
         if (storageOpt.isPresent()) {
             StorageComponent storage = storageOpt.get();
@@ -327,6 +420,7 @@ public final class ProcessEngine implements Service {
                 outputs = List.of();
             }
 
+            resolvedOutputs = List.copyOf(outputs);
             for (StoredItem out : outputs) {
                 storage.addOutput(out);
             }
@@ -348,6 +442,9 @@ public final class ProcessEngine implements Service {
             display.setProgress(1.0f);
             display.setDirty(true);
         }
+
+        final List<StoredItem> finalOutputs = resolvedOutputs;
+        notifyListeners(l -> l.onProcessComplete(station, def, instance, finalOutputs));
     }
 
     public void handlePhaseFailure(StationInstance station, ProcessDefinition def, ProcessInstance instance, PhaseDefinition phase) {
@@ -370,6 +467,8 @@ public final class ProcessEngine implements Service {
             display.setProgress(0.0f);
             display.setDirty(true);
         });
+
+        notifyListeners(l -> l.onProcessFail(station, def, instance, phase));
     }
 
     private void updateStationDisplay(StationInstance station, ProcessDefinition def, ProcessInstance instance, PhaseDefinition phase, EvaluationContext context) {
@@ -402,6 +501,18 @@ public final class ProcessEngine implements Service {
         instance.setContextVariable("progress", (double) fraction);
         display.setProgress(fraction);
         display.setDirty(true);
+    }
+
+    private boolean isRecipeBackedProcess(Key processKey) {
+        if (recipeRegistry == null) {
+            return false;
+        }
+        for (RecipeDefinition recipe : recipeRegistry.values()) {
+            if (recipe.processKey().equals(processKey)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean matchesInputs(List<StoredItem> requirements, List<StoredItem> available) {

@@ -415,6 +415,7 @@ public final class StationInteractListener implements Listener {
             display.setDirty(true);
         });
 
+        processEngine.clearFinishedProcessIfOutputsEmpty(station);
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
     }
 
@@ -447,6 +448,7 @@ public final class StationInteractListener implements Listener {
             display.setDirty(true);
         });
 
+        processEngine.clearFinishedProcessIfOutputsEmpty(station);
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
     }
 
@@ -573,6 +575,14 @@ public final class StationInteractListener implements Listener {
         if (!outputs.isEmpty()) {
             for (StoredItem out : outputs) {
                 player.getInventory().addItem(createBukkitItem(out));
+            }
+            if (!processEngine.clearFinishedProcessIfOutputsEmpty(station)) {
+                station.getComponent(DisplayComponent.class).ifPresent(display -> {
+                    display.setDisplayedItem(null);
+                    display.setStatusText(null);
+                    display.setProgress(0.0f);
+                    display.setDirty(true);
+                });
             }
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
             return;

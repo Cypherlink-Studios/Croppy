@@ -3,11 +3,13 @@ package dev.darkblade.croppy.platform.paper.addon;
 import dev.darkblade.croppy.api.addon.AddonContext;
 import dev.darkblade.croppy.api.addon.AddonDescription;
 import dev.darkblade.croppy.api.crafting.CraftingRecipeRegistry;
+import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.growth.GrowthModifier;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
+import dev.darkblade.croppy.api.item.ItemMetadataRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.logging.CroppyLogger;
 import dev.darkblade.croppy.api.logging.JulCroppyLogger;
@@ -15,12 +17,15 @@ import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.logging.LogLevel;
 import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.menu.MenuRegistry;
+import dev.darkblade.croppy.api.process.ProcessListener;
 import dev.darkblade.croppy.api.process.ProcessRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
 import dev.darkblade.croppy.api.station.StationRegistry;
+import dev.darkblade.croppy.api.storage.DatabaseService;
+import dev.darkblade.croppy.api.variable.DataTypeRegistry;
 import dev.darkblade.croppy.core.CroppyCore;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
@@ -72,6 +77,7 @@ public class PaperAddonContext implements AddonContext {
     private final Set<Key> registeredMenus = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredInteractions = ConcurrentHashMap.newKeySet();
     private final Set<GrowthModifier> registeredGrowthModifiers = ConcurrentHashMap.newKeySet();
+    private final Set<ProcessListener> registeredProcessListeners = ConcurrentHashMap.newKeySet();
 
     public PaperAddonContext(AddonDescription description,
                              Path dataFolder,
@@ -292,6 +298,39 @@ public class PaperAddonContext implements AddonContext {
     @Override
     public MenuRegistry getMenuRegistry() {
         return core != null ? core.getMenuRegistry() : null;
+    }
+
+    @Override
+    public DataTypeRegistry getDataTypeRegistry() {
+        return core != null ? core.getDataTypeRegistry() : null;
+    }
+
+    @Override
+    public RecipeDiscoveryEngine getRecipeDiscoveryEngine() {
+        return core != null ? core.getRecipeDiscoveryEngine() : null;
+    }
+
+    @Override
+    public ItemMetadataRegistry getItemMetadataRegistry() {
+        return core != null ? core.getItemMetadataRegistry() : null;
+    }
+
+    @Override
+    public Optional<DatabaseService> getDatabaseService() {
+        if (core == null) {
+            return Optional.empty();
+        }
+        return core.getService(DatabaseService.class)
+                .map(db -> db.scoped("addon_" + DatabaseService.sanitizeIdentifier(description.id()) + "_"));
+    }
+
+    @Override
+    public void registerProcessListener(ProcessListener listener) {
+        Objects.requireNonNull(listener, "listener cannot be null");
+        if (core != null) {
+            core.getProcessEngine().addListener(listener);
+            registeredProcessListeners.add(listener);
+        }
     }
 
     @Override
@@ -521,6 +560,10 @@ public class PaperAddonContext implements AddonContext {
         return Collections.unmodifiableSet(registeredGrowthModifiers);
     }
 
+    public Set<ProcessListener> getRegisteredProcessListeners() {
+        return Collections.unmodifiableSet(registeredProcessListeners);
+    }
+
     public ExecutorService getManagedExecutor() {
         return managedExecutor;
     }
@@ -529,6 +572,12 @@ public class PaperAddonContext implements AddonContext {
      * Shuts down the managed executor and awaits brief termination.
      */
     public void shutdownExecutor() {
+        if (core != null) {
+            for (ProcessListener listener : registeredProcessListeners) {
+                core.getProcessEngine().removeListener(listener);
+            }
+            registeredProcessListeners.clear();
+        }
         managedExecutor.shutdownNow();
         try {
             if (!managedExecutor.awaitTermination(2, TimeUnit.SECONDS)) {

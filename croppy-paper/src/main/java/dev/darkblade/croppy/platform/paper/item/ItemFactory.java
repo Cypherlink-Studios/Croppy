@@ -4,6 +4,8 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.item.ItemDefinition;
+import dev.darkblade.croppy.api.item.ItemMetadataContributor;
+import dev.darkblade.croppy.api.item.ItemMetadataRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
 import dev.darkblade.croppy.api.logging.CroppyLogger;
 import dev.darkblade.croppy.api.logging.JulCroppyLogger;
@@ -43,12 +45,15 @@ public class ItemFactory {
 
     public static final String ITEM_ID_KEY_NAME = "item_id";
     public static final String CATEGORY_KEY_NAME = "category";
+    public static final String QUALITY_KEY_NAME = "quality";
 
     private final Plugin plugin;
     private final Server server;
     private final ItemRegistry itemRegistry;
+    private final ItemMetadataRegistry metadataRegistry;
     private final NamespacedKey itemIdKey;
     private final NamespacedKey categoryKey;
+    private final NamespacedKey qualityKey;
     private final MiniMessage miniMessage;
     private final CroppyLogger logger;
 
@@ -57,22 +62,33 @@ public class ItemFactory {
     }
 
     public ItemFactory(Plugin plugin, ItemRegistry itemRegistry, CroppyLogger logger) {
-        this(plugin, (plugin != null ? plugin.getServer() : null), itemRegistry, logger);
+        this(plugin, (plugin != null ? plugin.getServer() : null), itemRegistry, null, logger);
+    }
+
+    public ItemFactory(Plugin plugin, ItemRegistry itemRegistry, ItemMetadataRegistry metadataRegistry, CroppyLogger logger) {
+        this(plugin, (plugin != null ? plugin.getServer() : null), itemRegistry, metadataRegistry, logger);
     }
 
     public ItemFactory(Plugin plugin, Server server, ItemRegistry itemRegistry) {
-        this(plugin, server, itemRegistry,
+        this(plugin, server, itemRegistry, null,
                 (plugin != null && plugin.getLogger() != null)
                         ? new JulCroppyLogger(plugin.getLogger())
                         : NoOpCroppyLogger.INSTANCE);
     }
 
     public ItemFactory(Plugin plugin, Server server, ItemRegistry itemRegistry, CroppyLogger logger) {
+        this(plugin, server, itemRegistry, null, logger);
+    }
+
+    public ItemFactory(Plugin plugin, Server server, ItemRegistry itemRegistry,
+                       ItemMetadataRegistry metadataRegistry, CroppyLogger logger) {
         this.plugin = plugin;
         this.server = server;
         this.itemRegistry = Objects.requireNonNull(itemRegistry, "itemRegistry cannot be null");
+        this.metadataRegistry = metadataRegistry;
         this.itemIdKey = new NamespacedKey("croppy", ITEM_ID_KEY_NAME);
         this.categoryKey = new NamespacedKey("croppy", CATEGORY_KEY_NAME);
+        this.qualityKey = new NamespacedKey("croppy", QUALITY_KEY_NAME);
         this.miniMessage = MiniMessage.miniMessage();
         this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
@@ -171,17 +187,119 @@ public class ItemFactory {
      */
     public ItemStack createBukkitItem(StoredItem stored) {
         Objects.requireNonNull(stored, "stored cannot be null");
+        ItemStack item;
         Optional<ItemDefinition> defOpt = itemRegistry.get(stored.itemKey());
         if (defOpt.isPresent()) {
-            return createItemStack(defOpt.get(), stored.amount());
+            item = createItemStack(defOpt.get(), stored.amount());
+        } else {
+            // Vanilla item fallback: untouched ItemStack unless quality or contributor metadata applies
+            Material mat = resolveMaterial(stored.itemKey().value());
+            if (mat == Material.BARRIER && !stored.itemKey().value().equalsIgnoreCase("BARRIER")) {
+                mat = resolveMaterial(stored.itemKey().asString());
+            }
+            item = createRawVanillaItemStack(mat, Math.max(1, stored.amount()));
         }
 
-        // Vanilla item fallback: untouched ItemStack
-        Material mat = resolveMaterial(stored.itemKey().value());
-        if (mat == Material.BARRIER && !stored.itemKey().value().equalsIgnoreCase("BARRIER")) {
-            mat = resolveMaterial(stored.itemKey().asString());
+        applyStoredMetadata(item, stored);
+        return item;
+    }
+
+    private void applyStoredMetadata(ItemStack item, StoredItem stored) {
+        boolean hasQuality = stored.quality() > 0;
+        List<ItemMetadataContributor> contributors = List.of();
+        if (metadataRegistry != null && !metadataRegistry.isEmpty()) {
+            List<ItemMetadataContributor> matched = new ArrayList<>();
+            for (ItemMetadataContributor contributor : metadataRegistry.values()) {
+                if (contributor.supports(stored)) {
+                    matched.add(contributor);
+                }
+            }
+            contributors = matched;
         }
-        return createRawVanillaItemStack(mat, Math.max(1, stored.amount()));
+        if (!hasQuality && contributors.isEmpty()) {
+            return;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return;
+        }
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        if (hasQuality) {
+            pdc.set(qualityKey, PersistentDataType.INTEGER, stored.quality());
+        }
+
+        List<Component> extraLore = new ArrayList<>();
+        for (ItemMetadataContributor contributor : contributors) {
+            Map<String, String> tags = contributor.serializeMetadata(stored);
+            if (tags != null) {
+                for (Map.Entry<String, String> entry : tags.entrySet()) {
+                    pdc.set(parseOrMakeKey(entry.getKey()), PersistentDataType.STRING, entry.getValue());
+                }
+            }
+            List<String> loreLines = contributor.formatLore(stored);
+            if (loreLines != null) {
+                for (String line : loreLines) {
+                    extraLore.add(miniMessage.deserialize(line).decoration(TextDecoration.ITALIC, false));
+                }
+            }
+        }
+
+        if (!extraLore.isEmpty()) {
+            List<Component> currentLore = meta.lore();
+            List<Component> combined = currentLore != null ? new ArrayList<>(currentLore) : new ArrayList<>();
+            combined.addAll(extraLore);
+            meta.lore(combined);
+        }
+
+        item.setItemMeta(meta);
+    }
+
+    /**
+     * Reconstructs a domain {@link StoredItem} from a Bukkit {@link ItemStack}, preserving
+     * quality and any metadata extracted by registered {@link ItemMetadataContributor}s.
+     *
+     * @param item the Bukkit ItemStack
+     * @return optional containing the reconstructed StoredItem, or empty if null/air
+     */
+    public Optional<StoredItem> toStoredItem(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return Optional.empty();
+        }
+        Key itemKey = getItemId(item)
+                .orElseGet(() -> Key.of("minecraft", item.getType().name().toLowerCase(Locale.ROOT)));
+
+        int quality = 0;
+        Map<String, Object> properties = new java.util.LinkedHashMap<>();
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            Integer storedQuality = pdc.get(qualityKey, PersistentDataType.INTEGER);
+            if (storedQuality != null) {
+                quality = storedQuality;
+            }
+            if (metadataRegistry != null && !metadataRegistry.isEmpty()) {
+                Map<String, String> stringTags = new java.util.LinkedHashMap<>();
+                for (NamespacedKey key : pdc.getKeys()) {
+                    String val = pdc.get(key, PersistentDataType.STRING);
+                    if (val != null) {
+                        stringTags.put(key.namespace() + ":" + key.getKey(), val);
+                    }
+                }
+                if (!stringTags.isEmpty()) {
+                    for (ItemMetadataContributor contributor : metadataRegistry.values()) {
+                        Map<String, Object> extracted = contributor.deserializeMetadata(itemKey, stringTags);
+                        if (extracted != null && !extracted.isEmpty()) {
+                            properties.putAll(extracted);
+                        }
+                    }
+                }
+            }
+        }
+
+        return Optional.of(new StoredItem(itemKey, item.getAmount(), quality, properties));
     }
 
     public ItemStack createRawVanillaItemStack(Material material, int amount) {

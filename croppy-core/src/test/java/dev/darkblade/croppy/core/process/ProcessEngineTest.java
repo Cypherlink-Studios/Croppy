@@ -239,6 +239,7 @@ class ProcessEngineTest {
         );
         registry.register(proc);
 
+        storage.addInput(StoredItem.of(Key.of("croppy", "water"), 1));
         assertTrue(engine.tryStartProcess(station, EvaluationContext.empty()));
         ProcessInstance pi = station.getComponent(ProcessComponent.class).get().getActiveProcess().get();
 
@@ -315,5 +316,118 @@ class ProcessEngineTest {
         assertEquals(1, outputs.size());
         assertEquals(soupItemKey, outputs.get(0).itemKey());
         assertEquals(1, outputs.get(0).amount());
+    }
+
+    @Test
+    void testTryStartProcessRejectsEmptyStorageEvenWithEmptyProcessRequirements() {
+        dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry recipeRegistry = new dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry();
+        engine = new ProcessEngine(registry, recipeRegistry);
+
+        Key procKey = Key.of("croppy", "coffee_grinding");
+        ProcessDefinition proc = new ProcessDefinition(
+                procKey,
+                "Coffee Grinding",
+                stationDef.key(),
+                List.of(),
+                Expression.ALWAYS_TRUE,
+                List.of(PhaseDefinition.timed("grind", 40, Expression.ALWAYS_TRUE)),
+                null,
+                null,
+                1,
+                Map.of()
+        );
+        registry.register(proc);
+
+        // No inputs placed in storage -> must not start
+        assertFalse(engine.tryStartProcess(station, EvaluationContext.empty()));
+        assertFalse(station.getComponent(ProcessComponent.class).orElseThrow().hasActiveProcess());
+    }
+
+    @Test
+    void testTryStartProcessRejectsRecipeBackedProcessWithUnmatchedInputs() {
+        dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry recipeRegistry = new dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry();
+        engine = new ProcessEngine(registry, recipeRegistry);
+
+        Key beansKey = Key.of("croppy", "roasted_beans");
+        Key wrongItemKey = Key.of("minecraft", "dirt");
+        Key groundKey = Key.of("croppy", "ground_coffee");
+        Key procKey = Key.of("croppy", "coffee_grinding");
+
+        dev.darkblade.croppy.api.recipe.RecipeDefinition recipe = new dev.darkblade.croppy.api.recipe.RecipeDefinition(
+                Key.of("croppy", "coffee_grinding_recipe"),
+                "Coffee Grinding",
+                Key.of("croppy", "grinding"),
+                stationDef.key(),
+                procKey,
+                List.of(StoredItem.of(beansKey, 1)),
+                groundKey,
+                1,
+                null,
+                false,
+                List.of(),
+                Map.of()
+        );
+        recipeRegistry.register(recipe);
+
+        ProcessDefinition proc = new ProcessDefinition(
+                procKey,
+                "Coffee Grinding",
+                stationDef.key(),
+                List.of(), // Inputs governed by recipe
+                Expression.ALWAYS_TRUE,
+                List.of(PhaseDefinition.timed("grind", 40, Expression.ALWAYS_TRUE)),
+                null,
+                null,
+                1,
+                Map.of()
+        );
+        registry.register(proc);
+
+        // Put wrong item into storage -> must not fall back to standalone process
+        storage.addInput(StoredItem.of(wrongItemKey, 1));
+        assertFalse(engine.tryStartProcess(station, EvaluationContext.empty()));
+        assertFalse(station.getComponent(ProcessComponent.class).orElseThrow().hasActiveProcess());
+    }
+
+    @Test
+    void testClearFinishedProcessIfOutputsEmpty() {
+        Key tomatoKey = Key.of("croppy", "tomato");
+        Key soupKey = Key.of("croppy", "tomato_soup");
+
+        ProcessDefinition proc = new ProcessDefinition(
+                Key.of("croppy", "soup_proc"),
+                "Tomato Soup",
+                stationDef.key(),
+                List.of(StoredItem.of(tomatoKey, 1)),
+                Expression.ALWAYS_TRUE,
+                List.of(PhaseDefinition.timed("cook", 20, Expression.ALWAYS_TRUE)),
+                new QualityOutputResolver(soupKey, 1),
+                soupKey,
+                1,
+                Map.of()
+        );
+        registry.register(proc);
+
+        storage.addInput(StoredItem.of(tomatoKey, 1));
+        assertTrue(engine.tryStartProcess(station, EvaluationContext.empty()));
+        engine.tick(station, 20, EvaluationContext.empty());
+
+        ProcessComponent pc = station.getComponent(ProcessComponent.class).orElseThrow();
+        DisplayComponent display = station.getComponent(DisplayComponent.class).orElseThrow();
+        assertEquals(ProcessState.COMPLETED, pc.getActiveProcess().orElseThrow().getState());
+        assertFalse(storage.getOutputs().isEmpty());
+
+        // Outputs still present -> must NOT clear completed process
+        assertFalse(engine.clearFinishedProcessIfOutputsEmpty(station));
+        assertTrue(pc.hasActiveProcess());
+
+        // Extract outputs -> must clear completed process and reset display
+        storage.extractOutputs();
+        assertTrue(engine.clearFinishedProcessIfOutputsEmpty(station));
+        assertFalse(pc.hasActiveProcess());
+        assertTrue(display.getDisplayedItem().isEmpty());
+        assertEquals("", display.getStatusText());
+        assertEquals(0.0f, display.getProgress(), 0.001f);
+        assertTrue(display.isDirty());
     }
 }

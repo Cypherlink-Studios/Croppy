@@ -177,3 +177,14 @@ Pure domain contracts let addons inspect and influence crop simulation (see [Gro
 * **`StageAdvanceInterceptor`**: `@FunctionalInterface` (`shouldAdvance(crop, species, fromStage, toStage)`) to approve or veto stage transitions.
 * **`UnwateredPolicy`**: Immutable record with factory methods `pause()`, `slow(multiplier)`, `decay(amount)`, and `wither(maxDryDays)`.
 * **`WitherHandler`**: `@FunctionalInterface` (`onWither(crop, species)`) invoked when a crop exceeds its dry-day threshold.
+
+---
+
+## 6. Addon Extension Ports (`DatabaseService`, `ProcessListener`, `ItemMetadataContributor`)
+
+`AddonContext` provides direct access to platform-independent persistence, process lifecycle hooks, and item metadata round-tripping—automatically scoped and cleaned up on addon disable:
+
+* **Scoped SQLite Pool (`getDatabaseService()`)**: Returns a `DatabaseService` scoped to the addon's sanitized table prefix (`addon_<id>_`). Use `table("my_table")` (validated against `[a-zA-Z0-9_]+`) with `execute(...)`, `query(...)`, or `getConnection()` to share Croppy's HikariCP pool without table collisions.
+* **Process Lifecycle Hooks (`registerProcessListener(ProcessListener)`)**: Subscribes to `ProcessEngine` callbacks (`onProcessStart`, `onProcessTick`, `onPhaseAdvance`, `onProcessComplete`, `onProcessFail`). Exceptions inside listeners are isolated and tracked listeners are automatically unregistered on addon disable.
+* **Item Metadata & Quality Round-Trip (`getItemMetadataRegistry()`, `ItemMetadataContributor`)**: Registers contributors that serialize `StoredItem.properties()` into namespaced PDC tags (`serializeMetadata`), append MiniMessage lore (`formatLore`), and restore domain properties in `ItemFactory.toStoredItem(ItemStack)` (`deserializeMetadata`).
+* **Typed Variables & Discovery (`getDataTypeRegistry()`, `getRecipeDiscoveryEngine()`)**: Exposes custom `VariableDataType` registration and programmatic recipe discovery queries/grants.

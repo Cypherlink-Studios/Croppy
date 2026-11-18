@@ -32,7 +32,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -42,7 +44,12 @@ import java.util.function.Function;
 public final class StationBinaryCodec {
 
     private static final int MAGIC = 0x53544154; // 'STAT'
-    public static final int CURRENT_VERSION = 5;
+    public static final int CURRENT_VERSION = 6;
+    private static final byte TAG_STRING = 1;
+    private static final byte TAG_INT = 2;
+    private static final byte TAG_LONG = 3;
+    private static final byte TAG_DOUBLE = 4;
+    private static final byte TAG_BOOLEAN = 5;
     private static final DataTypeRegistry DEFAULT_DATA_TYPE_REGISTRY = new DefaultDataTypeRegistry();
 
     private StationBinaryCodec() {}
@@ -85,6 +92,7 @@ public final class StationBinaryCodec {
                         out.writeUTF(item.itemKey().asString());
                         out.writeInt(item.amount());
                         out.writeInt(item.quality());
+                        writeScalarMap(out, item.properties());
                     }
 
                     List<StoredItem> outputs = storage.getOutputs();
@@ -93,6 +101,7 @@ public final class StationBinaryCodec {
                         out.writeUTF(item.itemKey().asString());
                         out.writeInt(item.amount());
                         out.writeInt(item.quality());
+                        writeScalarMap(out, item.properties());
                     }
                 }
 
@@ -107,6 +116,7 @@ public final class StationBinaryCodec {
                     out.writeInt(process.getCurrentPhaseIndex());
                     out.writeLong(process.getPhaseElapsedTicks());
                     out.writeLong(process.getTotalElapsedTicks());
+                    writeScalarMap(out, process.getContextVariables());
                 }
 
                 // 3. Display Component
@@ -233,14 +243,16 @@ public final class StationBinaryCodec {
                         Key itemKey = Key.parse(in.readUTF());
                         int amount = in.readInt();
                         int quality = in.readInt();
-                        storage.addInput(StoredItem.of(itemKey, amount, quality));
+                        Map<String, Object> props = (version >= 6) ? readScalarMap(in) : Map.of();
+                        storage.addInput(new StoredItem(itemKey, amount, quality, props));
                     }
                     int outputCount = in.readInt();
                     for (int j = 0; j < outputCount; j++) {
                         Key itemKey = Key.parse(in.readUTF());
                         int amount = in.readInt();
                         int quality = in.readInt();
-                        storage.addOutput(StoredItem.of(itemKey, amount, quality));
+                        Map<String, Object> props = (version >= 6) ? readScalarMap(in) : Map.of();
+                        storage.addOutput(new StoredItem(itemKey, amount, quality, props));
                     }
                     station.setComponent(StorageComponent.class, storage);
                 }
@@ -254,6 +266,9 @@ public final class StationBinaryCodec {
                     long phaseTicks = in.readLong();
                     long totalTicks = in.readLong();
                     DefaultProcessInstance process = new DefaultProcessInstance(processKey, state, phaseIndex, phaseTicks, totalTicks);
+                    if (version >= 6) {
+                        readScalarMap(in).forEach(process::setContextVariable);
+                    }
                     station.setComponent(ProcessComponent.class, new DefaultProcessComponent(process));
                 } else {
                     station.setComponent(ProcessComponent.class, new DefaultProcessComponent());
@@ -330,15 +345,18 @@ public final class StationBinaryCodec {
             int inCount = in.readInt();
             for (int i = 0; i < inCount; i++) {
                 in.readUTF(); in.readInt(); in.readInt();
+                if (version >= 6) readScalarMap(in);
             }
             int outCount = in.readInt();
             for (int i = 0; i < outCount; i++) {
                 in.readUTF(); in.readInt(); in.readInt();
+                if (version >= 6) readScalarMap(in);
             }
         }
         boolean hasProcess = in.readBoolean();
         if (hasProcess) {
             in.readUTF(); in.readUTF(); in.readInt(); in.readLong(); in.readLong();
+            if (version >= 6) readScalarMap(in);
         }
         boolean hasDisplay = in.readBoolean();
         if (hasDisplay) {
@@ -375,5 +393,66 @@ public final class StationBinaryCodec {
                 VariableStoreBinaryCodec.skip(in);
             }
         }
+    }
+
+    private static void writeScalarMap(DataOutputStream out, Map<String, Object> map) throws IOException {
+        if (map == null || map.isEmpty()) {
+            out.writeInt(0);
+            return;
+        }
+        List<Map.Entry<String, Object>> serializable = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            Object v = entry.getValue();
+            if (v instanceof String || v instanceof Integer || v instanceof Long
+                    || v instanceof Double || v instanceof Float || v instanceof Boolean) {
+                serializable.add(entry);
+            }
+        }
+        out.writeInt(serializable.size());
+        for (Map.Entry<String, Object> entry : serializable) {
+            out.writeUTF(entry.getKey());
+            Object v = entry.getValue();
+            if (v instanceof String s) {
+                out.writeByte(TAG_STRING);
+                out.writeUTF(s);
+            } else if (v instanceof Integer i) {
+                out.writeByte(TAG_INT);
+                out.writeInt(i);
+            } else if (v instanceof Long l) {
+                out.writeByte(TAG_LONG);
+                out.writeLong(l);
+            } else if (v instanceof Double d) {
+                out.writeByte(TAG_DOUBLE);
+                out.writeDouble(d);
+            } else if (v instanceof Float f) {
+                out.writeByte(TAG_DOUBLE);
+                out.writeDouble(f.doubleValue());
+            } else if (v instanceof Boolean b) {
+                out.writeByte(TAG_BOOLEAN);
+                out.writeBoolean(b);
+            }
+        }
+    }
+
+    private static Map<String, Object> readScalarMap(DataInputStream in) throws IOException {
+        int count = in.readInt();
+        if (count <= 0) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>(count);
+        for (int i = 0; i < count; i++) {
+            String key = in.readUTF();
+            byte tag = in.readByte();
+            Object val = switch (tag) {
+                case TAG_STRING -> in.readUTF();
+                case TAG_INT -> in.readInt();
+                case TAG_LONG -> in.readLong();
+                case TAG_DOUBLE -> in.readDouble();
+                case TAG_BOOLEAN -> in.readBoolean();
+                default -> throw new IOException("Unknown scalar tag: " + tag);
+            };
+            result.put(key, val);
+        }
+        return result;
     }
 }

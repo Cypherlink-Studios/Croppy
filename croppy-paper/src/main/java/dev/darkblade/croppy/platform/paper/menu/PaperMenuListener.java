@@ -239,11 +239,13 @@ public final class PaperMenuListener implements Listener {
         syncStorageFromGui(holder);
         if (event.getPlayer() instanceof Player player && holder.getStation().isPresent()) {
             StationInstance station = holder.getStation().get();
-            PaperMenuTicker ticker = (menuService != null) ? menuService.getTicker() : null;
-            EvaluationContext ctx = (ticker != null)
-                    ? ticker.enrichContext(holder.getContext(), station, player)
-                    : holder.getContext().with("player", player);
-            processEngine.tryStartProcess(station, ctx);
+            if (!hasStartProcessButton(holder.getMenu())) {
+                PaperMenuTicker ticker = (menuService != null) ? menuService.getTicker() : null;
+                EvaluationContext ctx = (ticker != null)
+                        ? ticker.enrichContext(holder.getContext(), station, player)
+                        : holder.getContext().with("player", player);
+                processEngine.tryStartProcess(station, ctx);
+            }
         }
     }
 
@@ -574,13 +576,13 @@ public final class PaperMenuListener implements Listener {
             return;
         }
 
-        StorageComponent storage = storageOpt.get();
-        storage.clear();
-
         Inventory inv = holder.getInventory();
         if (inv == null) {
             return;
         }
+
+        StorageComponent storage = storageOpt.get();
+        storage.clear();
 
         MenuDefinition menu = holder.getMenu();
 
@@ -613,6 +615,8 @@ public final class PaperMenuListener implements Listener {
             }
             display.setDirty(true);
         });
+
+        processEngine.clearFinishedProcessIfOutputsEmpty(station);
     }
 
     private Key resolveItemKey(ItemStack item) {

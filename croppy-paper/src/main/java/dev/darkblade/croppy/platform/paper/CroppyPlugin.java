@@ -6,6 +6,7 @@ import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.species.Species;
 import dev.darkblade.croppy.api.species.StageDefinition;
 import dev.darkblade.croppy.api.storage.CropStorage;
+import dev.darkblade.croppy.api.storage.DatabaseService;
 import dev.darkblade.croppy.api.world.ChunkPosition;
 import dev.darkblade.croppy.core.CroppyCore;
 import dev.darkblade.croppy.core.fertilizer.DefaultFertilizerRegistry;
@@ -87,6 +88,7 @@ public class CroppyPlugin extends JavaPlugin {
 
     private CroppyCore core;
     private CropStorage storage;
+    private dev.darkblade.croppy.platform.paper.storage.SqliteDatabaseService databaseService;
     private LibbyDependencyLoader libbyLoader;
     private PaperGrowthTicker growthTicker;
     private PaperEnvironmentProvider environmentProvider;
@@ -288,8 +290,15 @@ public class CroppyPlugin extends JavaPlugin {
 
             runPhase(2, "Storage", () -> {
                 this.libbyLoader = new LibbyDependencyLoader(this, logger);
+                this.libbyLoader.loadDatabaseDrivers();
                 this.storage = CropStorageFactory.create(this, libbyLoader, logger);
                 this.core.setStorage(storage);
+                String sqliteFile = getConfig().getString("storage.sqlite.file", "crops.db");
+                int maxPoolSize = getConfig().getInt("storage.sqlite.pool.maximum-pool-size", 5);
+                long connTimeout = getConfig().getLong("storage.sqlite.pool.connection-timeout", 30000L);
+                this.databaseService = new dev.darkblade.croppy.platform.paper.storage.SqliteDatabaseService(
+                        getDataFolder().toPath().resolve(sqliteFile), maxPoolSize, connTimeout, logger);
+                this.core.registerService(DatabaseService.class, this.databaseService);
                 this.stationStorage = new dev.darkblade.croppy.platform.paper.storage.PdcStationStorage(this,
                         core.getStationRegistry(), core.getDataTypeRegistry());
                 return this.pluginConfig.getStorageType().toUpperCase(Locale.ROOT) + " backend ready";
@@ -794,7 +803,7 @@ public class CroppyPlugin extends JavaPlugin {
 
         YamlItemLoader itemLoader = new YamlItemLoader();
         int loaded = itemLoader.loadAllCategories(itemsDir, this.croppyLogger, core.getItemRegistry());
-        this.itemFactory = new ItemFactory(this, core.getItemRegistry(), this.croppyLogger);
+        this.itemFactory = new ItemFactory(this, core.getItemRegistry(), core.getItemMetadataRegistry(), this.croppyLogger);
         this.croppyLogger.debug(LogChannel.LOADER, () -> "Registered " + loaded + " custom items across "
                 + core.getItemRegistry().getCategories().size() + " categories.");
     }
@@ -1093,6 +1102,14 @@ public class CroppyPlugin extends JavaPlugin {
                 logger.warn(LogChannel.ADDON, "Error disabling addons during shutdown", t);
             }
             this.addonManager = null;
+        }
+        if (this.databaseService != null) {
+            try {
+                this.databaseService.shutdown();
+            } catch (Throwable t) {
+                logger.warn(LogChannel.STORAGE, "Error shutting down shared SQLite database service", t);
+            }
+            this.databaseService = null;
         }
 
         if (this.resourcePackService != null) {

@@ -173,15 +173,15 @@ public final class StationGuiListener implements Listener {
         Inventory inv = holder.getInventory();
         ItemStack inItem = inv.getItem(INPUT_SLOT);
         if (inItem != null && !inItem.getType().isAir()) {
-            Key key = resolveItemKey(inItem);
-            storage.addInput(StoredItem.of(key, inItem.getAmount()));
+            itemFactory.toStoredItem(inItem).ifPresent(storage::addInput);
         }
 
         ItemStack outItem = inv.getItem(OUTPUT_SLOT);
         if (outItem != null && !outItem.getType().isAir()) {
-            Key key = resolveItemKey(outItem);
-            storage.addOutput(StoredItem.of(key, outItem.getAmount()));
+            itemFactory.toStoredItem(outItem).ifPresent(storage::addOutput);
         }
+
+        processEngine.clearFinishedProcessIfOutputsEmpty(station);
     }
 
     private Key resolveItemKey(ItemStack item) {

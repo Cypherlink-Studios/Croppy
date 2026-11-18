@@ -30,6 +30,17 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.11.0"
+    releaseDate: "2026-11-17"
+    reference: "v0.11.0"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added addon core prerequisites (DatabaseService with table-prefix isolation, ProcessListener lifecycle hooks, ItemMetadataContributor/ItemMetadataRegistry, StationBinaryCodec v3 property/context serialization, and SqliteDatabaseService); fixed station processes auto-starting without inputs and reset station holograms to idle upon extracting all outputs."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.10.0"
     releaseDate: "2026-11-15"
     reference: "21b0eba"
@@ -38,9 +49,6 @@ versions:
     minecraft:
       - "1.21.x"
 
-  # -------------------------------------------------------------
-  # ARCHIVED VERSIONS (HISTORICAL)
-  # -------------------------------------------------------------
   - version: "0.9.1"
     releaseDate: "2026-11-14"
     reference: "v0.9.1"

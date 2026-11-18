@@ -177,3 +177,14 @@ Los contratos puros de dominio permiten inspeccionar e influir en la simulación
 * **`StageAdvanceInterceptor`**: `@FunctionalInterface` (`shouldAdvance(crop, species, fromStage, toStage)`) para aprobar o vetar transiciones de etapa.
 * **`UnwateredPolicy`**: Record inmutable con fábricas `pause()`, `slow(multiplier)`, `decay(amount)` y `wither(maxDryDays)`.
 * **`WitherHandler`**: `@FunctionalInterface` (`onWither(crop, species)`) invocado cuando un cultivo excede su umbral de días sin riego.
+
+---
+
+## 6. Puertos de Extensión para Addons (`DatabaseService`, `ProcessListener`, `ItemMetadataContributor`)
+
+`AddonContext` expone acceso directo a persistencia independiente de plataforma, hooks del ciclo de vida de procesos y preservación de metadatos de ítems, con aislamiento y limpieza automática al deshabilitar el addon:
+
+* **Pool SQLite Aislado (`getDatabaseService()`)**: Devuelve un `DatabaseService` acotado al prefijo sanitizado del addon (`addon_<id>_`). Usa `table("mi_tabla")` (validado con `[a-zA-Z0-9_]+`) junto con `execute(...)`, `query(...)` o `getConnection()` para compartir el pool HikariCP de Croppy sin colisiones.
+* **Hooks de Ciclo de Vida (`registerProcessListener(ProcessListener)`)**: Suscribe callbacks a `ProcessEngine` (`onProcessStart`, `onProcessTick`, `onPhaseAdvance`, `onProcessComplete`, `onProcessFail`). Las excepciones en listeners quedan aisladas y se desregistran automáticamente al deshabilitar el addon.
+* **Metadatos y Calidad de Ítems (`getItemMetadataRegistry()`, `ItemMetadataContributor`)**: Registra contribuidores que serializan `StoredItem.properties()` en tags PDC (`serializeMetadata`), añaden lore MiniMessage (`formatLore`) y restauran propiedades de dominio en `ItemFactory.toStoredItem(ItemStack)` (`deserializeMetadata`).
+* **Variables Tipadas y Descubrimiento (`getDataTypeRegistry()`, `getRecipeDiscoveryEngine()`)**: Expone el registro de `VariableDataType` personalizados y consultas/otorgamiento programático de descubrimiento de recetas.
