@@ -30,6 +30,17 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.12.0"
+    releaseDate: "2026-11-23"
+    reference: "v0.12.0"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Added StationActionContributor/StationActionRegistry for addon-driven station menu actions, extended ItemMetadataContributor with resolveItemModel and resolveDisplayName overrides, preserved StoredItem metadata when syncing station GUI slots, and enforced deterministic YAML resource loading order for addon JARs."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.11.0"
     releaseDate: "2026-11-17"
     reference: "v0.11.0"

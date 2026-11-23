@@ -23,6 +23,7 @@ import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
+import dev.darkblade.croppy.api.station.StationActionRegistry;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.DatabaseService;
 import dev.darkblade.croppy.api.variable.DataTypeRegistry;
@@ -313,6 +314,11 @@ public class PaperAddonContext implements AddonContext {
     @Override
     public ItemMetadataRegistry getItemMetadataRegistry() {
         return core != null ? core.getItemMetadataRegistry() : null;
+    }
+
+    @Override
+    public StationActionRegistry getStationActionRegistry() {
+        return core != null ? core.getStationActionRegistry() : null;
     }
 
     @Override

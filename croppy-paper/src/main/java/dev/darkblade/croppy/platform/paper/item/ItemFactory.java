@@ -205,18 +205,8 @@ public class ItemFactory {
     }
 
     private void applyStoredMetadata(ItemStack item, StoredItem stored) {
-        boolean hasQuality = stored.quality() > 0;
-        List<ItemMetadataContributor> contributors = List.of();
-        if (metadataRegistry != null && !metadataRegistry.isEmpty()) {
-            List<ItemMetadataContributor> matched = new ArrayList<>();
-            for (ItemMetadataContributor contributor : metadataRegistry.values()) {
-                if (contributor.supports(stored)) {
-                    matched.add(contributor);
-                }
-            }
-            contributors = matched;
-        }
-        if (!hasQuality && contributors.isEmpty()) {
+        List<ItemMetadataContributor> contributors = matchingContributors(stored);
+        if (stored.quality() <= 0 && contributors.isEmpty()) {
             return;
         }
 
@@ -225,15 +215,42 @@ public class ItemFactory {
             return;
         }
 
+        applyStoredMetadataToMeta(meta, stored, contributors);
+        item.setItemMeta(meta);
+    }
+
+    void applyStoredMetadataToMeta(ItemMeta meta, StoredItem stored) {
+        applyStoredMetadataToMeta(meta, stored, matchingContributors(stored));
+    }
+
+    private List<ItemMetadataContributor> matchingContributors(StoredItem stored) {
+        if (metadataRegistry == null || metadataRegistry.isEmpty()) {
+            return List.of();
+        }
+        List<ItemMetadataContributor> matched = new ArrayList<>();
+        for (ItemMetadataContributor contributor : metadataRegistry.values()) {
+            if (contributor.supports(stored)) {
+                matched.add(contributor);
+            }
+        }
+        return matched;
+    }
+
+    private void applyStoredMetadataToMeta(ItemMeta meta, StoredItem stored, List<ItemMetadataContributor> contributors) {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        if (hasQuality) {
+        if (stored.quality() > 0 && pdc != null) {
             pdc.set(qualityKey, PersistentDataType.INTEGER, stored.quality());
         }
 
         List<Component> extraLore = new ArrayList<>();
         for (ItemMetadataContributor contributor : contributors) {
+            contributor.resolveDisplayName(stored).ifPresent(name ->
+                    meta.displayName(miniMessage.deserialize(name).decoration(TextDecoration.ITALIC, false)));
+            contributor.resolveItemModel(stored).ifPresent(modelKey ->
+                    meta.setItemModel(new NamespacedKey(modelKey.namespace(), modelKey.value())));
+
             Map<String, String> tags = contributor.serializeMetadata(stored);
-            if (tags != null) {
+            if (tags != null && pdc != null) {
                 for (Map.Entry<String, String> entry : tags.entrySet()) {
                     pdc.set(parseOrMakeKey(entry.getKey()), PersistentDataType.STRING, entry.getValue());
                 }
@@ -252,8 +269,6 @@ public class ItemFactory {
             combined.addAll(extraLore);
             meta.lore(combined);
         }
-
-        item.setItemMeta(meta);
     }
 
     /**

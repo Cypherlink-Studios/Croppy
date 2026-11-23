@@ -426,13 +426,21 @@ public class PaperAddonManager extends DefaultAddonManager {
         YamlCraftingRecipeLoader craftingLoader = new YamlCraftingRecipeLoader();
 
         try (JarFile jar = new JarFile(jarPath.toFile())) {
-            Enumeration<JarEntry> entries = jar.entries();
-            while (entries.hasMoreElements()) {
-                JarEntry entry = entries.nextElement();
+            List<JarEntry> yamlEntries = new java.util.ArrayList<>();
+            Enumeration<JarEntry> rawEntries = jar.entries();
+            while (rawEntries.hasMoreElements()) {
+                JarEntry entry = rawEntries.nextElement();
                 String name = entry.getName().replace('\\', '/');
-                if (entry.isDirectory() || (!name.endsWith(".yml") && !name.endsWith(".yaml"))) {
-                    continue;
+                if (!entry.isDirectory() && (name.endsWith(".yml") || name.endsWith(".yaml"))) {
+                    yamlEntries.add(entry);
                 }
+            }
+            yamlEntries.sort(java.util.Comparator
+                    .comparingInt((JarEntry e) -> jarLoadPriority(e.getName().replace('\\', '/')))
+                    .thenComparing(e -> e.getName().replace('\\', '/')));
+
+            for (JarEntry entry : yamlEntries) {
+                String name = entry.getName().replace('\\', '/');
 
                 // 1. Crops
                 if (name.startsWith("crops/")) {
@@ -534,6 +542,18 @@ public class PaperAddonManager extends DefaultAddonManager {
         } catch (IOException e) {
             logger.warn(LogChannel.ADDON, "Error reading JAR file " + jarPath, e);
         }
+    }
+
+    private static int jarLoadPriority(String name) {
+        if (name.startsWith("items/")) return 0;
+        if (name.startsWith("crops/")) return 1;
+        if (name.startsWith("stations/")) return 2;
+        if (name.startsWith("processes/")) return 3;
+        if (name.startsWith("recipes/")) return 4;
+        if (name.startsWith("menus/")) return 5;
+        if (name.startsWith("interactions/")) return 6;
+        if (name.startsWith("crafting/")) return 7;
+        return 8;
     }
 
     @Override

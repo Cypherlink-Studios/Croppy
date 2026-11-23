@@ -142,7 +142,7 @@ public class ArcaneFarmingAddon implements CroppyAddon, Listener {
 * **Logging**: `getLogger()` (bridged JUL `Logger`) and `getCroppyLogger()` (`CroppyLogger` scoped to `Addon:<id>`).
 * **Configuration**: `getConfig()`, `saveDefaultConfig()`, `reloadConfig()`, `saveConfig()`.
 * **Concurrency**: `runAsync(Runnable)` submits tasks to a daemon executor drained automatically on disable.
-* **Domain Registries**: 12 registry accessors (see [Ports & Registries](./ports-and-registries.md#2-domain-registries-via-addoncontext)).
+* **Domain Registries**: 12 core definition registries plus `ItemMetadataRegistry` and `StationActionRegistry` (see [Ports & Registries](./ports-and-registries.md#2-domain-registries-via-addoncontext)).
 * **Platform Adapter**: `getPlatformAdapter(PaperAddonContext.class)` exposes `registerListener(Listener)`, `trackTask(BukkitTask)`, `trackGrowthModifier(GrowthModifier)`, and `track*` helpers for manual key registrations.
 
 ---
@@ -180,11 +180,13 @@ Pure domain contracts let addons inspect and influence crop simulation (see [Gro
 
 ---
 
-## 6. Addon Extension Ports (`DatabaseService`, `ProcessListener`, `ItemMetadataContributor`)
+## 6. Addon Extension Ports (`DatabaseService`, `ProcessListener`, `ItemMetadataContributor`, `StationActionContributor`)
 
-`AddonContext` provides direct access to platform-independent persistence, process lifecycle hooks, and item metadata round-tripping—automatically scoped and cleaned up on addon disable:
+`AddonContext` provides direct access to platform-independent persistence, process lifecycle hooks, station menu actions, and item metadata round-tripping—automatically scoped and cleaned up on addon disable (remember to unregister custom `ItemMetadataContributor` and `StationActionContributor` keys in `onDisable`):
 
 * **Scoped SQLite Pool (`getDatabaseService()`)**: Returns a `DatabaseService` scoped to the addon's sanitized table prefix (`addon_<id>_`). Use `table("my_table")` (validated against `[a-zA-Z0-9_]+`) with `execute(...)`, `query(...)`, or `getConnection()` to share Croppy's HikariCP pool without table collisions.
 * **Process Lifecycle Hooks (`registerProcessListener(ProcessListener)`)**: Subscribes to `ProcessEngine` callbacks (`onProcessStart`, `onProcessTick`, `onPhaseAdvance`, `onProcessComplete`, `onProcessFail`). Exceptions inside listeners are isolated and tracked listeners are automatically unregistered on addon disable.
-* **Item Metadata & Quality Round-Trip (`getItemMetadataRegistry()`, `ItemMetadataContributor`)**: Registers contributors that serialize `StoredItem.properties()` into namespaced PDC tags (`serializeMetadata`), append MiniMessage lore (`formatLore`), and restore domain properties in `ItemFactory.toStoredItem(ItemStack)` (`deserializeMetadata`).
+* **Item Metadata & Quality Round-Trip (`getItemMetadataRegistry()`, `ItemMetadataContributor`)**: Registers contributors that serialize `StoredItem.properties()` into namespaced PDC tags (`serializeMetadata`), override `item_model` keys (`resolveItemModel`) and MiniMessage display names (`resolveDisplayName`), append MiniMessage lore (`formatLore`), and restore domain properties in `ItemFactory.toStoredItem(ItemStack)` (`deserializeMetadata`)—preserving metadata when syncing station GUI slots.
+* **Station Menu Actions (`getStationActionRegistry()`, `StationActionContributor`)**: Registers contributors handling `START_PROCESS` fallbacks, `EXPERIMENT` / `DISCOVER_RECIPE` overrides, and custom station menu action targets with optional MiniMessage player feedback (`Optional<String>`).
+* **Deterministic JAR Resource Order**: YAML definitions inside addon JARs are loaded in dependency order (`items/` → `crops/` → `stations/` → `processes/` → `recipes/` → `menus/` → `interactions/` → `crafting/`).
 * **Typed Variables & Discovery (`getDataTypeRegistry()`, `getRecipeDiscoveryEngine()`)**: Exposes custom `VariableDataType` registration and programmatic recipe discovery queries/grants.

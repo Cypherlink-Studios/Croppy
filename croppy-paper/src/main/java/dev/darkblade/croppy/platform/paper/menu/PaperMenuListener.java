@@ -12,6 +12,8 @@ import dev.darkblade.croppy.api.menu.MenuActionType;
 import dev.darkblade.croppy.api.menu.MenuDefinition;
 import dev.darkblade.croppy.api.menu.SlotDefinition;
 import dev.darkblade.croppy.api.menu.SlotType;
+import dev.darkblade.croppy.api.station.StationActionContributor;
+import dev.darkblade.croppy.api.station.StationActionRegistry;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
@@ -64,6 +66,7 @@ public final class PaperMenuListener implements Listener {
     private PaperMenuService menuService;
     private PaperMessageService messageService;
     private dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler;
+    private StationActionRegistry stationActionRegistry;
     private RecipeRegistry recipeRegistry;
     private RecipeDiscoveryEngine discoveryEngine;
     private RecipeDetailMenuController recipeDetailController;
@@ -122,6 +125,10 @@ public final class PaperMenuListener implements Listener {
 
     public void setExperimentationHandler(dev.darkblade.croppy.platform.paper.discovery.StationExperimentationHandler experimentationHandler) {
         this.experimentationHandler = experimentationHandler;
+    }
+
+    public void setStationActionRegistry(StationActionRegistry stationActionRegistry) {
+        this.stationActionRegistry = stationActionRegistry;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -362,6 +369,9 @@ public final class PaperMenuListener implements Listener {
                                 ? ticker.enrichContext(holder.getContext(), station, player)
                                 : holder.getContext().with("player", player);
                         boolean started = processEngine.tryStartProcess(station, freshContext);
+                        if (!started && tryDispatchStationAction(player, station, "START_PROCESS")) {
+                            started = true;
+                        }
                         if (started) {
                             EvaluationContext updatedContext = (ticker != null)
                                     ? ticker.enrichContext(freshContext, station, player)
@@ -398,7 +408,7 @@ public final class PaperMenuListener implements Listener {
                         }
                     } else if ("EXPERIMENT".equalsIgnoreCase(target) || "DISCOVER_RECIPE".equalsIgnoreCase(target)) {
                         syncStorageFromGui(holder);
-                        if (experimentationHandler != null) {
+                        if (!tryDispatchStationAction(player, station, "EXPERIMENT") && experimentationHandler != null) {
                             experimentationHandler.handleExperimentation(player, station);
                         }
                     } else if ("CANCEL_PROCESS".equalsIgnoreCase(target)) {
@@ -448,6 +458,9 @@ public final class PaperMenuListener implements Listener {
                                 );
                             }
                         });
+                    } else if (tryDispatchStationAction(player, station, target)) {
+                        renderer.populateStorageContents(holder);
+                        renderer.refreshDynamicSlots(holder);
                     }
                 }
             }
@@ -590,8 +603,7 @@ public final class PaperMenuListener implements Listener {
         for (int slot : menu.getSlotsForType(SlotType.INPUT)) {
             ItemStack inItem = inv.getItem(slot);
             if (inItem != null && !inItem.getType().isAir()) {
-                Key key = resolveItemKey(inItem);
-                storage.addInput(StoredItem.of(key, inItem.getAmount()));
+                itemFactory.toStoredItem(inItem).ifPresent(storage::addInput);
             }
         }
 
@@ -599,8 +611,7 @@ public final class PaperMenuListener implements Listener {
         for (int slot : menu.getSlotsForType(SlotType.OUTPUT)) {
             ItemStack outItem = inv.getItem(slot);
             if (outItem != null && !outItem.getType().isAir()) {
-                Key key = resolveItemKey(outItem);
-                storage.addOutput(StoredItem.of(key, outItem.getAmount()));
+                itemFactory.toStoredItem(outItem).ifPresent(storage::addOutput);
             }
         }
 
@@ -617,6 +628,25 @@ public final class PaperMenuListener implements Listener {
         });
 
         processEngine.clearFinishedProcessIfOutputsEmpty(station);
+    }
+
+    private boolean tryDispatchStationAction(Player player, StationInstance station, String actionName) {
+        if (stationActionRegistry == null || stationActionRegistry.isEmpty()) {
+            return false;
+        }
+        for (StationActionContributor contributor : stationActionRegistry.values()) {
+            if (contributor.supports(station, actionName)) {
+                Optional<String> result = contributor.execute(player.getUniqueId(), station, actionName);
+                if (result.isPresent()) {
+                    String msg = result.get();
+                    if (!msg.isEmpty()) {
+                        player.sendMessage(miniMessage.deserialize(msg));
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private Key resolveItemKey(ItemStack item) {

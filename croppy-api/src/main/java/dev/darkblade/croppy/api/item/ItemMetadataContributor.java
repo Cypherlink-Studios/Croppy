@@ -1,10 +1,12 @@
 package dev.darkblade.croppy.api.item;
 
+import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.identifier.Keyed;
 import dev.darkblade.croppy.api.station.StoredItem;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Platform-independent contributor bridging domain {@link StoredItem} metadata
@@ -50,5 +52,25 @@ public interface ItemMetadataContributor extends Keyed {
      */
     default Map<String, Object> deserializeMetadata(dev.darkblade.croppy.api.identifier.Key itemKey, Map<String, String> pdcTags) {
         return Map.of();
+    }
+
+    /**
+     * Optionally resolves an override {@code item_model} key for the constructed item stack.
+     *
+     * @param item stored item
+     * @return optional item model key (e.g. {@code brewery:item/apple_cider_small})
+     */
+    default Optional<Key> resolveItemModel(StoredItem item) {
+        return Optional.empty();
+    }
+
+    /**
+     * Optionally resolves a MiniMessage display name override for the constructed item stack.
+     *
+     * @param item stored item
+     * @return optional MiniMessage display name
+     */
+    default Optional<String> resolveDisplayName(StoredItem item) {
+        return Optional.empty();
     }
 }

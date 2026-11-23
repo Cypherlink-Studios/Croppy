@@ -477,6 +477,7 @@ public class CroppyPlugin extends JavaPlugin {
         this.menuListener = new dev.darkblade.croppy.platform.paper.menu.PaperMenuListener(this,
                 core.getProcessEngine(), this.itemFactory, this.menuRenderer, this.chatPromptService, this.menuService);
         this.menuListener.setExperimentationHandler(this.experimentationHandler);
+        this.menuListener.setStationActionRegistry(core.getStationActionRegistry());
         this.compendiumController = new dev.darkblade.croppy.platform.paper.menu.CompendiumMenuController(
                 core.getMenuRegistry(),
                 core.getRecipeRegistry(),

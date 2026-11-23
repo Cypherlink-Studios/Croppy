@@ -46,6 +46,8 @@ Enabled addons can query or register domain definitions through `AddonContext`:
 | `getInteractionRegistry()` | `InteractionRegistry` | `api.interaction` |
 | `getRuleRegistry()` | `RuleRegistry` | `api.rule` |
 | `getMenuRegistry()` | `MenuRegistry` | `api.menu` |
+| `getItemMetadataRegistry()` | `ItemMetadataRegistry` | `api.item` |
+| `getStationActionRegistry()` | `StationActionRegistry` | `api.station` |
 
 `DataTypeRegistry` (`api.variable`) additionally exposes `getTyped(Key key, Class<T> valueClass)` for typed variable contracts.
 

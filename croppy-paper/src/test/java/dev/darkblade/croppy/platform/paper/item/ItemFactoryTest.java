@@ -362,6 +362,66 @@ class ItemFactoryTest {
         assertTrue(hasTextureProp, "PlayerProfile must contain 'textures' property with base64 payload");
     }
 
+    @Test
+    @DisplayName("applyStoredMetadataToMeta applies contributor itemModel, displayName, PDC tags, and lore")
+    void testApplyStoredMetadataContributorOverrides() {
+        dev.darkblade.croppy.core.item.DefaultItemMetadataRegistry metaRegistry =
+                new dev.darkblade.croppy.core.item.DefaultItemMetadataRegistry();
+        metaRegistry.register(new dev.darkblade.croppy.api.item.ItemMetadataContributor() {
+            @Override
+            public Key getKey() {
+                return Key.of("brewery", "test_contributor");
+            }
+
+            @Override
+            public boolean supports(dev.darkblade.croppy.api.station.StoredItem item) {
+                return item.properties().containsKey("beverage");
+            }
+
+            @Override
+            public Optional<Key> resolveItemModel(dev.darkblade.croppy.api.station.StoredItem item) {
+                return Optional.of(Key.of("brewery", "item/apple_cider_small"));
+            }
+
+            @Override
+            public Optional<String> resolveDisplayName(dev.darkblade.croppy.api.station.StoredItem item) {
+                return Optional.of("<gold>Artisanal Apple Cider</gold>");
+            }
+
+            @Override
+            public Map<String, String> serializeMetadata(dev.darkblade.croppy.api.station.StoredItem item) {
+                return Map.of("brewery:beverage_key", "brewery:apple_cider");
+            }
+
+            @Override
+            public List<String> formatLore(dev.darkblade.croppy.api.station.StoredItem item) {
+                return List.of("<gray>Volume: <aqua>250 mL</aqua></gray>");
+            }
+        });
+
+        ItemFactory factoryWithContributors = new ItemFactory(null, registry, metaRegistry,
+                dev.darkblade.croppy.api.logging.NoOpCroppyLogger.INSTANCE);
+
+        AtomicInteger cmdSet = new AtomicInteger(-1);
+        AtomicReference<NamespacedKey> itemModelSet = new AtomicReference<>();
+        AtomicReference<Component> nameSet = new AtomicReference<>();
+        AtomicReference<List<Component>> loreSet = new AtomicReference<>();
+        Map<NamespacedKey, Object> pdcMap = new HashMap<>();
+
+        ItemMeta metaProxy = createMockItemMeta(cmdSet, itemModelSet, nameSet, loreSet, pdcMap);
+        dev.darkblade.croppy.api.station.StoredItem stored = new dev.darkblade.croppy.api.station.StoredItem(
+                Key.of("brewery", "small_bottle"), 1, 2, Map.of("beverage", "apple_cider"));
+
+        factoryWithContributors.applyStoredMetadataToMeta(metaProxy, stored);
+
+        assertEquals(new NamespacedKey("brewery", "item/apple_cider_small"), itemModelSet.get());
+        assertNotNull(nameSet.get());
+        assertNotNull(loreSet.get());
+        assertEquals(1, loreSet.get().size());
+        assertEquals(2, pdcMap.get(new NamespacedKey("croppy", "quality")));
+        assertEquals("brewery:apple_cider", pdcMap.get(new NamespacedKey("brewery", "beverage_key")));
+    }
+
     private ItemMeta createMockItemMeta(
             AtomicInteger cmdRef,
             AtomicReference<NamespacedKey> modelRef,

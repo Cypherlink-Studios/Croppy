@@ -14,6 +14,7 @@ import dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry;
 import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
+import dev.darkblade.croppy.api.station.StationActionRegistry;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.DatabaseService;
 import dev.darkblade.croppy.api.variable.DataTypeRegistry;
@@ -128,6 +129,11 @@ public interface AddonContext {
      * @return the global item metadata contributor registry
      */
     ItemMetadataRegistry getItemMetadataRegistry();
+
+    /**
+     * @return the global station menu action contributor registry
+     */
+    StationActionRegistry getStationActionRegistry();
 
     /**
      * Returns an addon-scoped relational {@link DatabaseService} enforcing table-prefix isolation,

@@ -142,7 +142,7 @@ public class ArcaneFarmingAddon implements CroppyAddon, Listener {
 * **Logging**: `getLogger()` (`Logger` JUL conectado) y `getCroppyLogger()` (`CroppyLogger` acotado a `Addon:<id>`).
 * **Configuración**: `getConfig()`, `saveDefaultConfig()`, `reloadConfig()`, `saveConfig()`.
 * **Concurrencia**: `runAsync(Runnable)` envía tareas a un ejecutor daemon drenado automáticamente al deshabilitar.
-* **Registros de Dominio**: 12 accesores a registros (ver [Puertos y Registros](./ports-and-registries.md#2-registros-de-dominio-en-addoncontext)).
+* **Registros de Dominio**: 12 registros de definiciones base más `ItemMetadataRegistry` y `StationActionRegistry` (ver [Puertos y Registros](./ports-and-registries.md#2-registros-de-dominio-en-addoncontext)).
 * **Adaptador de Plataforma**: `getPlatformAdapter(PaperAddonContext.class)` expone `registerListener(Listener)`, `trackTask(BukkitTask)`, `trackGrowthModifier(GrowthModifier)` y métodos `track*` para claves registradas manualmente.
 
 ---
@@ -180,11 +180,13 @@ Los contratos puros de dominio permiten inspeccionar e influir en la simulación
 
 ---
 
-## 6. Puertos de Extensión para Addons (`DatabaseService`, `ProcessListener`, `ItemMetadataContributor`)
+## 6. Puertos de Extensión para Addons (`DatabaseService`, `ProcessListener`, `ItemMetadataContributor`, `StationActionContributor`)
 
-`AddonContext` expone acceso directo a persistencia independiente de plataforma, hooks del ciclo de vida de procesos y preservación de metadatos de ítems, con aislamiento y limpieza automática al deshabilitar el addon:
+`AddonContext` expone acceso directo a persistencia independiente de plataforma, hooks del ciclo de vida de procesos, acciones de menú en estaciones y preservación de metadatos de ítems (recuerda desregistrar tus contribuidores de `ItemMetadataRegistry` y `StationActionRegistry` en `onDisable`):
 
 * **Pool SQLite Aislado (`getDatabaseService()`)**: Devuelve un `DatabaseService` acotado al prefijo sanitizado del addon (`addon_<id>_`). Usa `table("mi_tabla")` (validado con `[a-zA-Z0-9_]+`) junto con `execute(...)`, `query(...)` o `getConnection()` para compartir el pool HikariCP de Croppy sin colisiones.
 * **Hooks de Ciclo de Vida (`registerProcessListener(ProcessListener)`)**: Suscribe callbacks a `ProcessEngine` (`onProcessStart`, `onProcessTick`, `onPhaseAdvance`, `onProcessComplete`, `onProcessFail`). Las excepciones en listeners quedan aisladas y se desregistran automáticamente al deshabilitar el addon.
-* **Metadatos y Calidad de Ítems (`getItemMetadataRegistry()`, `ItemMetadataContributor`)**: Registra contribuidores que serializan `StoredItem.properties()` en tags PDC (`serializeMetadata`), añaden lore MiniMessage (`formatLore`) y restauran propiedades de dominio en `ItemFactory.toStoredItem(ItemStack)` (`deserializeMetadata`).
+* **Metadatos y Calidad de Ítems (`getItemMetadataRegistry()`, `ItemMetadataContributor`)**: Registra contribuidores que serializan `StoredItem.properties()` en tags PDC (`serializeMetadata`), sobrescriben `item_model` (`resolveItemModel`) y nombre visible MiniMessage (`resolveDisplayName`), añaden lore MiniMessage (`formatLore`) y restauran propiedades de dominio en `ItemFactory.toStoredItem(ItemStack)` (`deserializeMetadata`), preservando metadatos al sincronizar slots de estaciones.
+* **Acciones de Menú en Estaciones (`getStationActionRegistry()`, `StationActionContributor`)**: Registra contribuidores para respaldar `START_PROCESS`, interceptar `EXPERIMENT` / `DISCOVER_RECIPE` o manejar acciones personalizadas de menú en estaciones con retroalimentación MiniMessage opcional (`Optional<String>`).
+* **Orden Determinista de Carga en JARs**: Los YAML empaquetados en JARs de addons se cargan en orden de dependencias (`items/` → `crops/` → `stations/` → `processes/` → `recipes/` → `menus/` → `interactions/` → `crafting/`).
 * **Variables Tipadas y Descubrimiento (`getDataTypeRegistry()`, `getRecipeDiscoveryEngine()`)**: Expone el registro de `VariableDataType` personalizados y consultas/otorgamiento programático de descubrimiento de recetas.

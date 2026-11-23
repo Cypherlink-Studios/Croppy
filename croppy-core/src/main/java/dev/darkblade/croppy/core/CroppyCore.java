@@ -13,6 +13,7 @@ import dev.darkblade.croppy.api.recipe.RecipeRegistry;
 import dev.darkblade.croppy.api.registry.Service;
 import dev.darkblade.croppy.api.rule.RuleRegistry;
 import dev.darkblade.croppy.api.species.SpeciesRegistry;
+import dev.darkblade.croppy.api.station.StationActionRegistry;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.api.variable.DataTypeRegistry;
@@ -33,6 +34,7 @@ import dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry;
 import dev.darkblade.croppy.core.rule.DefaultRuleRegistry;
 import dev.darkblade.croppy.core.rule.RuleEngine;
 import dev.darkblade.croppy.core.species.DefaultSpeciesRegistry;
+import dev.darkblade.croppy.core.station.DefaultStationActionRegistry;
 import dev.darkblade.croppy.core.station.DefaultStationManager;
 import dev.darkblade.croppy.core.station.DefaultStationRegistry;
 import dev.darkblade.croppy.core.variable.DefaultDataTypeRegistry;
@@ -61,6 +63,7 @@ public class CroppyCore {
     private final DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
     private final DefaultItemCategoryRegistry itemCategoryRegistry = new DefaultItemCategoryRegistry();
     private final DefaultItemMetadataRegistry itemMetadataRegistry = new DefaultItemMetadataRegistry();
+    private final DefaultStationActionRegistry stationActionRegistry = new DefaultStationActionRegistry();
     private final DefaultStationRegistry stationRegistry = new DefaultStationRegistry();
     private final DefaultProcessRegistry processRegistry = new DefaultProcessRegistry();
     private final DefaultInteractionRegistry interactionRegistry = new DefaultInteractionRegistry();
@@ -107,7 +110,7 @@ public class CroppyCore {
         itemCategoryRegistry.clear();
         itemCategoryRegistry.registerDefaults();
         itemMetadataRegistry.clear();
-        itemMetadataRegistry.clear();
+        stationActionRegistry.clear();
         stationRegistry.clear();
         processRegistry.clear();
         interactionRegistry.clear();
@@ -125,6 +128,7 @@ public class CroppyCore {
         registerService(ItemRegistry.class, itemRegistry);
         registerService(ItemCategoryRegistry.class, itemCategoryRegistry);
         registerService(ItemMetadataRegistry.class, itemMetadataRegistry);
+        registerService(StationActionRegistry.class, stationActionRegistry);
         registerService(StationRegistry.class, stationRegistry);
         registerService(ProcessRegistry.class, processRegistry);
         registerService(RecipeRegistry.class, recipeRegistry);
@@ -151,7 +155,7 @@ public class CroppyCore {
         itemCategoryRegistry.clear();
         itemCategoryRegistry.registerDefaults();
         itemMetadataRegistry.clear();
-        itemMetadataRegistry.clear();
+        stationActionRegistry.clear();
         stationRegistry.clear();
         processRegistry.clear();
         interactionRegistry.clear();
@@ -212,6 +216,13 @@ public class CroppyCore {
      */
     public ItemMetadataRegistry getItemMetadataRegistry() {
         return itemMetadataRegistry;
+    }
+
+    /**
+     * @return the central station action contributor registry
+     */
+    public StationActionRegistry getStationActionRegistry() {
+        return stationActionRegistry;
     }
 
     /**
