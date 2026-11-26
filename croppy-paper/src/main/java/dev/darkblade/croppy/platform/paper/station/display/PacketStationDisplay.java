@@ -33,6 +33,7 @@ public final class PacketStationDisplay {
 
     private final Map<VisualTier, Set<UUID>> tierViewers = new ConcurrentHashMap<>();
     private volatile net.kyori.adventure.text.Component lastRenderedText;
+    private volatile Integer lastBrightnessOverride;
 
     private volatile Double cachedHeadroom;
     private volatile boolean actionFallbackActive;
@@ -136,6 +137,15 @@ public final class PacketStationDisplay {
             viewers.clear();
         }
         this.lastRenderedText = null;
+        this.lastBrightnessOverride = null;
+    }
+
+    public Integer getLastBrightnessOverride() {
+        return lastBrightnessOverride;
+    }
+
+    public void setLastBrightnessOverride(Integer lastBrightnessOverride) {
+        this.lastBrightnessOverride = lastBrightnessOverride;
     }
 
     public net.kyori.adventure.text.Component getLastRenderedText() {

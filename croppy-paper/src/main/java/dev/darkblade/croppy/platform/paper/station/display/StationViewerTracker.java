@@ -17,6 +17,7 @@ import dev.darkblade.croppy.api.station.StationDefinition;
 import dev.darkblade.croppy.api.station.StationInstance;
 import dev.darkblade.croppy.api.station.StationStateDefinition;
 import dev.darkblade.croppy.api.station.component.DisplayComponent;
+import dev.darkblade.croppy.api.station.component.HeatSourceComponent;
 import dev.darkblade.croppy.api.station.component.ProcessComponent;
 import dev.darkblade.croppy.api.station.component.StorageComponent;
 import dev.darkblade.croppy.api.station.component.ThermalComponent;
@@ -366,6 +367,12 @@ public class StationViewerTracker {
 
         StationInteractionBox effectiveInteractBox = activeStateOpt.flatMap(StationStateDefinition::getHitbox).orElse(interactBox);
 
+        Integer ambientBrightness = computeAmbientBrightness(station, world);
+        boolean brightnessChanged = !Objects.equals(display.getLastBrightnessOverride(), ambientBrightness);
+        if (brightnessChanged) {
+            display.setLastBrightnessOverride(ambientBrightness);
+        }
+
         Collection<? extends Player> players = world.getPlayers();
         for (Player player : players) {
             UUID playerId = player.getUniqueId();
@@ -391,7 +398,7 @@ public class StationViewerTracker {
                     if (hideBaseBlock && blockLoc != null) {
                         player.sendBlockChange(blockLoc, world.getBlockAt(pos.x(), pos.y(), pos.z()).getBlockData());
                     }
-                } else if (inRange && viewing && (stateChanged || isDirty)) {
+                } else if (inRange && viewing && (stateChanged || isDirty || brightnessChanged)) {
                     renderer.updateBaseModelMetadata(player, display, baseConfig, activeBaseItem, effectiveBaseTransform);
                     if (hideBaseBlock && barrierData != null && blockLoc != null) {
                         player.sendBlockChange(blockLoc, barrierData);
@@ -409,7 +416,7 @@ public class StationViewerTracker {
                 } else if (!inRange && viewing) {
                     display.removeViewer(VisualTier.PROCESS_ITEM, playerId);
                     renderer.destroyEntities(player, display.getEntityId(VisualTier.PROCESS_ITEM));
-                } else if (inRange && viewing && (isDirty || isHot)) {
+                } else if (inRange && viewing && (isDirty || isHot || brightnessChanged)) {
                     renderer.updateProcessItemMetadata(player, display, procConfig, processItem, temp, thermalZone);
                 }
             } else if (display.isViewing(VisualTier.PROCESS_ITEM, playerId)) {
@@ -660,6 +667,68 @@ public class StationViewerTracker {
                 return null;
             }
         }
+    }
+
+    /**
+     * Computes packed Display brightness override from the station's position and its 6 orthogonal
+     * non-occluding neighbors so stations backed by opaque server blocks (e.g., blast_furnace,
+     * furnace, barrel) do not sample (0, 0) internal chunk light.
+     */
+    Integer computeAmbientBrightness(StationInstance station, World world) {
+        if (station == null || world == null) {
+            return null;
+        }
+
+        BlockPosition pos = station.getPosition();
+        int[][] offsets = {{0, 0, 0}, {0, 1, 0}, {0, -1, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}};
+        int maxBlock = 0;
+        int maxSky = 0;
+        boolean sampled = false;
+
+        for (int[] offset : offsets) {
+            Block block;
+            try {
+                block = world.getBlockAt(pos.x() + offset[0], pos.y() + offset[1], pos.z() + offset[2]);
+            } catch (Exception ignored) {
+                continue;
+            }
+            if (block == null) {
+                continue;
+            }
+
+            boolean occluding = false;
+            try {
+                Material type = block.getType();
+                if (type != null) {
+                    occluding = type.isOccluding();
+                }
+            } catch (Throwable ignored) {
+                // Offline test fallback when Paper Material/Registry is uninitialized
+            }
+            if (occluding) {
+                continue;
+            }
+
+            try {
+                int blockLight = block.getLightFromBlocks() & 0xF;
+                int skyLight = block.getLightFromSky() & 0xF;
+                maxBlock = Math.max(maxBlock, blockLight);
+                maxSky = Math.max(maxSky, skyLight);
+                sampled = true;
+            } catch (Exception ignored) {
+                // Ignore incomplete mock blocks in offline unit tests
+            }
+        }
+
+        boolean isBurning = station.getComponent(HeatSourceComponent.class)
+                .map(HeatSourceComponent::isBurning)
+                .orElse(false);
+        if (isBurning) {
+            maxBlock = Math.max(maxBlock, 13);
+            sampled = true;
+        }
+
+        return sampled ? PacketEventsStationRenderer.packBrightness(maxBlock, maxSky) : null;
     }
 
     public double calculateHeadroom(StationInstance station, World world) {

@@ -128,6 +128,21 @@ class PacketEventsStationRendererTest {
         assertEquals((byte) 0, billboard); // FIXED
     }
 
+    @Test
+    void testApplyBrightnessMetadataPacksBlockAndSkyLight() {
+        int packed = PacketEventsStationRenderer.packBrightness(12, 15);
+        assertEquals((12 << 4) | (15 << 20), packed);
+
+        List<EntityData<?>> metadata = new ArrayList<>();
+        renderer.applyBrightnessMetadata(metadata, packed);
+        Integer value = findData(metadata, PacketEventsStationRenderer.INDEX_BRIGHTNESS);
+        assertEquals(packed, value);
+
+        List<EntityData<?>> unsetMetadata = new ArrayList<>();
+        renderer.applyBrightnessMetadata(unsetMetadata, null);
+        assertNull(findData(unsetMetadata, PacketEventsStationRenderer.INDEX_BRIGHTNESS));
+    }
+
     @SuppressWarnings("unchecked")
     private <T> T findData(List<EntityData<?>> metadata, int index) {
         return (T) metadata.stream()

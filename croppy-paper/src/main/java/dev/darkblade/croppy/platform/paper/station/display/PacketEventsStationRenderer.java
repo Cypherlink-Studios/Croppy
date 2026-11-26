@@ -48,6 +48,7 @@ public class PacketEventsStationRenderer {
     static final int INDEX_ROTATION_LEFT = 13;
     static final int INDEX_ROTATION_RIGHT = 14;
     static final int INDEX_BILLBOARD = 15;
+    static final int INDEX_BRIGHTNESS = 16;
 
     // Item Display specific indices
     static final int INDEX_ITEM = 23;
@@ -114,6 +115,7 @@ public class PacketEventsStationRenderer {
         List<EntityData<?>> metadata = new ArrayList<>();
         DisplayTransform effectiveTransform = (transformOverride != null) ? transformOverride : config.transform();
         applyTransformMetadata(metadata, effectiveTransform, config.billboard(), config.interpolationDuration(), display.getStation().getYaw());
+        applyBrightnessMetadata(metadata, display.getLastBrightnessOverride());
 
         if (isBlock && blockData != null) {
             int blockStateId = SpigotConversionUtil.fromBukkitBlockData(blockData).getGlobalId();
@@ -144,6 +146,7 @@ public class PacketEventsStationRenderer {
 
         DisplayTransform effectiveTransform = (transformOverride != null) ? transformOverride : config.transform();
         applyTransformMetadata(metadata, effectiveTransform, config.billboard(), config.interpolationDuration(), display.getStation().getYaw());
+        applyBrightnessMetadata(metadata, display.getLastBrightnessOverride());
 
         if (item != null) {
             metadata.add(new EntityData(INDEX_ITEM, EntityDataTypes.ITEMSTACK, SpigotConversionUtil.fromBukkitItemStack(item)));
@@ -229,6 +232,7 @@ public class PacketEventsStationRenderer {
         metadata.add(new EntityData(INDEX_ROTATION_LEFT, EntityDataTypes.QUATERNION, rot));
         metadata.add(new EntityData(INDEX_ROTATION_RIGHT, EntityDataTypes.QUATERNION, identity));
         metadata.add(new EntityData(INDEX_BILLBOARD, EntityDataTypes.BYTE, toBillboardByte(config.billboard())));
+        applyBrightnessMetadata(metadata, display.getLastBrightnessOverride());
 
         if (item != null && !item.getType().isAir()) {
             metadata.add(new EntityData(INDEX_ITEM, EntityDataTypes.ITEMSTACK, SpigotConversionUtil.fromBukkitItemStack(item)));
@@ -405,6 +409,21 @@ public class PacketEventsStationRenderer {
         metadata.add(new EntityData(INDEX_ROTATION_LEFT, EntityDataTypes.QUATERNION, rot));
         metadata.add(new EntityData(INDEX_ROTATION_RIGHT, EntityDataTypes.QUATERNION, new Quaternion4f(0.0f, 0.0f, 0.0f, 1.0f)));
         metadata.add(new EntityData(INDEX_BILLBOARD, EntityDataTypes.BYTE, toBillboardByte(billboard)));
+    }
+
+    void applyBrightnessMetadata(List<EntityData<?>> metadata, Integer brightnessOverride) {
+        if (brightnessOverride != null) {
+            metadata.add(new EntityData(INDEX_BRIGHTNESS, EntityDataTypes.INT, brightnessOverride));
+        }
+    }
+
+    /**
+     * Packs block and sky light levels (0-15) into Minecraft's Display brightness override format.
+     */
+    public static int packBrightness(int blockLight, int skyLight) {
+        int clampedBlock = Math.max(0, Math.min(15, blockLight));
+        int clampedSky = Math.max(0, Math.min(15, skyLight));
+        return (clampedBlock << 4) | (clampedSky << 20);
     }
 
     private byte toBillboardByte(BillboardMode mode) {

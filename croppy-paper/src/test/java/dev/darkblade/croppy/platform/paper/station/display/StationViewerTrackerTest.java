@@ -591,4 +591,110 @@ class StationViewerTrackerTest {
         tracker.invalidateHeadroom(station.getPosition());
         assertNull(display.getCachedHeadroom());
     }
+
+    @Test
+    void testComputeAmbientBrightnessSamplesNonOccludingNeighborsAndUpdatesOnChange() {
+        dev.darkblade.croppy.core.station.component.DefaultDisplayComponent displayComp =
+                new dev.darkblade.croppy.core.station.component.DefaultDisplayComponent();
+        station.setComponent(dev.darkblade.croppy.api.station.component.DisplayComponent.class, displayComp);
+
+        dev.darkblade.croppy.api.station.visual.DisplayLayerConfig baseConfig =
+                new dev.darkblade.croppy.api.station.visual.DisplayLayerConfig(
+                        true, "ITEM", Key.of("croppy", "stove"), null,
+                        dev.darkblade.croppy.api.station.visual.DisplayTransform.DEFAULT,
+                        dev.darkblade.croppy.api.station.visual.BillboardMode.FIXED, 48, 0
+                );
+        StationDefinition stoveDef = new StationDefinition(
+                Key.of("croppy", "stove"),
+                "Stove",
+                "minecraft:barrier",
+                StationInteractionType.HYBRID,
+                1, 0, null, true,
+                List.of(), Map.of(),
+                new dev.darkblade.croppy.api.station.visual.StationVisualDefinition(baseConfig, null, null, true, null)
+        );
+        DefaultStationInstance stove = new DefaultStationInstance(stoveDef.key(), new BlockPosition("world", 10, 64, 20), stoveDef);
+        stove.setComponent(dev.darkblade.croppy.api.station.component.DisplayComponent.class, displayComp);
+
+        final byte[] airBlockLight = {12};
+        final byte[] airSkyLight = {8};
+
+        org.bukkit.block.Block occludingCenter = (org.bukkit.block.Block) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{org.bukkit.block.Block.class},
+                (proxy, method, args) -> {
+                    if ("getType".equals(method.getName())) return org.bukkit.Material.BLAST_FURNACE;
+                    if ("getLightFromBlocks".equals(method.getName())) return (byte) 0;
+                    if ("getLightFromSky".equals(method.getName())) return (byte) 0;
+                    if ("getBlockData".equals(method.getName())) return null;
+                    return null;
+                }
+        );
+
+        org.bukkit.block.Block openAirAbove = (org.bukkit.block.Block) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{org.bukkit.block.Block.class},
+                (proxy, method, args) -> {
+                    if ("getType".equals(method.getName())) return org.bukkit.Material.AIR;
+                    if ("getLightFromBlocks".equals(method.getName())) return airBlockLight[0];
+                    if ("getLightFromSky".equals(method.getName())) return airSkyLight[0];
+                    return null;
+                }
+        );
+
+        UUID playerId = UUID.randomUUID();
+        Player dummyPlayer = (Player) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{Player.class},
+                (proxy, method, args) -> {
+                    if ("getUniqueId".equals(method.getName())) return playerId;
+                    if ("getLocation".equals(method.getName())) return new org.bukkit.Location(null, 10.5, 64.0, 20.5);
+                    return null;
+                }
+        );
+
+        org.bukkit.World testWorld = (org.bukkit.World) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{org.bukkit.World.class},
+                (proxy, method, args) -> {
+                    if ("getPlayers".equals(method.getName())) return List.of(dummyPlayer);
+                    if ("getName".equals(method.getName())) return "world";
+                    if ("getBlockAt".equals(method.getName())) {
+                        int x = (int) args[0];
+                        int y = (int) args[1];
+                        int z = (int) args[2];
+                        if (x == 10 && y == 64 && z == 20) return occludingCenter;
+                        if (x == 10 && y == 65 && z == 20) return openAirAbove;
+                    }
+                    return null;
+                }
+        );
+
+        // 1. Initial sync spawns base model with ambient brightness from openAirAbove (12, 8)
+        tracker.syncStation(stove, testWorld, null);
+        PacketStationDisplay display = tracker.getDisplay(stove.getPosition()).orElseThrow();
+        assertEquals(PacketEventsStationRenderer.packBrightness(12, 8), display.getLastBrightnessOverride());
+        assertEquals(1, testRenderer.spawnBaseCallCount);
+        assertEquals(0, testRenderer.updateBaseCallCount);
+
+        // 2. Same ambient light -> no redundant base model metadata update
+        tracker.syncStation(stove, testWorld, null);
+        assertEquals(0, testRenderer.updateBaseCallCount);
+
+        // 3. Ambient block light changes -> triggers metadata update with new packed brightness
+        airBlockLight[0] = 4;
+        tracker.syncStation(stove, testWorld, null);
+        assertEquals(PacketEventsStationRenderer.packBrightness(4, 8), display.getLastBrightnessOverride());
+        assertEquals(1, testRenderer.updateBaseCallCount);
+
+        // 4. Burning heat source ensures minimum block light of 13
+        dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent heat =
+                new dev.darkblade.croppy.core.station.component.DefaultHeatSourceComponent();
+        heat.setActive(true);
+        heat.startBurn(100);
+        stove.setComponent(dev.darkblade.croppy.api.station.component.HeatSourceComponent.class, heat);
+        tracker.syncStation(stove, testWorld, null);
+        assertEquals(PacketEventsStationRenderer.packBrightness(13, 8), display.getLastBrightnessOverride());
+        assertEquals(2, testRenderer.updateBaseCallCount);
+    }
 }
