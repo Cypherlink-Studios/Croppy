@@ -1,13 +1,15 @@
 schema: spec-driven
 
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+context: |
+  Target runtime: Minecraft Paper 1.21.8+, Java 21 toolchain, Gradle Kotlin DSL multi-module build.
+  Hexagonal module boundaries:
+  - croppy-api: pure Java 21 contracts, records, and ports with zero external dependencies.
+  - croppy-core: pure Java 21 domain engine depending only on croppy-api and SnakeYAML (no Bukkit, Paper, NMS, or Kyori imports).
+  - croppy-integrations/*: isolated optional third-party plugin adapters (WorldGuard, PlaceholderAPI, Vault) and common lifecycle contracts.
+  - croppy-paper: Paper platform adapter, JavaPlugin entrypoint, listeners, persistence, commands (Cloud 2), and visual sync (PacketEvents).
+  Concurrency: Bukkit/Paper world and display state changes must run on the main server thread; SQLite/filesystem I/O must run asynchronously; core managers and registries must be thread-safe.
+  Standards: Standard English for code, comments, and locale keys; MiniMessage formatting for player-facing text (never legacy § section codes) designed for i18n lookup; prefer Java 21 records, Optional returns, and fail-fast parameter validation.
+  Verification gate: all changes must pass `./gradlew.bat test` with zero failures and `openspec validate --all`.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

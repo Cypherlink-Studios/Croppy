@@ -35,12 +35,15 @@ The system SHALL provide an inspection command `/croppy inspect [x y z]` that di
 - **WHEN** an authorized player points directly at an active 3D crop's virtual interaction entity within 5 blocks and runs `/croppy inspect`
 - **THEN** the system resolves the targeted crop from the interaction entity bounding box and displays its detailed status card localized to the player's client locale.
 
-### Requirement: Interactive Inspection Tool
-The system SHALL support an interactive inspection tool item defined in the item registry and tagged with PersistentDataContainer key `croppy:item_id` set to `croppy:inspection_tool` backed by a neutral base material (`minecraft:stick`), inspecting crops on physical block right-click, virtual interaction entity right-click, or raytraced line-of-sight right-click (including supporting farmland), distributable through the centralized item command without relying on dedicated tool appearance keys in `config.yml`.
+### Requirement: Interactive Inspection Tool Item
+The system SHALL support an interactive inspection tool item defined in the item registry with PersistentDataContainer key `croppy:item_id` set to `croppy:inspection_tool` backed by `minecraft:stick`, distributable via `/croppy item give` without relying on dedicated tool appearance keys in `config.yml`.
 
 #### Scenario: Issue inspection tool
 - **WHEN** an administrator runs `/croppy item give tools croppy:inspection_tool`
 - **THEN** the system places the configured inspection tool item into the player's inventory backed by `minecraft:stick` with custom item model `croppy:inspection_tool`.
+
+### Requirement: Interactive Inspection Tool Targeting
+The system SHALL inspect registered crops when a player holding `croppy:inspection_tool` right-clicks a physical crop block, a virtual interaction entity, or supporting farmland via raytraced line-of-sight.
 
 #### Scenario: Right-click crop with inspection tool
 - **WHEN** a player holding the inspection tool right-clicks a registered crop block or aims at it within reach

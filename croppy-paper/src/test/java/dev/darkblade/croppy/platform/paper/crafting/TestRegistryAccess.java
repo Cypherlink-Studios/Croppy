@@ -18,7 +18,9 @@ import java.util.stream.Stream;
  */
 public class TestRegistryAccess implements RegistryAccess {
 
+    // Required by Paper's RegistryAccess interface until the deprecated Class<T> overload is removed.
     @Override
+    @SuppressWarnings({"deprecation", "removal"})
     public <T extends Keyed> Registry<T> getRegistry(Class<T> type) {
         return createMockRegistry(type);
     }
