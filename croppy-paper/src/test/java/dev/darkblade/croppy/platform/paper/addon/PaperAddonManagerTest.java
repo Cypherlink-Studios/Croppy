@@ -63,6 +63,82 @@ class PaperAddonManagerTest {
     }
 
     @Test
+    @DisplayName("PaperAddonManager tracks key ownership and hard-reloads addon with dependent cascade")
+    void testHardReloadWithDependentCascadeAndOwnership() throws IOException {
+        Path addonsDir = tempDir.resolve("addons_reload");
+        Files.createDirectories(addonsDir);
+
+        // Upstream addon 'base-addon'
+        Path baseDir = addonsDir.resolve("base-addon");
+        Files.createDirectories(baseDir.resolve("items/ingredients"));
+        Files.writeString(baseDir.resolve("addon.yml"), """
+                id: "base-addon"
+                name: "Base Addon"
+                version: "1.0.0"
+                namespace: "base_addon"
+                """, StandardCharsets.UTF_8);
+        Files.writeString(baseDir.resolve("items/ingredients/base_salt.yml"), """
+                id: "base_addon:salt"
+                material: "SUGAR"
+                name: "Salt"
+                """, StandardCharsets.UTF_8);
+
+        // Dependent addon 'child-addon' depending on 'base-addon'
+        Path childDir = addonsDir.resolve("child-addon");
+        Files.createDirectories(childDir.resolve("items/ingredients"));
+        Files.writeString(childDir.resolve("addon.yml"), """
+                id: "child-addon"
+                name: "Child Addon"
+                version: "1.0.0"
+                namespace: "child_addon"
+                dependencies:
+                  - "base-addon"
+                """, StandardCharsets.UTF_8);
+        Files.writeString(childDir.resolve("items/ingredients/spiced_salt.yml"), """
+                id: "child_addon:spiced_salt"
+                material: "REDSTONE"
+                name: "Spiced Salt"
+                """, StandardCharsets.UTF_8);
+
+        CroppyCore core = new CroppyCore();
+        core.initialize();
+
+        PaperAddonManager manager = new PaperAddonManager(null, core, addonsDir, null);
+        manager.enableAll();
+
+        assertTrue(manager.isKeyOwnedByEnabledAddon(PaperAddonManager.AddonOwnedRegistry.ITEM, Key.of("base_addon", "salt")));
+        assertTrue(manager.isKeyOwnedByEnabledAddon(PaperAddonManager.AddonOwnedRegistry.ITEM, Key.of("child_addon", "spiced_salt")));
+        assertFalse(manager.isKeyOwnedByEnabledAddon(PaperAddonManager.AddonOwnedRegistry.ITEM, Key.of("croppy", "tomato")));
+
+        // Modify base-addon version & add a new item on disk before hard-reloading base-addon
+        Files.writeString(baseDir.resolve("addon.yml"), """
+                id: "base-addon"
+                name: "Base Addon"
+                version: "1.1.0"
+                namespace: "base_addon"
+                """, StandardCharsets.UTF_8);
+        Files.writeString(baseDir.resolve("items/ingredients/base_pepper.yml"), """
+                id: "base_addon:pepper"
+                material: "GUNPOWDER"
+                name: "Pepper"
+                """, StandardCharsets.UTF_8);
+
+        assertTrue(manager.reloadAddon("base-addon"));
+
+        // Verify updated manifest, new item, and dependent child-addon are all enabled cleanly
+        assertEquals("1.1.0", manager.getAddon("base-addon").orElseThrow().version());
+        assertEquals(dev.darkblade.croppy.api.addon.AddonState.ENABLED, manager.getState("base-addon"));
+        assertEquals(dev.darkblade.croppy.api.addon.AddonState.ENABLED, manager.getState("child-addon"));
+        assertTrue(core.getItemRegistry().contains(Key.of("base_addon", "salt")));
+        assertTrue(core.getItemRegistry().contains(Key.of("base_addon", "pepper")));
+        assertTrue(core.getItemRegistry().contains(Key.of("child_addon", "spiced_salt")));
+
+        // Verify reloadAll re-discovers and enables everything cleanly
+        assertEquals(2, manager.reloadAll());
+        assertTrue(core.getItemRegistry().contains(Key.of("base_addon", "pepper")));
+    }
+
+    @Test
     @DisplayName("Reject JAR addon initialization when its data folder collides with an existing directory addon")
     void testCollisionRejectionInPaperAddonManager() throws IOException {
         Path addonsDir = tempDir.resolve("addons_collision");

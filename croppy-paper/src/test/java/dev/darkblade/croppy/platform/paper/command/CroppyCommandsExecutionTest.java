@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CroppyCommandsExecutionTest {
@@ -74,6 +75,16 @@ class CroppyCommandsExecutionTest {
         commandManager.parserRegistry().registerParserSupplier(
                 io.leangen.geantyref.TypeToken.get(Key.class),
                 params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>addonParser(null)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.addon.AddonDescription>>() {})
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>recipeParser(null, null)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.recipe.RecipeDefinition>>() {})
         );
 
         AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);
@@ -145,6 +156,7 @@ class CroppyCommandsExecutionTest {
         );
 
         dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry recipeRegistry = new dev.darkblade.croppy.core.recipe.DefaultRecipeRegistry();
+        dev.darkblade.croppy.core.recipe.DefaultRecipeCategoryRegistry categoryRegistry = new dev.darkblade.croppy.core.recipe.DefaultRecipeCategoryRegistry();
         dev.darkblade.croppy.core.discovery.DefaultRecipeDiscoveryEngine discoveryEngine = new dev.darkblade.croppy.core.discovery.DefaultRecipeDiscoveryEngine();
 
         recipeRegistry.register(new dev.darkblade.croppy.api.recipe.RecipeDefinition(
@@ -161,8 +173,36 @@ class CroppyCommandsExecutionTest {
                 List.of(),
                 Map.of()
         ));
+        recipeRegistry.register(new dev.darkblade.croppy.api.recipe.RecipeDefinition(
+                Key.of("croppy", "vegetable_stew"),
+                "Vegetable Stew",
+                dev.darkblade.croppy.api.recipe.RecipeCategory.SOUPS.getKey(),
+                Key.of("croppy", "cooking_pot"),
+                Key.of("croppy", "vegetable_stew_p"),
+                List.of(),
+                Key.of("croppy", "vegetable_stew"),
+                1,
+                dev.darkblade.croppy.api.recipe.HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        ));
+        recipeRegistry.register(new dev.darkblade.croppy.api.recipe.RecipeDefinition(
+                Key.of("croppy", "berry_tea"),
+                "Berry Tea",
+                dev.darkblade.croppy.api.recipe.RecipeCategory.BEVERAGES.getKey(),
+                Key.of("croppy", "cooking_pot"),
+                Key.of("croppy", "berry_tea_p"),
+                List.of(),
+                Key.of("croppy", "berry_tea"),
+                1,
+                dev.darkblade.croppy.api.recipe.HintDefinition.DEFAULT,
+                false,
+                List.of(),
+                Map.of()
+        ));
 
-        commands.setRecipeServices(recipeRegistry, discoveryEngine, null, null);
+        commands.setRecipeServices(recipeRegistry, discoveryEngine, null, null, categoryRegistry);
 
         CommandManager<Source> commandManager = new CommandManager<>(
                 ExecutionCoordinator.simpleCoordinator(),
@@ -174,13 +214,45 @@ class CroppyCommandsExecutionTest {
             }
         };
 
+        List<String> targetMessages = new ArrayList<>();
+        java.util.UUID steveId = java.util.UUID.randomUUID();
+        org.bukkit.entity.Player mockSteve = (org.bukkit.entity.Player) Proxy.newProxyInstance(
+                org.bukkit.entity.Player.class.getClassLoader(),
+                new Class<?>[]{org.bukkit.entity.Player.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("getUniqueId")) return steveId;
+                    if (method.getName().equals("getName")) return "Steve";
+                    if (method.getName().equals("locale")) return java.util.Locale.ENGLISH;
+                    if (method.getName().equals("sendMessage") && args != null && args.length > 0) {
+                        if (args[0] instanceof Component c) {
+                            targetMessages.add(PlainTextComponentSerializer.plainText().serialize(c));
+                        }
+                        return null;
+                    }
+                    return null;
+                }
+        );
+
         commandManager.parserRegistry().registerParserSupplier(
                 io.leangen.geantyref.TypeToken.get(org.bukkit.entity.Player.class),
-                params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success((org.bukkit.entity.Player) null)
+                params -> (context, input) -> {
+                    input.readString();
+                    return org.incendo.cloud.parser.ArgumentParseResult.success(mockSteve);
+                }
         );
         commandManager.parserRegistry().registerParserSupplier(
                 io.leangen.geantyref.TypeToken.get(Key.class),
                 params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>addonParser(null)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.addon.AddonDescription>>() {})
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>recipeParser(recipeRegistry, categoryRegistry)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.recipe.RecipeDefinition>>() {})
         );
 
         AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);
@@ -216,11 +288,50 @@ class CroppyCommandsExecutionTest {
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy recipe list").join());
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Registered Recipes")));
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("croppy:tomato_soup")));
+
+        receivedMessages.clear();
+        targetMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy recipe give Steve croppy:tomato_soup").join());
+        assertEquals(dev.darkblade.croppy.api.recipe.KnowledgeState.DISCOVERED,
+                discoveryEngine.getKnowledgeState(steveId, Key.of("croppy", "tomato_soup")));
+        assertEquals(1, targetMessages.size());
+
+        receivedMessages.clear();
+        targetMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy recipe give Steve @soups").join());
+        assertEquals(dev.darkblade.croppy.api.recipe.KnowledgeState.DISCOVERED,
+                discoveryEngine.getKnowledgeState(steveId, Key.of("croppy", "vegetable_stew")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Granted 1 recipes") && m.contains("@soups")));
+        assertEquals(1, targetMessages.size());
+        assertTrue(targetMessages.get(0).contains("1 new recipes"));
+
+        receivedMessages.clear();
+        targetMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy recipe give Steve @all").join());
+        assertEquals(dev.darkblade.croppy.api.recipe.KnowledgeState.DISCOVERED,
+                discoveryEngine.getKnowledgeState(steveId, Key.of("croppy", "berry_tea")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Granted 1 recipes") && m.contains("@all")));
+
+        receivedMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy recipe revoke Steve @soups").join());
+        assertEquals(dev.darkblade.croppy.api.recipe.KnowledgeState.UNKNOWN,
+                discoveryEngine.getKnowledgeState(steveId, Key.of("croppy", "tomato_soup")));
+        assertEquals(dev.darkblade.croppy.api.recipe.KnowledgeState.UNKNOWN,
+                discoveryEngine.getKnowledgeState(steveId, Key.of("croppy", "vegetable_stew")));
+        assertEquals(dev.darkblade.croppy.api.recipe.KnowledgeState.DISCOVERED,
+                discoveryEngine.getKnowledgeState(steveId, Key.of("croppy", "berry_tea")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Revoked 2 recipes")));
+
+        receivedMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy recipe revoke Steve @all").join());
+        assertEquals(dev.darkblade.croppy.api.recipe.KnowledgeState.UNKNOWN,
+                discoveryEngine.getKnowledgeState(steveId, Key.of("croppy", "berry_tea")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Revoked 1 recipes")));
     }
 
     @Test
     @DisplayName("Verify /croppy addon subcommands route and execute cleanly")
-    void testAddonCommandsExecution() {
+    void testAddonCommandsExecution(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) throws java.io.IOException {
         DefaultItemRegistry itemRegistry = new DefaultItemRegistry();
         DefaultFertilizerRegistry fertilizerRegistry = new DefaultFertilizerRegistry();
         CropInspectorService inspector = new CropInspectorService(
@@ -240,12 +351,20 @@ class CroppyCommandsExecutionTest {
                 itemRegistry
         );
 
+        java.nio.file.Path orchardDir = tempDir.resolve("orchard");
+        java.nio.file.Files.createDirectories(orchardDir);
+        java.nio.file.Files.writeString(orchardDir.resolve("addon.yml"), """
+                id: "orchard"
+                name: "Orchard Addon"
+                version: "1.0.0"
+                namespace: "orchard"
+                authors:
+                  - "DarkBladeDev"
+                """, java.nio.charset.StandardCharsets.UTF_8);
+
         dev.darkblade.croppy.platform.paper.addon.PaperAddonManager manager =
-                new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(null, null, java.nio.file.Path.of("addons"), null);
-        dev.darkblade.croppy.api.addon.AddonDescription desc = new dev.darkblade.croppy.api.addon.AddonDescription(
-                "orchard", "Orchard Addon", "1.0.0", "orchard", java.util.Optional.empty(), List.of("DarkBladeDev"), "Fruit trees", List.of(), List.of()
-        );
-        manager.registerDiscovered(desc, java.nio.file.Path.of("addons/orchard"));
+                new dev.darkblade.croppy.platform.paper.addon.PaperAddonManager(null, null, tempDir, null);
+        manager.discoverAddons();
         commands.setAddonManager(manager);
 
         CommandManager<Source> commandManager = new CommandManager<>(
@@ -265,6 +384,16 @@ class CroppyCommandsExecutionTest {
         commandManager.parserRegistry().registerParserSupplier(
                 io.leangen.geantyref.TypeToken.get(Key.class),
                 params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>addonParser(manager)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.addon.AddonDescription>>() {})
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>recipeParser(null, null)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.recipe.RecipeDefinition>>() {})
         );
 
         AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);
@@ -303,6 +432,31 @@ class CroppyCommandsExecutionTest {
 
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon status orchard").join());
         assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Addon: Orchard Addon")));
+
+        receivedMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon enable @all").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Enabled all discovered addons")));
+
+        receivedMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon reload orchard").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("hard-reloaded")));
+
+        receivedMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon reload @all").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Hard-reloaded")));
+
+        receivedMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon disable @all").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Disabled all active addons")));
+
+        receivedMessages.clear();
+        assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon unload @all").join());
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Unloaded")));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                Exception.class,
+                () -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon enable all").join()
+        );
     }
 
     @Test
@@ -383,6 +537,16 @@ class CroppyCommandsExecutionTest {
         commandManager.parserRegistry().registerParserSupplier(
                 io.leangen.geantyref.TypeToken.get(Key.class),
                 params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>addonParser(null)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.addon.AddonDescription>>() {})
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>recipeParser(null, null)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.recipe.RecipeDefinition>>() {})
         );
 
         AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);
@@ -466,6 +630,16 @@ class CroppyCommandsExecutionTest {
         commandManager.parserRegistry().registerParserSupplier(
                 io.leangen.geantyref.TypeToken.get(Key.class),
                 params -> (context, input) -> org.incendo.cloud.parser.ArgumentParseResult.success(Key.of("croppy", "test"))
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>addonParser(null)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.addon.AddonDescription>>() {})
+        );
+        commandManager.parserRegistry().registerParser(
+                dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                        .<Source>recipeParser(null, null)
+                        .descriptor(new io.leangen.geantyref.TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.recipe.RecipeDefinition>>() {})
         );
 
         AnnotationParser<Source> parser = new AnnotationParser<>(commandManager, Source.class);

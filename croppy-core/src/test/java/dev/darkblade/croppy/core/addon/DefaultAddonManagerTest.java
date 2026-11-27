@@ -102,4 +102,86 @@ class DefaultAddonManagerTest {
         assertTrue(manager.unloadAddon("test"));
         assertEquals(AddonState.ON_DISK, manager.getState("test"));
     }
+
+    @Test
+    @DisplayName("Rediscover unloaded addons reflects version updates, removals, and skips active same-path addons")
+    void testRediscoverUnloadedAddons() throws IOException {
+        Path packA = tempDir.resolve("pack-a");
+        Files.createDirectories(packA);
+        Files.writeString(packA.resolve("addon.yml"), """
+                id: pack-a
+                name: "Pack A"
+                version: "1.0.0"
+                namespace: pack_a
+                """, StandardCharsets.UTF_8);
+
+        Path packB = tempDir.resolve("pack-b");
+        Files.createDirectories(packB);
+        Files.writeString(packB.resolve("addon.yml"), """
+                id: pack-b
+                name: "Pack B"
+                version: "1.0.0"
+                namespace: pack_b
+                """, StandardCharsets.UTF_8);
+
+        manager.discoverAddons();
+        assertTrue(manager.enableAddon("pack-b"));
+
+        // Update pack-a manifest while ON_DISK and remove pack-c after adding it
+        Files.writeString(packA.resolve("addon.yml"), """
+                id: pack-a
+                name: "Pack A"
+                version: "1.1.0"
+                namespace: pack_a
+                """, StandardCharsets.UTF_8);
+
+        Path packC = tempDir.resolve("pack-c");
+        Files.createDirectories(packC);
+        Files.writeString(packC.resolve("addon.yml"), """
+                id: pack-c
+                name: "Pack C"
+                version: "1.0.0"
+                namespace: pack_c
+                """, StandardCharsets.UTF_8);
+
+        java.util.List<String> errors = new java.util.ArrayList<>();
+        DefaultAddonManager loggingManager = new DefaultAddonManager(tempDir, new dev.darkblade.croppy.api.logging.CroppyLogger() {
+            @Override
+            public void log(dev.darkblade.croppy.api.logging.LogLevel level, dev.darkblade.croppy.api.logging.LogChannel channel, String message) {
+                if (level == dev.darkblade.croppy.api.logging.LogLevel.ERROR) {
+                    errors.add(message);
+                }
+            }
+            @Override
+            public void log(dev.darkblade.croppy.api.logging.LogLevel level, dev.darkblade.croppy.api.logging.LogChannel channel, String message, Throwable throwable) {
+                if (level == dev.darkblade.croppy.api.logging.LogLevel.ERROR) {
+                    errors.add(message);
+                }
+            }
+            @Override
+            public boolean isEnabled(dev.darkblade.croppy.api.logging.LogLevel level, dev.darkblade.croppy.api.logging.LogChannel channel) {
+                return true;
+            }
+        });
+        loggingManager.discoverAddons();
+        assertTrue(loggingManager.enableAddon("pack-b"));
+
+        // Update pack-a and delete pack-c on disk
+        Files.writeString(packA.resolve("addon.yml"), """
+                id: pack-a
+                name: "Pack A"
+                version: "2.0.0"
+                namespace: pack_a
+                """, StandardCharsets.UTF_8);
+        Files.delete(packC.resolve("addon.yml"));
+        Files.delete(packC);
+
+        loggingManager.rediscoverUnloadedAddons();
+
+        assertEquals("2.0.0", loggingManager.getAddon("pack-a").orElseThrow().version());
+        assertTrue(loggingManager.getAddon("pack-b").isPresent());
+        assertEquals(AddonState.ENABLED, loggingManager.getState("pack-b"));
+        assertTrue(loggingManager.getAddon("pack-c").isEmpty());
+        assertTrue(errors.isEmpty(), "Expected no duplicate-ID error logs for active same-path addons, got: " + errors);
+    }
 }

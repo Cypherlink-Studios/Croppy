@@ -676,15 +676,17 @@ public class CroppyPlugin extends JavaPlugin {
         this.croppyLogger.debug(LogChannel.LOADER,
                 () -> "Registered " + loaded + " crafting recipe definitions into CraftingRecipeRegistry.");
 
-        dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeChoiceResolver choiceResolver =
-                new dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeChoiceResolver(this.itemFactory);
-        this.craftingRecipeService = new dev.darkblade.croppy.platform.paper.crafting.PaperCraftingRecipeService(
-                getServer(),
-                core.getCraftingRecipeRegistry(),
-                this.itemFactory,
-                choiceResolver,
-                this.croppyLogger
-        );
+        if (this.craftingRecipeService == null) {
+            dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeChoiceResolver choiceResolver =
+                    new dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeChoiceResolver(this.itemFactory);
+            this.craftingRecipeService = new dev.darkblade.croppy.platform.paper.crafting.PaperCraftingRecipeService(
+                    getServer(),
+                    core.getCraftingRecipeRegistry(),
+                    this.itemFactory,
+                    choiceResolver,
+                    this.croppyLogger
+            );
+        }
         this.craftingRecipeService.registerAll();
     }
 
@@ -804,7 +806,9 @@ public class CroppyPlugin extends JavaPlugin {
 
         YamlItemLoader itemLoader = new YamlItemLoader();
         int loaded = itemLoader.loadAllCategories(itemsDir, this.croppyLogger, core.getItemRegistry());
-        this.itemFactory = new ItemFactory(this, core.getItemRegistry(), core.getItemMetadataRegistry(), this.croppyLogger);
+        if (this.itemFactory == null) {
+            this.itemFactory = new ItemFactory(this, core.getItemRegistry(), core.getItemMetadataRegistry(), this.croppyLogger);
+        }
         this.croppyLogger.debug(LogChannel.LOADER, () -> "Registered " + loaded + " custom items across "
                 + core.getItemRegistry().getCategories().size() + " categories.");
     }
@@ -825,10 +829,18 @@ public class CroppyPlugin extends JavaPlugin {
     }
 
     private void setupFertilizers() {
-        this.fertilizerRegistry = new DefaultFertilizerRegistry();
-        this.fertilizerService = new FertilizerService(this, this.fertilizerRegistry, this.itemFactory);
-        this.wateringCanService = new WateringCanService(this, this.itemFactory, this.messageService);
-        this.dailyTransitionService = new DailyTransitionService(core.getCropManager(), this.fertilizerRegistry);
+        if (this.fertilizerRegistry == null) {
+            this.fertilizerRegistry = new DefaultFertilizerRegistry();
+        }
+        if (this.fertilizerService == null) {
+            this.fertilizerService = new FertilizerService(this, this.fertilizerRegistry, this.itemFactory);
+        }
+        if (this.wateringCanService == null) {
+            this.wateringCanService = new WateringCanService(this, this.itemFactory, this.messageService);
+        }
+        if (this.dailyTransitionService == null) {
+            this.dailyTransitionService = new DailyTransitionService(core.getCropManager(), this.fertilizerRegistry);
+        }
 
         Path fertDir = getDataFolder().toPath().resolve("items").resolve("fertilizers");
         if (!Files.exists(fertDir)) {
@@ -970,6 +982,11 @@ public class CroppyPlugin extends JavaPlugin {
             this.messageService.sendPrefixedMessage(sender, "command.invalid-syntax", "usage", message);
         });
 
+        var addonTargetParser = dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                .<Source>addonParser(this.addonManager);
+        var recipeTargetParser = dev.darkblade.croppy.platform.paper.command.selector.CroppyTargetSelectors
+                .<Source>recipeParser(core.getRecipeRegistry(), core.getRecipeCategoryRegistry());
+
         if (commandManager.hasBrigadierManager()) {
             commandManager.brigadierManager().registerMapping(
                     new TypeToken<SpeciesParser<Source>>() {
@@ -979,10 +996,21 @@ public class CroppyPlugin extends JavaPlugin {
                     new TypeToken<KeyParser<Source>>() {
                     },
                     builder -> builder.toConstant(ArgumentTypes.key()).cloudSuggestions());
+            commandManager.brigadierManager().registerMapping(
+                    new TypeToken<dev.darkblade.croppy.platform.paper.command.selector.SelectableTargetParser<Source, ?>>() {
+                    },
+                    builder -> builder.toConstant(
+                            com.mojang.brigadier.arguments.StringArgumentType.greedyString()).cloudSuggestions());
         }
 
         commandManager.parserRegistry().registerParser(SpeciesParser.speciesParser(core.getSpeciesRegistry()));
         commandManager.parserRegistry().registerParser(KeyParser.keyParser());
+        commandManager.parserRegistry().registerParser(addonTargetParser.descriptor(
+                new TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.addon.AddonDescription>>() {
+                }));
+        commandManager.parserRegistry().registerParser(recipeTargetParser.descriptor(
+                new TypeToken<dev.darkblade.croppy.platform.paper.command.selector.TargetSelection<dev.darkblade.croppy.api.recipe.RecipeDefinition>>() {
+                }));
 
         AnnotationParser<Source> annotationParser = new AnnotationParser<>(
                 commandManager,
@@ -1028,21 +1056,7 @@ public class CroppyPlugin extends JavaPlugin {
         // Reset runtime debug channel overrides back to config.yml values on reload
         logger.applyConfig(this.pluginConfig.getLoggingLevel(), this.pluginConfig.getLoggingDebugChannels());
         setupLocalization();
-        this.core.getSpeciesRegistry().clear();
-        this.core.getItemRegistry().clear();
-        this.core.getItemCategoryRegistry().clear();
-        this.core.getItemCategoryRegistry().registerDefaults();
-        this.core.getMenuRegistry().clear();
-        this.core.getStationRegistry().clear();
-        this.core.getInteractionRegistry().clear();
-        this.core.getRuleRegistry().clear();
-        this.core.getRecipeRegistry().clear();
-        this.core.getProcessRegistry().clear();
-        if (this.craftingRecipeService != null) {
-            this.craftingRecipeService.unregisterAll();
-        }
-        this.core.getCraftingRecipeRegistry().clear();
-        this.fertilizerRegistry.clear();
+        purgeCoreOwnedRegistries(this.core, this.addonManager, this.craftingRecipeService, this.fertilizerRegistry);
         setupItemDefinitions();
         setupFertilizers();
         setupCropDefinitions();
@@ -1053,16 +1067,124 @@ public class CroppyPlugin extends JavaPlugin {
         setupStationDefinitions();
         setupInteractionDefinitions();
         setupRuleDefinitions();
-        if (this.addonManager != null) {
-            this.addonManager.disableAll();
-            this.addonManager.enableAll();
-        }
         String summary = core.getItemRegistry().size() + " items, "
                 + core.getSpeciesRegistry().size() + " crops, "
                 + core.getStationRegistry().size() + " stations, "
                 + core.getRecipeRegistry().size() + " recipes, "
-                + summarizeAddons();
+                + summarizeAddons() + " (preserved)";
         this.lifecycleReporter.emitReloadSummary(elapsedMillis(startNanos), summary);
+    }
+
+    /**
+     * Purges Croppy-owned entries from shared registries while preserving every entry
+     * registered by currently enabled addons.
+     */
+    public static void purgeCoreOwnedRegistries(
+            CroppyCore core,
+            dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager,
+            dev.darkblade.croppy.platform.paper.crafting.PaperCraftingRecipeService craftingRecipeService,
+            FertilizerRegistry fertilizerRegistry
+    ) {
+        if (core == null) {
+            return;
+        }
+        purgeNonAddonEntries(core.getSpeciesRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.SPECIES);
+        purgeNonAddonEntries(core.getItemRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.ITEM);
+        purgeNonAddonEntries(core.getItemCategoryRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.ITEM_CATEGORY);
+        registerMissingDefaultItemCategories(core.getItemCategoryRegistry());
+        purgeNonAddonEntries(core.getMenuRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.MENU);
+        purgeNonAddonEntries(core.getStationRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.STATION);
+        purgeNonAddonEntries(core.getInteractionRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.INTERACTION);
+        core.getRuleRegistry().clear();
+        purgeNonAddonEntries(core.getRecipeRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.RECIPE);
+        purgeNonAddonEntries(core.getRecipeCategoryRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.RECIPE_CATEGORY);
+        registerMissingDefaultRecipeCategories(core.getRecipeCategoryRegistry());
+        purgeNonAddonEntries(core.getProcessRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.PROCESS);
+
+        List<dev.darkblade.croppy.api.crafting.CraftingRecipe> coreCraftingRecipes = new ArrayList<>();
+        for (dev.darkblade.croppy.api.crafting.CraftingRecipe recipe : core.getCraftingRecipeRegistry().values()) {
+            boolean addonOwned = addonManager != null && addonManager.isKeyOwnedByEnabledAddon(
+                    dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.CRAFTING_RECIPE,
+                    recipe.getKey());
+            if (!addonOwned) {
+                coreCraftingRecipes.add(recipe);
+            }
+        }
+        for (dev.darkblade.croppy.api.crafting.CraftingRecipe recipe : coreCraftingRecipes) {
+            core.getCraftingRecipeRegistry().unregister(recipe.getKey());
+            if (craftingRecipeService != null) {
+                craftingRecipeService.unregisterRecipe(
+                        new org.bukkit.NamespacedKey(recipe.getKey().namespace(), recipe.getKey().value()));
+            }
+        }
+
+        if (fertilizerRegistry != null) {
+            fertilizerRegistry.clear();
+        }
+    }
+
+    private static <T extends dev.darkblade.croppy.api.identifier.Keyed> void purgeNonAddonEntries(
+            dev.darkblade.croppy.api.registry.Registry<T> registry,
+            dev.darkblade.croppy.platform.paper.addon.PaperAddonManager addonManager,
+            dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry ownedType
+    ) {
+        if (registry == null) {
+            return;
+        }
+        if (addonManager == null) {
+            registry.clear();
+            return;
+        }
+        registry.unregisterAll(entry -> !addonManager.isKeyOwnedByEnabledAddon(ownedType, entry.getKey()));
+    }
+
+    private static void registerMissingDefaultItemCategories(dev.darkblade.croppy.api.item.ItemCategoryRegistry registry) {
+        if (registry == null) {
+            return;
+        }
+        List<dev.darkblade.croppy.api.item.ItemCategory> defaults = List.of(
+                dev.darkblade.croppy.api.item.ItemCategory.ALL,
+                dev.darkblade.croppy.api.item.ItemCategory.SEEDS,
+                dev.darkblade.croppy.api.item.ItemCategory.FERTILIZERS,
+                dev.darkblade.croppy.api.item.ItemCategory.WATERING_CANS,
+                dev.darkblade.croppy.api.item.ItemCategory.TOOLS,
+                dev.darkblade.croppy.api.item.ItemCategory.INGREDIENTS,
+                dev.darkblade.croppy.api.item.ItemCategory.STATIONS,
+                dev.darkblade.croppy.api.item.ItemCategory.MISC
+        );
+        for (dev.darkblade.croppy.api.item.ItemCategory category : defaults) {
+            if (!registry.contains(category.key())) {
+                registry.register(category);
+            }
+        }
+    }
+
+    private static void registerMissingDefaultRecipeCategories(dev.darkblade.croppy.api.recipe.RecipeCategoryRegistry registry) {
+        if (registry == null) {
+            return;
+        }
+        List<dev.darkblade.croppy.api.recipe.RecipeCategory> defaults = List.of(
+                dev.darkblade.croppy.api.recipe.RecipeCategory.ALL,
+                dev.darkblade.croppy.api.recipe.RecipeCategory.BAKERY,
+                dev.darkblade.croppy.api.recipe.RecipeCategory.SOUPS,
+                dev.darkblade.croppy.api.recipe.RecipeCategory.COOKING,
+                dev.darkblade.croppy.api.recipe.RecipeCategory.BEVERAGES,
+                dev.darkblade.croppy.api.recipe.RecipeCategory.PRESERVES
+        );
+        for (dev.darkblade.croppy.api.recipe.RecipeCategory category : defaults) {
+            if (!registry.contains(category.getKey())) {
+                registry.register(category);
+            }
+        }
     }
 
     private void setupCropDefinitions() {
@@ -1359,16 +1481,19 @@ public class CroppyPlugin extends JavaPlugin {
         String defaultLocaleStr = this.pluginConfig.getDefaultLocale();
         dev.darkblade.croppy.api.i18n.LocaleRef defaultLocale = dev.darkblade.croppy.api.i18n.LocaleRef
                 .parse(defaultLocaleStr);
-        dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(
-                defaultLocale, dev.darkblade.croppy.api.i18n.LocaleRef.EN_US);
-
         dev.darkblade.croppy.core.i18n.YamlLocaleLoader loader = new dev.darkblade.croppy.core.i18n.YamlLocaleLoader();
         Map<dev.darkblade.croppy.api.i18n.LocaleRef, Map<String, String>> loaded = loader.loadDirectory(localesDir,
                 this.croppyLogger);
-        catalog.setCatalogs(loaded);
-
-        this.messageService = new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog,
-                this.croppyLogger);
+        if (this.messageService != null) {
+            this.messageService.getCatalog().setDefaultLocale(defaultLocale);
+            this.messageService.getCatalog().setCatalogs(loaded);
+        } else {
+            dev.darkblade.croppy.core.i18n.DefaultMessageCatalog catalog = new dev.darkblade.croppy.core.i18n.DefaultMessageCatalog(
+                    defaultLocale, dev.darkblade.croppy.api.i18n.LocaleRef.EN_US);
+            catalog.setCatalogs(loaded);
+            this.messageService = new dev.darkblade.croppy.platform.paper.i18n.PaperMessageService(catalog,
+                    this.croppyLogger);
+        }
         this.croppyLogger.debug(LogChannel.I18N, () -> "Initialized localization service with "
                 + loaded.size() + " locales (default: " + defaultLocale + ").");
         return loaded.size();

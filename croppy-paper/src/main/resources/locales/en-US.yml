@@ -78,10 +78,14 @@ command:
     unload-all-success: "<yellow>Unloaded <white><count></white> addons completely.</yellow>"
     unload-success: "<yellow>Addon '<white><addon></white>' unloaded completely.</yellow>"
     unload-failed: "<red>Failed to unload addon '<addon>'.</red>"
+    reload-all-success: "<green>Reloaded <yellow><count></yellow> addons successfully!</green>"
+    reload-success: "<green>Addon '<yellow><addon></yellow>' reloaded successfully!</green>"
+    reload-failed: "<red>Failed to reload addon '<addon>'. Check logs for details.</red>"
   recipe:
     header: "<gold><bold>=== Registered Recipes (<count>) ===</bold></gold>"
     entry: " <dark_gray>•</dark_gray> <click:suggest_command:'/croppy recipe give @s {key}'><hover:show_text:'<gray>Click to grant <white><recipe></white>'><yellow>{key}</yellow></hover></click> <gray>(<recipe>)</gray> <dark_gray>[<category> @ <station>]</dark_gray>"
     unlocked_by_admin: "<green>An administrator unlocked recipe <white><recipe></white> for you!</green>"
+    bulk_unlocked_by_admin: "<green>An administrator unlocked <yellow><count></yellow> new recipes for you!</green>"
   update:
     checking: "<gray>Checking for available updates on channel <yellow><channel></yellow>...</gray>"
     up-to-date: "<green>Croppy is running the latest version (<white>v<version></white>).</green>"
@@ -212,7 +216,11 @@ recipe:
   already_known: "<yellow><player> already knows recipe <white><recipe></white>.</yellow>"
   not_known: "<yellow><player> does not have knowledge of <white><recipe></white>.</yellow>"
   admin_give_success: "<green>Granted knowledge of <white><recipe></white> to <player>!</green>"
+  admin_give_bulk_success: "<green>Granted <yellow><granted></yellow> recipes (<white><selector></white>) to <player> (<gray><skipped> skipped</gray>).</green>"
+  admin_give_bulk_none: "<yellow><player> already knows all <count> recipes matched by <white><selector></white>.</yellow>"
   admin_revoke_success: "<green>Revoked knowledge of <white><recipe></white> from <player>.</green>"
+  admin_revoke_bulk_success: "<green>Revoked <yellow><revoked></yellow> recipes (<white><selector></white>) from <player> (<gray><skipped> skipped</gray>).</green>"
+  admin_revoke_bulk_none: "<yellow><player> does not know any of the <count> recipes matched by <white><selector></white>.</yellow>"
   no_recipes: "<gray>No recipes are currently registered in the system.</gray>"
   discovered: "<green>You discovered <white><recipe></white>! View your cookbook with <click:run_command:'/croppy recipes'><hover:show_text:'<gray>Click to open cookbook'><yellow>/croppy recipes</yellow></hover></click>.</green>"
   fanfare:

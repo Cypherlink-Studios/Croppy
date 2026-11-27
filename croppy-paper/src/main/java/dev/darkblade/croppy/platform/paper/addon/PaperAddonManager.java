@@ -3,6 +3,7 @@ package dev.darkblade.croppy.platform.paper.addon;
 import dev.darkblade.croppy.api.addon.AddonDescription;
 import dev.darkblade.croppy.api.addon.AddonState;
 import dev.darkblade.croppy.api.addon.CroppyAddon;
+import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.logging.CroppyLogger;
 import dev.darkblade.croppy.api.logging.JulCroppyLogger;
 import dev.darkblade.croppy.api.logging.LogChannel;
@@ -29,9 +30,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -77,6 +81,248 @@ public class PaperAddonManager extends DefaultAddonManager {
         this.resourcePackMerger = resourcePackMerger;
     }
 
+    public enum AddonOwnedRegistry {
+        SPECIES,
+        ITEM,
+        ITEM_CATEGORY,
+        RECIPE,
+        CRAFTING_RECIPE,
+        RECIPE_CATEGORY,
+        PROCESS,
+        STATION,
+        MENU,
+        INTERACTION
+    }
+
+    /**
+     * Checks whether a key in the given registry is owned by any currently enabled addon.
+     */
+    public boolean isKeyOwnedByEnabledAddon(AddonOwnedRegistry registry, Key key) {
+        if (registry == null || key == null) {
+            return false;
+        }
+        for (Map.Entry<String, PaperAddonContext> entry : addonContexts.entrySet()) {
+            if (getState(entry.getKey()) != AddonState.ENABLED) {
+                continue;
+            }
+            if (getTrackedKeys(entry.getValue(), registry).contains(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns an unmodifiable snapshot of all keys owned by enabled addons for the given registry.
+     */
+    public Set<Key> getOwnedKeys(AddonOwnedRegistry registry) {
+        if (registry == null) {
+            return Set.of();
+        }
+        Set<Key> owned = new HashSet<>();
+        for (Map.Entry<String, PaperAddonContext> entry : addonContexts.entrySet()) {
+            if (getState(entry.getKey()) != AddonState.ENABLED) {
+                continue;
+            }
+            owned.addAll(getTrackedKeys(entry.getValue(), registry));
+        }
+        return Set.copyOf(owned);
+    }
+
+    private static Set<Key> getTrackedKeys(PaperAddonContext context, AddonOwnedRegistry registry) {
+        return switch (registry) {
+            case SPECIES -> context.getRegisteredSpecies();
+            case ITEM -> context.getRegisteredItems();
+            case ITEM_CATEGORY -> context.getRegisteredItemCategories();
+            case RECIPE -> context.getRegisteredRecipes();
+            case CRAFTING_RECIPE -> context.getRegisteredCraftingRecipes();
+            case RECIPE_CATEGORY -> context.getRegisteredCategories();
+            case PROCESS -> context.getRegisteredProcesses();
+            case STATION -> context.getRegisteredStations();
+            case MENU -> context.getRegisteredMenus();
+            case INTERACTION -> context.getRegisteredInteractions();
+        };
+    }
+
+    public synchronized int unloadAll() {
+        List<AddonDescription> active = new ArrayList<>();
+        for (AddonDescription desc : getDiscoveredAddons()) {
+            if (getState(desc.id()) != AddonState.ON_DISK) {
+                active.add(desc);
+            }
+        }
+        List<AddonDescription> teardownOrder;
+        try {
+            teardownOrder = new ArrayList<>(AddonGraphValidator.resolveOrder(active));
+        } catch (Exception e) {
+            teardownOrder = active;
+        }
+        Collections.reverse(teardownOrder);
+        int count = 0;
+        for (AddonDescription desc : teardownOrder) {
+            if (unloadAddon(desc.id())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Hard-reloads all addons: unloads active addons in reverse dependency order,
+     * re-discovers manifests and archives from disk, and re-enables all addons.
+     *
+     * @return the number of addons enabled after reload
+     */
+    public synchronized int reloadAll() {
+        unloadAll();
+        rediscoverUnloadedAddons();
+        enableAll();
+        int enabledCount = 0;
+        for (AddonDescription desc : getDiscoveredAddons()) {
+            if (getState(desc.id()) == AddonState.ENABLED) {
+                enabledCount++;
+            }
+        }
+        return enabledCount;
+    }
+
+    /**
+     * Hard-reloads a single addon and any active transitive dependents:
+     * unloads affected addons in reverse topological order, refreshes discovery
+     * metadata from disk, and re-enables them in topological dependency order.
+     *
+     * @param addonId target addon identifier
+     * @return true if the target addon was successfully reloaded and enabled
+     */
+    public synchronized boolean reloadAddon(String addonId) {
+        if (addonId == null || !discoveredAddons.containsKey(addonId)) {
+            return false;
+        }
+
+        // 1. Collect active closure: target (if active) + active transitive dependents
+        Set<String> affectedIds = new LinkedHashSet<>();
+        affectedIds.add(addonId);
+        boolean changed;
+        do {
+            changed = false;
+            for (AddonDescription candidate : getDiscoveredAddons()) {
+                if (getState(candidate.id()) == AddonState.ON_DISK || affectedIds.contains(candidate.id())) {
+                    continue;
+                }
+                if (dependsOnAny(candidate, affectedIds)) {
+                    affectedIds.add(candidate.id());
+                    changed = true;
+                }
+            }
+        } while (changed);
+
+        Set<String> previouslyEnabledDependents = new HashSet<>();
+        Set<String> previouslyLoadedOnlyDependents = new HashSet<>();
+        List<AddonDescription> activeAffected = new ArrayList<>();
+        for (String id : affectedIds) {
+            AddonState state = getState(id);
+            if (state != AddonState.ON_DISK) {
+                AddonDescription desc = discoveredAddons.get(id);
+                if (desc != null) {
+                    activeAffected.add(desc);
+                }
+                if (!id.equals(addonId)) {
+                    if (state == AddonState.ENABLED) {
+                        previouslyEnabledDependents.add(id);
+                    } else if (state == AddonState.LOADED) {
+                        previouslyLoadedOnlyDependents.add(id);
+                    }
+                }
+            }
+        }
+
+        // 2. Unload affected addons in reverse topological order (dependents first)
+        List<AddonDescription> teardownOrder;
+        try {
+            teardownOrder = new ArrayList<>(resolveClosureOrder(activeAffected));
+        } catch (Exception e) {
+            teardownOrder = activeAffected;
+        }
+        Collections.reverse(teardownOrder);
+        for (AddonDescription desc : teardownOrder) {
+            unloadAddon(desc.id());
+        }
+
+        // 3. Re-scan disk for updated manifests/archives
+        rediscoverUnloadedAddons();
+
+        if (!discoveredAddons.containsKey(addonId)) {
+            logger.warn(LogChannel.ADDON, "Cannot reload addon '" + addonId + "': addon no longer exists on disk.");
+            return false;
+        }
+
+        // 4. Re-enable target and previously enabled dependents in topological order
+        List<AddonDescription> toRestore = new ArrayList<>();
+        toRestore.add(discoveredAddons.get(addonId));
+        for (String depId : previouslyEnabledDependents) {
+            AddonDescription depDesc = discoveredAddons.get(depId);
+            if (depDesc != null) {
+                toRestore.add(depDesc);
+            }
+        }
+
+        List<AddonDescription> enableOrder;
+        try {
+            enableOrder = resolveClosureOrder(toRestore);
+        } catch (Exception e) {
+            logger.error(LogChannel.ADDON, "Failed to resolve dependency order while reloading addon '" + addonId + "': " + e.getMessage(), e);
+            return false;
+        }
+
+        boolean targetEnabled = false;
+        for (AddonDescription desc : enableOrder) {
+            boolean ok = enableAddon(desc.id());
+            if (desc.id().equals(addonId)) {
+                targetEnabled = ok;
+            } else if (!ok) {
+                logger.warn(LogChannel.ADDON, "Failed to re-enable dependent addon '" + desc.id() + "' after reloading '" + addonId + "'.");
+            }
+        }
+
+        // Restore any dependents that were previously only in LOADED state
+        for (String loadedOnlyId : previouslyLoadedOnlyDependents) {
+            if (discoveredAddons.containsKey(loadedOnlyId)) {
+                loadAddon(loadedOnlyId);
+            }
+        }
+
+        return targetEnabled;
+    }
+
+    private static boolean dependsOnAny(AddonDescription candidate, Set<String> targets) {
+        for (String dep : candidate.dependencies()) {
+            if (targets.contains(dep)) {
+                return true;
+            }
+        }
+        for (String softDep : candidate.softDependencies()) {
+            if (targets.contains(softDep)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<AddonDescription> resolveClosureOrder(List<AddonDescription> subset) {
+        List<AddonDescription> fullOrder = AddonGraphValidator.resolveOrder(getDiscoveredAddons());
+        Set<String> subsetIds = new HashSet<>();
+        for (AddonDescription desc : subset) {
+            subsetIds.add(desc.id());
+        }
+        List<AddonDescription> ordered = new ArrayList<>(subset.size());
+        for (AddonDescription desc : fullOrder) {
+            if (subsetIds.contains(desc.id())) {
+                ordered.add(desc);
+            }
+        }
+        return ordered;
+    }
+
     public synchronized void enableAll() {
         discoverAddons();
         List<AddonDescription> order;
@@ -103,9 +349,15 @@ public class PaperAddonManager extends DefaultAddonManager {
                 enabled.add(desc);
             }
         }
-        // Disable in reverse order
-        Collections.reverse(enabled);
-        for (AddonDescription desc : enabled) {
+        List<AddonDescription> teardownOrder;
+        try {
+            teardownOrder = new ArrayList<>(AddonGraphValidator.resolveOrder(enabled));
+        } catch (Exception e) {
+            teardownOrder = enabled;
+        }
+        // Disable in reverse topological order
+        Collections.reverse(teardownOrder);
+        for (AddonDescription desc : teardownOrder) {
             disableAddon(desc.id());
         }
     }

@@ -2,10 +2,10 @@ id: "croppy:recipe_detail_menu"
 title: "<dark_green><bold>Recipe Details</bold></dark_green>"
 rows: 6
 pattern:
-  - "< X X X R X X X S"
-  - "X I I I I I I I X"
-  - "X X X X X X X X X"
-  - "X 1 2 3 4 5 6 7 X"
+  - "< X X > R > X X X"
+  - "Q I I I I I I I X"
+  - "X X X X S X X X X"
+  - "Y 1 2 3 4 5 6 7 X"
   - "X X X X X X X X X"
   - "X X X X ? X X X X"
 
@@ -26,6 +26,29 @@ elements:
     actions:
       - type: PLAYER_COMMAND
         target: "croppy recipes back"
+  '>':
+    type: DECORATION
+    item:
+      material: "minecraft:bamboo_hanging_sign"
+      name: "<gold><bold>The Result</bold></gold>"
+      lore:
+        - "<gray>The final <u>output</u></gray>"
+        - ""
+        - "<gray>Was it worth it?</gray>"
+  'Q':
+    type: DECORATION
+    item:
+      material: "minecraft:spruce_sign"
+      name: "<blue><bold>Inputs</bold></blue>"
+      lore:
+        - "<gray>The <u>ingredients</u> list</gray>"
+  'Y':
+    type: DECORATION
+    item:
+      material: "minecraft:birch_sign"
+      name: "<blue><bold>Steps</bold></blue>"
+      lore:
+        - "<gray>The <u>cooking steps</u></gray>"
 
   'R':
     type: DECORATION

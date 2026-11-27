@@ -129,7 +129,7 @@ class CroppyCommandsTest {
         commands.setAddonManager(manager);
 
         List<String> suggestions = commands.suggestAddonIds(null, CommandInput.empty());
-        assertTrue(suggestions.contains("all"));
+        assertFalse(suggestions.contains("all"));
         assertTrue(suggestions.contains("orchard"));
     }
 

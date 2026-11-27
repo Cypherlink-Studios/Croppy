@@ -1,8 +1,10 @@
 package dev.darkblade.croppy.platform.paper.command;
 
+import dev.darkblade.croppy.api.addon.AddonDescription;
 import dev.darkblade.croppy.api.crop.CropInstance;
 import dev.darkblade.croppy.api.discovery.DiscoveryResult;
 import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
+import dev.darkblade.croppy.platform.paper.command.selector.TargetSelection;
 import dev.darkblade.croppy.api.fertilizer.Fertilizer;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.growth.DisplaySynchronizer;
@@ -895,67 +897,123 @@ public class CroppyCommands {
         compendiumController.setCategory(player, catKey);
     }
 
-    @Command("croppy recipe give <target> <recipe_id>")
+    @Command("croppy recipe give <target> <recipe>")
     @Permission("croppy.admin")
     public void giveRecipe(
             Source source,
             @Argument("target") Player target,
-            @Argument(value = "recipe_id", suggestions = "recipe_ids") Key recipeId
+            @Argument("recipe") TargetSelection<RecipeDefinition> selection
     ) {
         CommandSender sender = source.source();
         if (recipeRegistry == null || discoveryEngine == null) {
             return;
         }
 
-        Optional<RecipeDefinition> recipeOpt = recipeRegistry.get(recipeId);
-        if (recipeOpt.isEmpty()) {
-            sendPrefixed(sender, MessageKey.of("recipe.unknown_recipe"), "recipe", recipeId.asString());
+        if (!selection.selector()) {
+            RecipeDefinition recipe = selection.first();
+            DiscoveryResult result = discoveryEngine.discoverRecipe(target.getUniqueId(), recipe, Key.of("croppy", "admin"));
+            if (result.isDiscovered()) {
+                if (recipeStorage != null) {
+                    discoveryEngine.getKnowledge(target.getUniqueId(), recipe.key())
+                            .ifPresent(k -> recipeStorage.saveKnowledge(target.getUniqueId(), k));
+                }
+                Component recipeName = (messageService != null)
+                        ? messageService.resolveRecipeDisplayName(sender, recipe)
+                        : miniMessage.deserialize(recipe.displayName());
+                sendPrefixed(sender, MessageKey.of("recipe.admin_give_success"), "player", target.getName(), "recipe", recipeName);
+                Component targetRecipeName = (messageService != null)
+                        ? messageService.resolveRecipeDisplayName(target, recipe)
+                        : miniMessage.deserialize(recipe.displayName());
+                sendPrefixed(target, MessageKey.of("command.recipe.unlocked_by_admin"), "recipe", targetRecipeName);
+            } else {
+                Component recipeName = (messageService != null)
+                        ? messageService.resolveRecipeDisplayName(sender, recipe)
+                        : miniMessage.deserialize(recipe.displayName());
+                sendPrefixed(sender, MessageKey.of("recipe.already_known"), "player", target.getName(), "recipe", recipeName);
+            }
             return;
         }
 
-        RecipeDefinition recipe = recipeOpt.get();
-        DiscoveryResult result = discoveryEngine.discoverRecipe(target.getUniqueId(), recipe, Key.of("croppy", "admin"));
-        if (result.isDiscovered()) {
-            if (recipeStorage != null) {
-                discoveryEngine.getKnowledge(target.getUniqueId(), recipe.key())
-                        .ifPresent(k -> recipeStorage.saveKnowledge(target.getUniqueId(), k));
+        int granted = 0;
+        int skipped = 0;
+        for (RecipeDefinition recipe : selection.targets()) {
+            DiscoveryResult result = discoveryEngine.discoverRecipe(target.getUniqueId(), recipe, Key.of("croppy", "admin"));
+            if (result.isDiscovered()) {
+                if (recipeStorage != null) {
+                    discoveryEngine.getKnowledge(target.getUniqueId(), recipe.key())
+                            .ifPresent(k -> recipeStorage.saveKnowledge(target.getUniqueId(), k));
+                }
+                granted++;
+            } else {
+                skipped++;
             }
-            Component recipeName = (messageService != null)
-                    ? messageService.resolveRecipeDisplayName(sender, recipe)
-                    : miniMessage.deserialize(recipe.displayName());
-            sendPrefixed(sender, MessageKey.of("recipe.admin_give_success"), "player", target.getName(), "recipe", recipeName);
-            Component targetRecipeName = (messageService != null)
-                    ? messageService.resolveRecipeDisplayName(target, recipe)
-                    : miniMessage.deserialize(recipe.displayName());
-            sendPrefixed(target, MessageKey.of("command.recipe.unlocked_by_admin"), "recipe", targetRecipeName);
+        }
+
+        if (granted == 0) {
+            sendPrefixed(sender, MessageKey.of("recipe.admin_give_bulk_none"),
+                    "player", target.getName(),
+                    "selector", selection.rawInput(),
+                    "count", skipped);
         } else {
-            Component recipeName = (messageService != null)
-                    ? messageService.resolveRecipeDisplayName(sender, recipe)
-                    : miniMessage.deserialize(recipe.displayName());
-            sendPrefixed(sender, MessageKey.of("recipe.already_known"), "player", target.getName(), "recipe", recipeName);
+            sendPrefixed(sender, MessageKey.of("recipe.admin_give_bulk_success"),
+                    "player", target.getName(),
+                    "granted", granted,
+                    "skipped", skipped,
+                    "selector", selection.rawInput());
+            sendPrefixed(target, MessageKey.of("command.recipe.bulk_unlocked_by_admin"), "count", granted);
         }
     }
 
-    @Command("croppy recipe revoke <target> <recipe_id>")
+    @Command("croppy recipe revoke <target> <recipe>")
     @Permission("croppy.admin")
     public void revokeRecipe(
             Source source,
             @Argument("target") Player target,
-            @Argument(value = "recipe_id", suggestions = "recipe_ids") Key recipeId
+            @Argument("recipe") TargetSelection<RecipeDefinition> selection
     ) {
         CommandSender sender = source.source();
         if (discoveryEngine == null) {
             return;
         }
 
-        boolean revoked = discoveryEngine.revokeRecipe(target.getUniqueId(), recipeId);
-        if (revoked) {
-            if (recipeStorage != null) {
-                recipeStorage.deleteKnowledge(target.getUniqueId(), recipeId);
+        if (!selection.selector()) {
+            Key recipeId = selection.first().key();
+            boolean revoked = discoveryEngine.revokeRecipe(target.getUniqueId(), recipeId);
+            if (revoked) {
+                if (recipeStorage != null) {
+                    recipeStorage.deleteKnowledge(target.getUniqueId(), recipeId);
+                }
+                sendPrefixed(sender, MessageKey.of("recipe.admin_revoke_success"), "player", target.getName(), "recipe", recipeId.asString());
+            } else {
+                sendPrefixed(sender, MessageKey.of("recipe.not_known"), "player", target.getName(), "recipe", recipeId.asString());
             }
-            sendPrefixed(sender, MessageKey.of("recipe.admin_revoke_success"), "player", target.getName(), "recipe", recipeId.asString());
+            return;
+        }
+
+        int revokedCount = 0;
+        int skipped = 0;
+        for (RecipeDefinition recipe : selection.targets()) {
+            if (discoveryEngine.revokeRecipe(target.getUniqueId(), recipe.key())) {
+                if (recipeStorage != null) {
+                    recipeStorage.deleteKnowledge(target.getUniqueId(), recipe.key());
+                }
+                revokedCount++;
+            } else {
+                skipped++;
+            }
+        }
+
+        if (revokedCount == 0) {
+            sendPrefixed(sender, MessageKey.of("recipe.admin_revoke_bulk_none"),
+                    "player", target.getName(),
+                    "selector", selection.rawInput(),
+                    "count", skipped);
         } else {
-            sendPrefixed(sender, MessageKey.of("recipe.not_known"), "player", target.getName(), "recipe", recipeId.asString());
+            sendPrefixed(sender, MessageKey.of("recipe.admin_revoke_bulk_success"),
+                    "player", target.getName(),
+                    "revoked", revokedCount,
+                    "skipped", skipped,
+                    "selector", selection.rawInput());
         }
     }
 
@@ -984,11 +1042,10 @@ public class CroppyCommands {
     @Suggestions("addon_ids")
     public List<String> suggestAddonIds(CommandContext<Source> context, CommandInput input) {
         if (addonManager == null) {
-            return List.of("all");
+            return List.of();
         }
         List<String> list = new java.util.ArrayList<>();
-        list.add("all");
-        for (dev.darkblade.croppy.api.addon.AddonDescription desc : addonManager.getDiscoveredAddons()) {
+        for (AddonDescription desc : addonManager.getDiscoveredAddons()) {
             list.add(desc.id());
         }
         return list;
@@ -1065,25 +1122,26 @@ public class CroppyCommands {
         }
     }
 
-    @Command("croppy addon load <addonId>")
+    @Command("croppy addon load <addon>")
     @Permission("croppy.admin.addon")
     public void loadAddon(
             Source source,
-            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+            @Argument("addon") TargetSelection<AddonDescription> selection
     ) {
         CommandSender sender = source.source();
         if (addonManager == null) return;
 
-        if ("all".equalsIgnoreCase(addonId)) {
-            addonManager.discoverAddons();
+        if (selection.selector()) {
+            addonManager.rediscoverUnloadedAddons();
             int count = 0;
-            for (dev.darkblade.croppy.api.addon.AddonDescription desc : addonManager.getDiscoveredAddons()) {
+            for (AddonDescription desc : addonManager.getDiscoveredAddons()) {
                 if (addonManager.loadAddon(desc.id())) count++;
             }
             sendPrefixed(sender, MessageKey.of("command.addon.load-all-success"), "count", count);
             return;
         }
 
+        String addonId = selection.first().id();
         if (addonManager.loadAddon(addonId)) {
             sendPrefixed(sender, MessageKey.of("command.addon.load-success"), "addon", addonId);
         } else {
@@ -1091,21 +1149,22 @@ public class CroppyCommands {
         }
     }
 
-    @Command("croppy addon enable <addonId>")
+    @Command("croppy addon enable <addon>")
     @Permission("croppy.admin.addon")
     public void enableAddon(
             Source source,
-            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+            @Argument("addon") TargetSelection<AddonDescription> selection
     ) {
         CommandSender sender = source.source();
         if (addonManager == null) return;
 
-        if ("all".equalsIgnoreCase(addonId)) {
+        if (selection.selector()) {
             addonManager.enableAll();
             sendPrefixed(sender, MessageKey.of("command.addon.enable-all-success"));
             return;
         }
 
+        String addonId = selection.first().id();
         if (addonManager.enableAddon(addonId)) {
             sendPrefixed(sender, MessageKey.of("command.addon.enable-success"), "addon", addonId);
         } else {
@@ -1113,21 +1172,22 @@ public class CroppyCommands {
         }
     }
 
-    @Command("croppy addon disable <addonId>")
+    @Command("croppy addon disable <addon>")
     @Permission("croppy.admin.addon")
     public void disableAddon(
             Source source,
-            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+            @Argument("addon") TargetSelection<AddonDescription> selection
     ) {
         CommandSender sender = source.source();
         if (addonManager == null) return;
 
-        if ("all".equalsIgnoreCase(addonId)) {
+        if (selection.selector()) {
             addonManager.disableAll();
             sendPrefixed(sender, MessageKey.of("command.addon.disable-all-success"));
             return;
         }
 
+        String addonId = selection.first().id();
         if (addonManager.disableAddon(addonId)) {
             sendPrefixed(sender, MessageKey.of("command.addon.disable-success"), "addon", addonId);
         } else {
@@ -1135,28 +1195,49 @@ public class CroppyCommands {
         }
     }
 
-    @Command("croppy addon unload <addonId>")
+    @Command("croppy addon unload <addon>")
     @Permission("croppy.admin.addon")
     public void unloadAddon(
             Source source,
-            @Argument(value = "addonId", suggestions = "addon_ids") String addonId
+            @Argument("addon") TargetSelection<AddonDescription> selection
     ) {
         CommandSender sender = source.source();
         if (addonManager == null) return;
 
-        if ("all".equalsIgnoreCase(addonId)) {
-            int count = 0;
-            for (dev.darkblade.croppy.api.addon.AddonDescription desc : addonManager.getDiscoveredAddons()) {
-                if (addonManager.unloadAddon(desc.id())) count++;
-            }
+        if (selection.selector()) {
+            int count = addonManager.unloadAll();
             sendPrefixed(sender, MessageKey.of("command.addon.unload-all-success"), "count", count);
             return;
         }
 
+        String addonId = selection.first().id();
         if (addonManager.unloadAddon(addonId)) {
             sendPrefixed(sender, MessageKey.of("command.addon.unload-success"), "addon", addonId);
         } else {
             sendPrefixed(sender, MessageKey.of("command.addon.unload-failed"), "addon", addonId);
+        }
+    }
+
+    @Command("croppy addon reload <addon>")
+    @Permission("croppy.admin.addon")
+    public void reloadAddon(
+            Source source,
+            @Argument("addon") TargetSelection<AddonDescription> selection
+    ) {
+        CommandSender sender = source.source();
+        if (addonManager == null) return;
+
+        if (selection.selector()) {
+            int count = addonManager.reloadAll();
+            sendPrefixed(sender, MessageKey.of("command.addon.reload-all-success"), "count", count);
+            return;
+        }
+
+        String addonId = selection.first().id();
+        if (addonManager.reloadAddon(addonId)) {
+            sendPrefixed(sender, MessageKey.of("command.addon.reload-success"), "addon", addonId);
+        } else {
+            sendPrefixed(sender, MessageKey.of("command.addon.reload-failed"), "addon", addonId);
         }
     }
 

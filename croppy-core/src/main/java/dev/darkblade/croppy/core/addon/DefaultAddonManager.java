@@ -14,8 +14,10 @@ import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -105,6 +107,27 @@ public class DefaultAddonManager implements AddonManager, Service {
         }
     }
 
+    /**
+     * Clears unloaded ({@link AddonState#ON_DISK}) discovery metadata and re-scans
+     * the addons directory so modified manifests, replaced archives, new addons,
+     * and removed addons are reflected without disrupting already active addons.
+     */
+    public synchronized void rediscoverUnloadedAddons() {
+        List<String> toRemove = new ArrayList<>();
+        for (Map.Entry<String, AddonState> entry : addonStates.entrySet()) {
+            if (entry.getValue() == AddonState.ON_DISK) {
+                toRemove.add(entry.getKey());
+            }
+        }
+        for (String id : toRemove) {
+            discoveredAddons.remove(id);
+            addonPaths.remove(id);
+            dataFolders.remove(id);
+            addonStates.remove(id);
+        }
+        discoverAddons();
+    }
+
     public boolean registerDiscovered(AddonDescription description, Path path) {
         Objects.requireNonNull(description, "description cannot be null");
         Objects.requireNonNull(path, "path cannot be null");
@@ -113,6 +136,11 @@ public class DefaultAddonManager implements AddonManager, Service {
         // 1. Duplicate ID validation
         if (discoveredAddons.containsKey(id)) {
             Path existing = addonPaths.get(id);
+            if (existing != null
+                    && existing.toAbsolutePath().normalize().equals(path.toAbsolutePath().normalize())
+                    && getState(id) != AddonState.ON_DISK) {
+                return false;
+            }
             logger.error(LogChannel.ADDON, "CRITICAL: Duplicate addon id '" + id + "' detected! Conflict between ["
                     + existing + "] and [" + path + "]. Registration rejected.");
             return false;
