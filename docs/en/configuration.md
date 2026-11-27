@@ -130,3 +130,32 @@ crafting:
 ## 6. Custom Items & Inspection Tool Customization
 
 The Crop Inspector tool (`croppy:inspection_tool`) is defined through Croppy's centralized **Item Registry** in `plugins/Croppy/items/tools/inspector.yml` (using base material `minecraft:stick` to avoid conflicts with administrative navigation wands). To customize its material, display name, item model, or lore, edit its YAML definition directly or consult the [Items & Tools Guide](./items-and-tools.md).
+
+---
+
+## 7. Custom Consumables & Status Effects (`consumables`)
+
+Controls opt-in auto-lore generation, custom status effect tick intervals, HUD output, and alcohol intoxication parameters:
+
+```yaml
+consumables:
+  auto-lore: false
+  effect-tick-interval: 20
+  hud:
+    enabled: false
+  alcohol:
+    decay-per-second: 0.25
+    milk-reduction: 0.5
+    stages:
+      tipsy: 20.0
+      drunk: 45.0
+      heavily-drunk: 70.0
+      blackout: 90.0
+    nausea-pulse-interval-seconds: 12
+    chat-slurring: false
+    sway-enabled: false
+    hangover:
+      enabled: true
+      trigger-threshold: 70.0
+      duration-seconds: 60
+```

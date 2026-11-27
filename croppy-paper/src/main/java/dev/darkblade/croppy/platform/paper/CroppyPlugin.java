@@ -147,6 +147,13 @@ public class CroppyPlugin extends JavaPlugin {
     private dev.darkblade.croppy.platform.paper.update.PaperUpdateService updateService;
     private dev.darkblade.croppy.platform.paper.crafting.PaperCraftingRecipeService craftingRecipeService;
 
+    // Consumables & Status Effects
+    private dev.darkblade.croppy.core.consumable.ConsumptionEvaluator consumptionEvaluator;
+    private dev.darkblade.croppy.platform.paper.effect.PdcPlayerEffectStorage playerEffectStorage;
+    private dev.darkblade.croppy.platform.paper.effect.PaperEffectTicker effectTicker;
+    private dev.darkblade.croppy.platform.paper.effect.PaperIntoxicationEffect intoxicationEffect;
+    private dev.darkblade.croppy.platform.paper.effect.PaperHangoverEffect hangoverEffect;
+
     public dev.darkblade.croppy.platform.paper.crafting.PaperCraftingRecipeService getCraftingRecipeService() {
         return craftingRecipeService;
     }
@@ -310,6 +317,7 @@ public class CroppyPlugin extends JavaPlugin {
             });
 
             runPhase(4, "Definitions", () -> {
+                setupConsumableEffects();
                 setupItemDefinitions();
                 setupFertilizers();
                 setupCropDefinitions();
@@ -341,6 +349,7 @@ public class CroppyPlugin extends JavaPlugin {
             runPhase(7, "Runtime", () -> {
                 setupMenuServices();
                 setupGrowthSimulation();
+                startEffectTicker();
                 int cropsRestored = loadActiveChunkCrops();
                 int stationsRestored = loadActiveChunkStations();
                 setupUpdateSubsystem();
@@ -581,9 +590,14 @@ public class CroppyPlugin extends JavaPlugin {
             pm.registerEvents(new dev.darkblade.croppy.platform.paper.crafting.CraftingRecipeDiscoveryListener(
                     this.craftingRecipeService, this.pluginConfig), this);
         }
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.consumable.CroppyConsumptionListener(
+                this.itemFactory, core.getItemRegistry(), this.consumptionEvaluator,
+                core.getPlayerEffectService(), this.croppyLogger), this);
+        pm.registerEvents(new dev.darkblade.croppy.platform.paper.effect.AlcoholChatListener(
+                core.getPlayerEffectService(), this.pluginConfig), this);
 
         this.croppyLogger.debug(LogChannel.CORE,
-                () -> "Registered crop lifecycle, chunk, inspection, watering, fertilizer, and crafting station listeners.");
+                () -> "Registered crop lifecycle, chunk, inspection, watering, fertilizer, consumable, and crafting station listeners.");
     }
 
     private void setupMenuDefinitions() {
@@ -768,6 +782,49 @@ public class CroppyPlugin extends JavaPlugin {
         return restored;
     }
 
+    private void setupConsumableEffects() {
+        this.playerEffectStorage = new dev.darkblade.croppy.platform.paper.effect.PdcPlayerEffectStorage(this.croppyLogger);
+        core.getPlayerEffectService().setStorage(this.playerEffectStorage);
+        core.getPlayerEffectService().setPlatformHandleResolver(uuid -> getServer().getPlayer(uuid));
+        this.consumptionEvaluator = new dev.darkblade.croppy.core.consumable.ConsumptionEvaluator(
+                core.getConsumeEffectRegistry(), this.croppyLogger);
+        registerBuiltInConsumablesAndEffects();
+    }
+
+    private void registerBuiltInConsumablesAndEffects() {
+        dev.darkblade.croppy.platform.paper.consumable.BuiltInConsumeEffectHandlers.registerAll(
+                core.getConsumeEffectRegistry(), core.getPlayerEffectService(), this.croppyLogger);
+
+        this.intoxicationEffect = new dev.darkblade.croppy.platform.paper.effect.PaperIntoxicationEffect(
+                this.pluginConfig, this.messageService);
+        this.hangoverEffect = new dev.darkblade.croppy.platform.paper.effect.PaperHangoverEffect(
+                this.messageService);
+
+        if (core.getStatusEffectRegistry().contains(dev.darkblade.croppy.platform.paper.effect.PaperIntoxicationEffect.KEY)) {
+            core.getStatusEffectRegistry().unregister(dev.darkblade.croppy.platform.paper.effect.PaperIntoxicationEffect.KEY);
+        }
+        core.getStatusEffectRegistry().register(this.intoxicationEffect);
+
+        if (core.getStatusEffectRegistry().contains(dev.darkblade.croppy.platform.paper.effect.PaperHangoverEffect.KEY)) {
+            core.getStatusEffectRegistry().unregister(dev.darkblade.croppy.platform.paper.effect.PaperHangoverEffect.KEY);
+        }
+        core.getStatusEffectRegistry().register(this.hangoverEffect);
+    }
+
+    private void startEffectTicker() {
+        if (this.effectTicker != null) {
+            this.effectTicker.stop();
+        }
+        this.effectTicker = new dev.darkblade.croppy.platform.paper.effect.PaperEffectTicker(
+                this,
+                core.getPlayerEffectService(),
+                core.getStatusEffectRegistry(),
+                this.pluginConfig.getConsumablesEffectTickInterval(),
+                this.pluginConfig.isConsumablesHudEnabled(),
+                this.croppyLogger);
+        this.effectTicker.start();
+    }
+
     private void setupItemDefinitions() {
         Path itemsDir = getDataFolder().toPath().resolve("items");
         // Seeds
@@ -809,6 +866,7 @@ public class CroppyPlugin extends JavaPlugin {
         if (this.itemFactory == null) {
             this.itemFactory = new ItemFactory(this, core.getItemRegistry(), core.getItemMetadataRegistry(), this.croppyLogger);
         }
+        this.itemFactory.setAutoLoreEnabled(this.pluginConfig.isConsumablesAutoLore());
         this.croppyLogger.debug(LogChannel.LOADER, () -> "Registered " + loaded + " custom items across "
                 + core.getItemRegistry().getCategories().size() + " categories.");
     }
@@ -1057,6 +1115,11 @@ public class CroppyPlugin extends JavaPlugin {
         logger.applyConfig(this.pluginConfig.getLoggingLevel(), this.pluginConfig.getLoggingDebugChannels());
         setupLocalization();
         purgeCoreOwnedRegistries(this.core, this.addonManager, this.craftingRecipeService, this.fertilizerRegistry);
+        registerBuiltInConsumablesAndEffects();
+        if (this.effectTicker != null) {
+            this.effectTicker.setIntervalTicks(this.pluginConfig.getConsumablesEffectTickInterval());
+            this.effectTicker.setHudEnabled(this.pluginConfig.isConsumablesHudEnabled());
+        }
         setupItemDefinitions();
         setupFertilizers();
         setupCropDefinitions();
@@ -1109,6 +1172,10 @@ public class CroppyPlugin extends JavaPlugin {
         registerMissingDefaultRecipeCategories(core.getRecipeCategoryRegistry());
         purgeNonAddonEntries(core.getProcessRegistry(), addonManager,
                 dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.PROCESS);
+        purgeNonAddonEntries(core.getConsumeEffectRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.CONSUME_EFFECT);
+        purgeNonAddonEntries(core.getStatusEffectRegistry(), addonManager,
+                dev.darkblade.croppy.platform.paper.addon.PaperAddonManager.AddonOwnedRegistry.STATUS_EFFECT);
 
         List<dev.darkblade.croppy.api.crafting.CraftingRecipe> coreCraftingRecipes = new ArrayList<>();
         for (dev.darkblade.croppy.api.crafting.CraftingRecipe recipe : core.getCraftingRecipeRegistry().values()) {
@@ -1251,6 +1318,25 @@ public class CroppyPlugin extends JavaPlugin {
                 logger.warn(LogChannel.GROWTH, "Error stopping growth ticker during shutdown", t);
             }
             this.growthTicker = null;
+        }
+
+        if (this.effectTicker != null) {
+            try {
+                this.effectTicker.stop();
+            } catch (Throwable t) {
+                logger.warn(LogChannel.CORE, "Error stopping status effect ticker during shutdown", t);
+            }
+            this.effectTicker = null;
+        }
+
+        if (this.core != null) {
+            try {
+                for (org.bukkit.entity.Player online : getServer().getOnlinePlayers()) {
+                    this.core.getPlayerEffectService().handlePlayerQuit(online.getUniqueId(), true);
+                }
+            } catch (Throwable t) {
+                logger.warn(LogChannel.STORAGE, "Error saving persistent player status effects on shutdown", t);
+            }
         }
 
         if (this.rainTask != null && !this.rainTask.isCancelled()) {

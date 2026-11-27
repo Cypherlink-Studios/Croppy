@@ -91,7 +91,9 @@ public class PaperAddonManager extends DefaultAddonManager {
         PROCESS,
         STATION,
         MENU,
-        INTERACTION
+        INTERACTION,
+        CONSUME_EFFECT,
+        STATUS_EFFECT
     }
 
     /**
@@ -141,6 +143,8 @@ public class PaperAddonManager extends DefaultAddonManager {
             case STATION -> context.getRegisteredStations();
             case MENU -> context.getRegisteredMenus();
             case INTERACTION -> context.getRegisteredInteractions();
+            case CONSUME_EFFECT -> context.getRegisteredConsumeEffects();
+            case STATUS_EFFECT -> context.getRegisteredStatusEffects();
         };
     }
 

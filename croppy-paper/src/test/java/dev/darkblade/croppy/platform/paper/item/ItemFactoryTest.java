@@ -422,6 +422,39 @@ class ItemFactoryTest {
         assertEquals("brewery:apple_cider", pdcMap.get(new NamespacedKey("brewery", "beverage_key")));
     }
 
+    @Test
+    @DisplayName("applyToMeta appends opt-in auto-lore scaled by quality when enabled")
+    void testAutoLoreFormattingAndToggle() {
+        var props = new dev.darkblade.croppy.api.item.ConsumableProperties(
+                new dev.darkblade.croppy.api.item.FoodProperties(
+                        4, 2.0f, true, new dev.darkblade.croppy.api.item.QualityScaling(0.25, 0.25, 0.2)),
+                1.2f,
+                dev.darkblade.croppy.api.item.UseAnimation.DRINK,
+                null,
+                true,
+                null,
+                null,
+                List.of(new dev.darkblade.croppy.api.item.ConsumeEffectSpec(
+                        Key.of("croppy", "potion"), 1.0, 1, null, Map.of("effect", "minecraft:speed")))
+        );
+        ItemDefinition def = new ItemDefinition(
+                Key.of("croppy", "test_drink"), "drinks", "POTION", 0,
+                null, null, "<gold>Drink</gold>", List.of("<gray>Base lore</gray>"), Map.of(), props
+        );
+
+        AtomicReference<List<Component>> disabledLore = new AtomicReference<>();
+        itemFactory.setAutoLoreEnabled(false);
+        itemFactory.applyToMeta(createMockItemMeta(new AtomicInteger(), new AtomicReference<>(), new AtomicReference<>(), disabledLore, new HashMap<>()), def, 2);
+        assertEquals(1, disabledLore.get().size());
+
+        AtomicReference<List<Component>> enabledLore = new AtomicReference<>();
+        itemFactory.setAutoLoreEnabled(true);
+        itemFactory.applyToMeta(createMockItemMeta(new AtomicInteger(), new AtomicReference<>(), new AtomicReference<>(), enabledLore, new HashMap<>()), def, 2);
+        assertEquals(3, enabledLore.get().size());
+        String nutritionPlain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(enabledLore.get().get(1));
+        assertTrue(nutritionPlain.contains("6"), "Gold quality (2) should scale base hunger 4 -> 6: " + nutritionPlain);
+    }
+
     private ItemMeta createMockItemMeta(
             AtomicInteger cmdRef,
             AtomicReference<NamespacedKey> modelRef,

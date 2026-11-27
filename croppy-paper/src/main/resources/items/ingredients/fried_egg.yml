@@ -5,3 +5,9 @@ item_model: "croppy:fried_egg"
 name: "<gradient:#ffff55:#ffaa00>Fried Egg</gradient>"
 lore:
   - "<gray>A perfectly crisped fried egg seared on a hot skillet.</gray>"
+food:
+  hunger: 5
+  saturation: 6.0
+consumable:
+  consume-seconds: 1.4
+  animation: "EAT"

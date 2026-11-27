@@ -156,6 +156,15 @@ Los marcadores con prefijo `%croppy_target_*%` calculan dinámicamente la línea
 | `%croppy_compendium_completion_percentage%` | Alias descriptivo de `%croppy_compendium_percentage%`. | `33.3%` |
 | `%croppy_compendium_is_unlocked_<clave_receta>%` | Indica si el jugador ha descubierto la receta especificada. | `true` |
 
+#### Efectos de Estado del Jugador
+| Marcador | Descripción | Ejemplo de Salida |
+|---|---|---|
+| `%croppy_effect_active_<clave>%` | Indica si el efecto de estado custom indicado está activo. | `true` |
+| `%croppy_effect_remaining_<clave>%` | Duración restante formateada en segundos, o `0` si está inactivo. | `104s` |
+| `%croppy_effect_amplifier_<clave>%` | Nivel de amplificador actual del efecto (`0` si está inactivo). | `1` |
+| `%croppy_effect_intensity_<clave>%` | Intensidad continua con un decimal (`0.0` si está inactivo). | `52.0` |
+| `%croppy_effect_stage_<clave>%` | Nombre de la etapa actual por umbral, o vacío si no aplica. | `Drunk` |
+
 ---
 
 ## 5. Integración con Vault (`croppy-integrations:vault`)

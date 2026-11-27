@@ -156,6 +156,15 @@ Placeholders prefixed with `%croppy_target_*%` dynamically cast a sightline from
 | `%croppy_compendium_completion_percentage%` | Descriptive alias for `%croppy_compendium_percentage%`. | `33.3%` |
 | `%croppy_compendium_is_unlocked_<recipe_key>%` | Whether the specified recipe is discovered by the player. | `true` |
 
+#### Player Status Effects
+| Placeholder | Description | Example Output |
+|---|---|---|
+| `%croppy_effect_active_<key>%` | Whether the specified custom status effect is currently active. | `true` |
+| `%croppy_effect_remaining_<key>%` | Remaining duration formatted in seconds, or `0` if inactive. | `104s` |
+| `%croppy_effect_amplifier_<key>%` | Current amplifier level of the active status effect (`0` if inactive). | `1` |
+| `%croppy_effect_intensity_<key>%` | Continuous intensity value formatted to one decimal (`0.0` if inactive). | `52.0` |
+| `%croppy_effect_stage_<key>%` | Active threshold stage display name, or empty string if none. | `Drunk` |
+
 ---
 
 ## 5. Vault Integration (`croppy-integrations:vault`)

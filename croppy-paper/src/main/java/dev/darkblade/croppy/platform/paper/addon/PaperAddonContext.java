@@ -2,8 +2,13 @@ package dev.darkblade.croppy.platform.paper.addon;
 
 import dev.darkblade.croppy.api.addon.AddonContext;
 import dev.darkblade.croppy.api.addon.AddonDescription;
+import dev.darkblade.croppy.api.consumable.ConsumeEffectHandler;
+import dev.darkblade.croppy.api.consumable.ConsumeEffectRegistry;
 import dev.darkblade.croppy.api.crafting.CraftingRecipeRegistry;
 import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
+import dev.darkblade.croppy.api.effect.CustomStatusEffect;
+import dev.darkblade.croppy.api.effect.PlayerEffectService;
+import dev.darkblade.croppy.api.effect.StatusEffectRegistry;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.growth.GrowthModifier;
 import dev.darkblade.croppy.api.identifier.Key;
@@ -77,6 +82,8 @@ public class PaperAddonContext implements AddonContext {
     private final Set<Key> registeredStations = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredMenus = ConcurrentHashMap.newKeySet();
     private final Set<Key> registeredInteractions = ConcurrentHashMap.newKeySet();
+    private final Set<Key> registeredConsumeEffects = ConcurrentHashMap.newKeySet();
+    private final Set<Key> registeredStatusEffects = ConcurrentHashMap.newKeySet();
     private final Set<GrowthModifier> registeredGrowthModifiers = ConcurrentHashMap.newKeySet();
     private final Set<ProcessListener> registeredProcessListeners = ConcurrentHashMap.newKeySet();
 
@@ -322,6 +329,117 @@ public class PaperAddonContext implements AddonContext {
     }
 
     @Override
+    public ConsumeEffectRegistry getConsumeEffectRegistry() {
+        if (core == null || core.getConsumeEffectRegistry() == null) {
+            return null;
+        }
+        ConsumeEffectRegistry delegate = core.getConsumeEffectRegistry();
+        return new ConsumeEffectRegistry() {
+            @Override
+            public void register(ConsumeEffectHandler entry) {
+                delegate.register(entry);
+                registeredConsumeEffects.add(entry.getKey());
+            }
+
+            @Override
+            public java.util.Optional<ConsumeEffectHandler> get(Key key) {
+                return delegate.get(key);
+            }
+
+            @Override
+            public boolean contains(Key key) {
+                return delegate.contains(key);
+            }
+
+            @Override
+            public java.util.Collection<ConsumeEffectHandler> values() {
+                return delegate.values();
+            }
+
+            @Override
+            public int size() {
+                return delegate.size();
+            }
+
+            @Override
+            public void clear() {
+                for (Key key : registeredConsumeEffects) {
+                    delegate.unregister(key);
+                }
+                registeredConsumeEffects.clear();
+            }
+
+            @Override
+            public boolean unregister(Key key) {
+                boolean removed = delegate.unregister(key);
+                registeredConsumeEffects.remove(key);
+                return removed;
+            }
+        };
+    }
+
+    @Override
+    public StatusEffectRegistry getStatusEffectRegistry() {
+        if (core == null || core.getStatusEffectRegistry() == null) {
+            return null;
+        }
+        StatusEffectRegistry delegate = core.getStatusEffectRegistry();
+        return new StatusEffectRegistry() {
+            @Override
+            public void register(CustomStatusEffect entry) {
+                delegate.register(entry);
+                registeredStatusEffects.add(entry.getKey());
+            }
+
+            @Override
+            public java.util.Optional<CustomStatusEffect> get(Key key) {
+                return delegate.get(key);
+            }
+
+            @Override
+            public boolean contains(Key key) {
+                return delegate.contains(key);
+            }
+
+            @Override
+            public java.util.Collection<CustomStatusEffect> values() {
+                return delegate.values();
+            }
+
+            @Override
+            public int size() {
+                return delegate.size();
+            }
+
+            @Override
+            public void clear() {
+                for (Key key : registeredStatusEffects) {
+                    delegate.unregister(key);
+                    if (core.getPlayerEffectService() != null) {
+                        core.getPlayerEffectService().purgeEffectDefinition(key);
+                    }
+                }
+                registeredStatusEffects.clear();
+            }
+
+            @Override
+            public boolean unregister(Key key) {
+                boolean removed = delegate.unregister(key);
+                registeredStatusEffects.remove(key);
+                if (removed && core.getPlayerEffectService() != null) {
+                    core.getPlayerEffectService().purgeEffectDefinition(key);
+                }
+                return removed;
+            }
+        };
+    }
+
+    @Override
+    public PlayerEffectService getPlayerEffectService() {
+        return core != null ? core.getPlayerEffectService() : null;
+    }
+
+    @Override
     public Optional<DatabaseService> getDatabaseService() {
         if (core == null) {
             return Optional.empty();
@@ -560,6 +678,14 @@ public class PaperAddonContext implements AddonContext {
 
     public Set<Key> getRegisteredInteractions() {
         return Collections.unmodifiableSet(registeredInteractions);
+    }
+
+    public Set<Key> getRegisteredConsumeEffects() {
+        return Collections.unmodifiableSet(registeredConsumeEffects);
+    }
+
+    public Set<Key> getRegisteredStatusEffects() {
+        return Collections.unmodifiableSet(registeredStatusEffects);
     }
 
     public Set<GrowthModifier> getRegisteredGrowthModifiers() {

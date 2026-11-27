@@ -5,3 +5,20 @@ item-model: "croppy:vegetable_stew"
 name: "<gradient:#55ff55:#ffaa00>Vegetable Stew</gradient>"
 lore:
   - "<gray>A rich and wholesome stew made from farm-grown harvest vegetables.</gray>"
+food:
+  hunger: 8
+  saturation: 9.6
+  quality-scaling:
+    hunger-per-level: 0.15
+    saturation-per-level: 0.20
+    duration-per-level: 0.20
+consumable:
+  consume-seconds: 2.0
+  animation: "EAT"
+  remainder: "minecraft:bowl"
+effects:
+  - type: "croppy:potion"
+    effect: "minecraft:regeneration"
+    duration: "5s"
+    amplifier: 0
+    min-quality: 2

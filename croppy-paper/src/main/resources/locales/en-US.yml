@@ -255,3 +255,14 @@ catalog:
     ingredients: "<red>Ingredients</red>"
     stations: "<gold>Stations</gold>"
     misc: "<light_purple>Miscellaneous</light_purple>"
+
+effects:
+  intoxication:
+    stage-tipsy: "<gold>You feel a warm, pleasant buzz.</gold>"
+    stage-drunk: "<yellow>The world starts spinning slightly...</yellow>"
+    stage-heavily-drunk: "<red>Your vision blurs and your balance falters!</red>"
+    stage-blackout: "<dark_red>You feel severely intoxicated!</dark_red>"
+    sober: "<green>Your head clears as you sober up.</green>"
+  hangover:
+    applied: "<gray>A throbbing hangover sets in...</gray>"
+    relieved: "<green>Your hangover fades away.</green>"

@@ -3,16 +3,26 @@ package dev.darkblade.croppy.platform.paper.item;
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.item.ConsumableProperties;
+import dev.darkblade.croppy.api.item.ConsumeCooldown;
+import dev.darkblade.croppy.api.item.ConsumeEffectSpec;
+import dev.darkblade.croppy.api.item.FoodProperties;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemMetadataContributor;
 import dev.darkblade.croppy.api.item.ItemMetadataRegistry;
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.item.UseAnimation;
 import dev.darkblade.croppy.api.logging.CroppyLogger;
 import dev.darkblade.croppy.api.logging.JulCroppyLogger;
 import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
 import dev.darkblade.croppy.api.station.StoredItem;
 import dev.darkblade.croppy.api.station.visual.StationModelOverride;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.Consumable;
+import io.papermc.paper.datacomponent.item.UseCooldown;
+import io.papermc.paper.datacomponent.item.UseRemainder;
+import io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -56,6 +66,7 @@ public class ItemFactory {
     private final NamespacedKey qualityKey;
     private final MiniMessage miniMessage;
     private final CroppyLogger logger;
+    private volatile boolean autoLoreEnabled = false;
 
     public ItemFactory(Plugin plugin, ItemRegistry itemRegistry) {
         this(plugin, (plugin != null ? plugin.getServer() : null), itemRegistry);
@@ -93,6 +104,14 @@ public class ItemFactory {
         this.logger = logger != null ? logger : NoOpCroppyLogger.INSTANCE;
     }
 
+    public void setAutoLoreEnabled(boolean autoLoreEnabled) {
+        this.autoLoreEnabled = autoLoreEnabled;
+    }
+
+    public boolean isAutoLoreEnabled() {
+        return autoLoreEnabled;
+    }
+
     /**
      * Constructs a Bukkit ItemStack from the given ItemDefinition.
      *
@@ -101,6 +120,13 @@ public class ItemFactory {
      * @return the constructed ItemStack
      */
     public ItemStack createItemStack(ItemDefinition definition, int amount) {
+        return createItemStack(definition, amount, 0);
+    }
+
+    /**
+     * Constructs a Bukkit ItemStack from the given ItemDefinition scaled for the given quality grade.
+     */
+    public ItemStack createItemStack(ItemDefinition definition, int amount, int quality) {
         Objects.requireNonNull(definition, "definition cannot be null");
 
         Material material = resolveMaterial(definition.materialKey());
@@ -110,9 +136,10 @@ public class ItemFactory {
             return item;
         }
 
-        applyToMeta(meta, definition);
+        applyToMeta(meta, definition, quality);
 
         item.setItemMeta(meta);
+        applyConsumableDataComponents(item, definition, quality);
         return item;
     }
 
@@ -123,6 +150,13 @@ public class ItemFactory {
      * @param definition the domain item definition
      */
     public void applyToMeta(ItemMeta meta, ItemDefinition definition) {
+        applyToMeta(meta, definition, 0);
+    }
+
+    /**
+     * Applies metadata from an ItemDefinition to an existing ItemMeta instance for the specified quality grade.
+     */
+    public void applyToMeta(ItemMeta meta, ItemDefinition definition, int quality) {
         Objects.requireNonNull(meta, "meta cannot be null");
         Objects.requireNonNull(definition, "definition cannot be null");
 
@@ -134,11 +168,18 @@ public class ItemFactory {
         }
 
         // 2. Lore
+        List<Component> lore = new ArrayList<>();
         if (definition.lore() != null && !definition.lore().isEmpty()) {
-            List<Component> lore = new ArrayList<>();
             for (String line : definition.lore()) {
                 lore.add(miniMessage.deserialize(line).decoration(TextDecoration.ITALIC, false));
             }
+        }
+        if (autoLoreEnabled && definition.getConsumableProperties().isPresent()) {
+            for (String autoLine : formatConsumableAutoLore(definition.getConsumableProperties().get(), quality)) {
+                lore.add(miniMessage.deserialize(autoLine).decoration(TextDecoration.ITALIC, false));
+            }
+        }
+        if (!lore.isEmpty()) {
             meta.lore(lore);
         }
 
@@ -200,7 +241,13 @@ public class ItemFactory {
             item = createRawVanillaItemStack(mat, Math.max(1, stored.amount()));
         }
 
+        if (item == null) {
+            return null;
+        }
         applyStoredMetadata(item, stored);
+        if (stored.quality() > 0 && defOpt.isPresent()) {
+            applyConsumableDataComponents(item, defOpt.get(), stored.quality());
+        }
         return item;
     }
 
@@ -240,6 +287,20 @@ public class ItemFactory {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         if (stored.quality() > 0 && pdc != null) {
             pdc.set(qualityKey, PersistentDataType.INTEGER, stored.quality());
+        }
+
+        if (autoLoreEnabled && stored.quality() > 0) {
+            Optional<ItemDefinition> defOpt = itemRegistry.get(stored.itemKey());
+            if (defOpt.isPresent() && defOpt.get().getConsumableProperties().isPresent()) {
+                List<Component> rebuilt = new ArrayList<>();
+                for (String baseLine : defOpt.get().lore()) {
+                    rebuilt.add(miniMessage.deserialize(baseLine).decoration(TextDecoration.ITALIC, false));
+                }
+                for (String autoLine : formatConsumableAutoLore(defOpt.get().getConsumableProperties().get(), stored.quality())) {
+                    rebuilt.add(miniMessage.deserialize(autoLine).decoration(TextDecoration.ITALIC, false));
+                }
+                meta.lore(rebuilt);
+            }
         }
 
         List<Component> extraLore = new ArrayList<>();
@@ -573,5 +634,100 @@ public class ItemFactory {
             return new NamespacedKey(parts[0], parts[1]);
         }
         return new NamespacedKey("croppy", keyStr);
+    }
+
+    /**
+     * Applies native Paper 1.21.8 FOOD, CONSUMABLE (with empty vanilla consume-effects),
+     * USE_REMAINDER, and USE_COOLDOWN Data Components when {@link ConsumableProperties} is present.
+     */
+    public void applyConsumableDataComponents(ItemStack item, ItemDefinition definition, int quality) {
+        if (item == null || definition == null || definition.getConsumableProperties().isEmpty()) {
+            return;
+        }
+        ConsumableProperties props = definition.getConsumableProperties().get();
+        try {
+            if (props.getFood().isPresent()) {
+                FoodProperties fp = props.getFood().get();
+                int scaledHunger = fp.qualityScaling().scaleHunger(fp.hunger(), quality);
+                float scaledSat = fp.qualityScaling().scaleSaturation(fp.saturation(), quality);
+                item.setData(DataComponentTypes.FOOD, io.papermc.paper.datacomponent.item.FoodProperties.food()
+                        .nutrition(scaledHunger)
+                        .saturation(scaledSat)
+                        .canAlwaysEat(fp.canAlwaysEat())
+                        .build());
+            }
+
+            Consumable.Builder consumableBuilder = Consumable.consumable()
+                    .consumeSeconds(props.consumeSeconds())
+                    .animation(mapAnimation(props.animation()))
+                    .hasConsumeParticles(props.hasConsumeParticles())
+                    .effects(List.of());
+
+            if (props.getSound().isPresent()) {
+                Key soundKey = props.getSound().get();
+                consumableBuilder.sound(net.kyori.adventure.key.Key.key(soundKey.namespace(), soundKey.value()));
+            }
+            item.setData(DataComponentTypes.CONSUMABLE, consumableBuilder.build());
+
+            if (props.getRemainderItemKey().isPresent()) {
+                resolveItemStack(props.getRemainderItemKey().get().asString(), 1).ifPresent(rem ->
+                        item.setData(DataComponentTypes.USE_REMAINDER, UseRemainder.useRemainder(rem)));
+            }
+
+            if (props.getCooldown().isPresent()) {
+                ConsumeCooldown cd = props.getCooldown().get();
+                Key groupKey = cd.getGroup().orElse(definition.key());
+                item.setData(DataComponentTypes.USE_COOLDOWN,
+                        UseCooldown.useCooldown(cd.seconds())
+                                .cooldownGroup(net.kyori.adventure.key.Key.key(groupKey.namespace(), groupKey.value()))
+                                .build());
+            }
+        } catch (Throwable t) {
+            logger.debug(LogChannel.CORE, () ->
+                    "Skipped DataComponent application for " + definition.key() + ": " + t.getMessage());
+        }
+    }
+
+    /**
+     * Formats optional MiniMessage auto-lore summary lines for consumable items.
+     */
+    public List<String> formatConsumableAutoLore(ConsumableProperties props, int quality) {
+        if (props == null) {
+            return List.of();
+        }
+        List<String> lines = new ArrayList<>();
+        if (props.getFood().isPresent()) {
+            FoodProperties fp = props.getFood().get();
+            int hunger = fp.qualityScaling().scaleHunger(fp.hunger(), quality);
+            float sat = fp.qualityScaling().scaleSaturation(fp.saturation(), quality);
+            lines.add(String.format(Locale.ROOT,
+                    "<gray>Nutrition:</gray> <gold>%d</gold> <gray>| Saturation:</gray> <yellow>%.1f</yellow>",
+                    hunger, sat));
+        }
+        for (ConsumeEffectSpec eff : props.effects()) {
+            if (quality >= eff.minQuality()) {
+                lines.add("<dark_gray>• " + eff.type().value().replace('_', ' ') + "</dark_gray>");
+            }
+        }
+        return lines;
+    }
+
+    static ItemUseAnimation mapAnimation(UseAnimation animation) {
+        if (animation == null) {
+            return ItemUseAnimation.EAT;
+        }
+        return switch (animation) {
+            case NONE -> ItemUseAnimation.NONE;
+            case EAT -> ItemUseAnimation.EAT;
+            case DRINK -> ItemUseAnimation.DRINK;
+            case BLOCK -> ItemUseAnimation.BLOCK;
+            case BOW -> ItemUseAnimation.BOW;
+            case SPEAR -> ItemUseAnimation.SPEAR;
+            case CROSSBOW -> ItemUseAnimation.CROSSBOW;
+            case SPYGLASS -> ItemUseAnimation.SPYGLASS;
+            case TOOT_HORN -> ItemUseAnimation.TOOT_HORN;
+            case BRUSH -> ItemUseAnimation.BRUSH;
+            case BUNDLE -> ItemUseAnimation.BUNDLE;
+        };
     }
 }

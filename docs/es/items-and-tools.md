@@ -178,3 +178,66 @@ Los administradores pueden explorar, filtrar, buscar y obtener cualquier ítem r
   * **Control + Q**: Suelta 1 stack completo a los pies del jugador.
   * **Caída Natural por Inventario Lleno**: Si el inventario del jugador está completo, los ítems sobrantes caen al suelo a sus pies sin perderse.
 
+---
+
+## 7. Atributos de Consumibles, Efectos Custom y Alcohol
+
+Los ítems personalizados pueden declarar física nativa de comida y consumo de Paper 1.21.8 junto con efectos instantáneos y temporales ejecutados en servidor dentro de `items/<categoría>/<item_id>.yml`:
+
+```yaml
+id: "croppy:spiced_cider"
+category: "ingredients"
+material: "POTION"
+item-model: "croppy:spiced_cider"
+name: "<gold>Sidra Especiada</gold>"
+
+food:                          # Alias: nutrition
+  hunger: 4
+  saturation: 3.5
+  can-always-eat: true
+  quality-scaling:
+    hunger-per-level: 0.25
+    saturation-per-level: 0.25
+    duration-per-level: 0.20
+
+consumable:
+  consume-seconds: 1.2
+  animation: "DRINK"           # EAT, DRINK, NONE, BLOCK, BOW, SPEAR, CROSSBOW, SPYGLASS, TOOT_HORN, BRUSH, BUNDLE
+  sound: "minecraft:entity.generic.drink"
+  particles: true
+  remainder: "minecraft:glass_bottle"
+  cooldown:
+    seconds: 3.0
+    group: "croppy:cider"
+
+effects:
+  - type: "croppy:potion"
+    effect: "minecraft:regeneration"
+    duration: "5s"
+    amplifier: 0
+    min-quality: 1
+    chance: 1.0
+    condition: "item.quality >= 1"
+  - type: "croppy:alcohol"
+    abv: 5.5
+    volume-ml: 250
+```
+
+### Handlers de Efectos Instantáneos Incluidos
+| Clave | Parámetros Principales | Comportamiento |
+|---|---|---|
+| `croppy:potion` | `effect`, `duration`, `amplifier`, `ambient`, `particles`, `icon` | Aplica un `PotionEffect` vanilla (duración escalada por `quality-scaling`). |
+| `croppy:remove_potion` | `effect` o `effects` | Elimina los efectos de poción vanilla indicados. |
+| `croppy:clear_effects` | `vanilla` (`true`), `custom` (`false`) | Limpia efectos vanilla y/o efectos de estado custom de Croppy. |
+| `croppy:heal` / `croppy:damage` | `amount` | Cura (hasta la vida máxima) o daña al jugador. |
+| `croppy:oxygen` | `amount` (ticks) | Ajusta el aire restante del jugador. |
+| `croppy:sound` / `croppy:particle` | `sound`/`particle`, `volume`, `pitch`, `count` | Reproduce un sonido o genera partículas sobre el jugador. |
+| `croppy:message` | `message`, `target` (`CHAT` \| `ACTIONBAR`) | Envía un mensaje formateado con MiniMessage. |
+| `croppy:teleport_randomly` | `diameter`, `attempts` | Teletransporta de forma segura a un bloque cercano. |
+| `croppy:apply_status` | `status`, `duration`, `amplifier`, `intensity` | Aplica un `CustomStatusEffect` temporal con estado. |
+| `croppy:reduce_status` / `croppy:remove_status` | `status`, `intensity`, `duration` | Reduce intensidad/duración o elimina un efecto activo (ideal para antídotos como café). |
+| `croppy:alcohol` | `abv`, `volume-ml`, `factor` (o `amount`) | Suma intensidad a `croppy:intoxication` (escala `0.0..100.0`). |
+
+### Intoxicación Alcohólica (`croppy:intoxication`) y Resaca (`croppy:hangover`)
+`croppy:intoxication` decae de forma continua con el tiempo y progresa por etapas configurables (`Tipsy` >= 20, `Drunk` >= 45, `Heavily Drunk` >= 70, `Blackout` >= 90) con pulsos cortos de náuseas, buffs/debuffs por etapa, slurring/balanceo *opt-in*, reducción parcial con leche y transición opcional a `croppy:hangover` al recuperarse de una intoxicación severa.
+

@@ -1,6 +1,8 @@
 package dev.darkblade.croppy.integration.papi;
 
 import dev.darkblade.croppy.api.crop.CropInstance;
+import dev.darkblade.croppy.api.effect.ActiveStatusEffect;
+import dev.darkblade.croppy.api.effect.StatusEffectStage;
 import dev.darkblade.croppy.api.identifier.Key;
 import dev.darkblade.croppy.api.process.PhaseDefinition;
 import dev.darkblade.croppy.api.process.ProcessDefinition;
@@ -104,6 +106,12 @@ public class CroppyPlaceholderExpansion extends PlaceholderExpansion {
                 KnowledgeState state = core.getRecipeDiscoveryEngine().getKnowledgeState(offlinePlayer.getUniqueId(), recipeKey);
                 return state == KnowledgeState.DISCOVERED ? "true" : "false";
             }
+            if (query.startsWith("effect_")) {
+                String resolved = resolvePlayerEffectPlaceholder(offlinePlayer, params);
+                if (resolved != null) {
+                    return resolved;
+                }
+            }
         }
 
         // 3. Target Crosshair Placeholders (requires online player)
@@ -200,6 +208,55 @@ public class CroppyPlaceholderExpansion extends PlaceholderExpansion {
         }
 
         return null;
+    }
+
+    private String resolvePlayerEffectPlaceholder(OfflinePlayer player, String params) {
+        String lower = params.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("effect_active_")) {
+            Key key = parseEffectKey(params.substring("effect_active_".length()));
+            return key != null && core.getPlayerEffectService().hasEffect(player.getUniqueId(), key) ? "true" : "false";
+        }
+        if (lower.startsWith("effect_remaining_")) {
+            Key key = parseEffectKey(params.substring("effect_remaining_".length()));
+            if (key == null) return "0";
+            return core.getPlayerEffectService().getActiveEffect(player.getUniqueId(), key)
+                    .map(eff -> eff.remainingSeconds() + "s")
+                    .orElse("0");
+        }
+        if (lower.startsWith("effect_amplifier_")) {
+            Key key = parseEffectKey(params.substring("effect_amplifier_".length()));
+            if (key == null) return "0";
+            return core.getPlayerEffectService().getActiveEffect(player.getUniqueId(), key)
+                    .map(eff -> String.valueOf(eff.amplifier()))
+                    .orElse("0");
+        }
+        if (lower.startsWith("effect_intensity_")) {
+            Key key = parseEffectKey(params.substring("effect_intensity_".length()));
+            if (key == null) return "0.0";
+            return core.getPlayerEffectService().getActiveEffect(player.getUniqueId(), key)
+                    .map(eff -> String.format(Locale.ROOT, "%.1f", eff.intensity()))
+                    .orElse("0.0");
+        }
+        if (lower.startsWith("effect_stage_")) {
+            Key key = parseEffectKey(params.substring("effect_stage_".length()));
+            if (key == null) return "";
+            return core.getPlayerEffectService().getCurrentStage(player.getUniqueId(), key)
+                    .map(StatusEffectStage::displayName)
+                    .orElse("");
+        }
+        return null;
+    }
+
+    private static Key parseEffectKey(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String trimmed = raw.trim().toLowerCase(Locale.ROOT);
+        try {
+            return trimmed.contains(":") ? Key.parse(trimmed) : Key.of("croppy", trimmed);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private int getDiscoveredCount(OfflinePlayer player) {

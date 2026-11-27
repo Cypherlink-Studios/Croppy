@@ -130,3 +130,32 @@ crafting:
 ## 6. Personalización de Herramientas y la Herramienta de Inspección
 
 La herramienta de inspección (`croppy:inspection_tool`) se define de forma modular a través del **Registro de Ítems** en `plugins/Croppy/items/tools/inspector.yml` (utilizando el material base neutro `minecraft:stick` para evitar conflictos con varitas de navegación administrativas). Para personalizar su material, nombre visible, modelo 3D o lore, edita directamente su definición YAML o consulta la [Guía de Ítems y Herramientas](./items-and-tools.md).
+
+---
+
+## 7. Consumibles y Efectos de Estado (`consumables`)
+
+Controla el *auto-lore* opcional de nutrición/efectos, la frecuencia de tick de efectos de estado, el HUD opcional y los parámetros de intoxicación alcohólica:
+
+```yaml
+consumables:
+  auto-lore: false
+  effect-tick-interval: 20
+  hud:
+    enabled: false
+  alcohol:
+    decay-per-second: 0.25
+    milk-reduction: 0.5
+    stages:
+      tipsy: 20.0
+      drunk: 45.0
+      heavily-drunk: 70.0
+      blackout: 90.0
+    nausea-pulse-interval-seconds: 12
+    chat-slurring: false
+    sway-enabled: false
+    hangover:
+      enabled: true
+      trigger-threshold: 70.0
+      duration-seconds: 60
+```

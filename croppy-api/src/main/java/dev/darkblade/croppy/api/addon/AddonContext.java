@@ -1,7 +1,10 @@
 package dev.darkblade.croppy.api.addon;
 
+import dev.darkblade.croppy.api.consumable.ConsumeEffectRegistry;
 import dev.darkblade.croppy.api.crafting.CraftingRecipeRegistry;
 import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
+import dev.darkblade.croppy.api.effect.PlayerEffectService;
+import dev.darkblade.croppy.api.effect.StatusEffectRegistry;
 import dev.darkblade.croppy.api.fertilizer.FertilizerRegistry;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
@@ -134,6 +137,27 @@ public interface AddonContext {
      * @return the global station menu action contributor registry
      */
     StationActionRegistry getStationActionRegistry();
+
+    /**
+     * @return the consume effect handler registry (tracked per addon when supported)
+     */
+    default ConsumeEffectRegistry getConsumeEffectRegistry() {
+        return null;
+    }
+
+    /**
+     * @return the custom status effect registry (tracked per addon when supported)
+     */
+    default StatusEffectRegistry getStatusEffectRegistry() {
+        return null;
+    }
+
+    /**
+     * @return the player status effect service
+     */
+    default PlayerEffectService getPlayerEffectService() {
+        return null;
+    }
 
     /**
      * Returns an addon-scoped relational {@link DatabaseService} enforcing table-prefix isolation,

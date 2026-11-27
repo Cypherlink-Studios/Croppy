@@ -5,3 +5,9 @@ item-model: "croppy:tomato"
 name: "<red>Tomato</red>"
 lore:
   - "<gray>A fresh, ripe red tomato.</gray>"
+food:
+  hunger: 3
+  saturation: 2.4
+consumable:
+  consume-seconds: 1.2
+  animation: "EAT"

@@ -5,3 +5,18 @@ item-model: "croppy:tomato_soup"
 name: "<gradient:#ff5555:#ffaa00>Tomato Soup</gradient>"
 lore:
   - "<gray>A warm and hearty bowl of freshly simmered tomato soup.</gray>"
+food:
+  hunger: 6
+  saturation: 7.2
+  quality-scaling:
+    hunger-per-level: 0.15
+    saturation-per-level: 0.20
+    duration-per-level: 0.15
+consumable:
+  consume-seconds: 1.8
+  animation: "DRINK"
+  remainder: "minecraft:bowl"
+effects:
+  - type: "croppy:heal"
+    amount: 2.0
+    min-quality: 1

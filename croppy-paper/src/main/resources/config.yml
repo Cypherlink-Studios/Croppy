@@ -117,6 +117,37 @@ crafting:
   auto-discover-recipes: true
 
 # ==============================================================================
+# Custom Consumables & Status Effects
+# ==============================================================================
+consumables:
+  # Automatically append nutrition and effect summary lines to consumable item lore
+  auto-lore: false
+  # Frequency in ticks for ticking custom player status effects (20 ticks = 1 second)
+  effect-tick-interval: 20
+  hud:
+    # Optional periodic ActionBar status summary for active custom effects
+    enabled: false
+  alcohol:
+    # Continuous intoxication decay per second (0..100 scale)
+    decay-per-second: 0.25
+    # Fraction of intoxication removed when drinking a milk bucket (0.0..1.0)
+    milk-reduction: 0.5
+    stages:
+      tipsy: 20.0
+      drunk: 45.0
+      heavily-drunk: 70.0
+      blackout: 90.0
+    # Interval between short nausea pulses while drunk
+    nausea-pulse-interval-seconds: 12
+    # Opt-in roleplay immersion features
+    chat-slurring: false
+    sway-enabled: false
+    hangover:
+      enabled: true
+      trigger-threshold: 70.0
+      duration-seconds: 60
+
+# ==============================================================================
 # Logging & Console Diagnostics
 # ==============================================================================
 logging:

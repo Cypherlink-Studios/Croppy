@@ -178,3 +178,66 @@ Administrators can browse, filter, search, and spawn any registered custom item 
   * **Control + Q**: Drop a full stack naturally on the ground at feet.
   * **Auto-Drop on Full Inventory**: If player inventory is full, spawned items drop safely at feet without vanishing.
 
+---
+
+## 7. Consumable Attributes, Custom Effects & Alcohol
+
+Custom items can declare native Paper 1.21.8 food and consumption physics alongside server-authoritative instant and stateful effects directly inside `items/<category>/<item_id>.yml`:
+
+```yaml
+id: "croppy:spiced_cider"
+category: "ingredients"
+material: "POTION"
+item-model: "croppy:spiced_cider"
+name: "<gold>Spiced Apple Cider</gold>"
+
+food:                          # Alias: nutrition
+  hunger: 4
+  saturation: 3.5
+  can-always-eat: true
+  quality-scaling:
+    hunger-per-level: 0.25
+    saturation-per-level: 0.25
+    duration-per-level: 0.20
+
+consumable:
+  consume-seconds: 1.2
+  animation: "DRINK"           # EAT, DRINK, NONE, BLOCK, BOW, SPEAR, CROSSBOW, SPYGLASS, TOOT_HORN, BRUSH, BUNDLE
+  sound: "minecraft:entity.generic.drink"
+  particles: true
+  remainder: "minecraft:glass_bottle"
+  cooldown:
+    seconds: 3.0
+    group: "croppy:cider"
+
+effects:
+  - type: "croppy:potion"
+    effect: "minecraft:regeneration"
+    duration: "5s"
+    amplifier: 0
+    min-quality: 1
+    chance: 1.0
+    condition: "item.quality >= 1"
+  - type: "croppy:alcohol"
+    abv: 5.5
+    volume-ml: 250
+```
+
+### Built-In Instant Effect Handlers
+| Key | Key Parameters | Behavior |
+|---|---|---|
+| `croppy:potion` | `effect`, `duration`, `amplifier`, `ambient`, `particles`, `icon` | Applies a vanilla `PotionEffect` (duration scales with `quality-scaling`). |
+| `croppy:remove_potion` | `effect` or `effects` | Removes specified vanilla potion effect(s). |
+| `croppy:clear_effects` | `vanilla` (`true`), `custom` (`false`) | Clears vanilla and/or custom Croppy status effects. |
+| `croppy:heal` / `croppy:damage` | `amount` | Heals (clamped to max health) or damages the player. |
+| `croppy:oxygen` | `amount` (ticks) | Adjusts remaining air ticks. |
+| `croppy:sound` / `croppy:particle` | `sound`/`particle`, `volume`, `pitch`, `count` | Plays a sound or spawns particles at the player. |
+| `croppy:message` | `message`, `target` (`CHAT` \| `ACTIONBAR`) | Sends a MiniMessage formatted notification. |
+| `croppy:teleport_randomly` | `diameter`, `attempts` | Safely teleports nearby like Chorus Fruit. |
+| `croppy:apply_status` | `status`, `duration`, `amplifier`, `intensity` | Applies a stateful `CustomStatusEffect`. |
+| `croppy:reduce_status` / `croppy:remove_status` | `status`, `intensity`, `duration` | Reduces intensity/duration or removes an active custom status effect (useful for antidotes such as coffee). |
+| `croppy:alcohol` | `abv`, `volume-ml`, `factor` (or `amount`) | Adds intensity to `croppy:intoxication` (`0.0..100.0` scale). |
+
+### Alcohol Intoxication (`croppy:intoxication`) & Hangover (`croppy:hangover`)
+`croppy:intoxication` continuously decays over time and progresses across configurable stages (`Tipsy` >= 20, `Drunk` >= 45, `Heavily Drunk` >= 70, `Blackout` >= 90) with pulsed nausea, stage buffs/debuffs, opt-in chat slurring/sway, milk reduction, and an opt-in `croppy:hangover` effect when decaying from heavy intoxication.
+

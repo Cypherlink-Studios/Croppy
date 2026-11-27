@@ -54,6 +54,23 @@ public class PluginConfig {
     // Crafting Settings
     private boolean craftingAutoDiscoverRecipes = true;
 
+    // Consumables & Status Effect Settings
+    private boolean consumablesAutoLore = false;
+    private long consumablesEffectTickInterval = 20L;
+    private boolean consumablesHudEnabled = false;
+    private double alcoholDecayPerSecond = 0.25;
+    private double alcoholMilkReduction = 0.5;
+    private double alcoholTipsyThreshold = 20.0;
+    private double alcoholDrunkThreshold = 45.0;
+    private double alcoholHeavilyDrunkThreshold = 70.0;
+    private double alcoholBlackoutThreshold = 90.0;
+    private int alcoholNauseaPulseIntervalSeconds = 12;
+    private boolean alcoholChatSlurring = false;
+    private boolean alcoholSwayEnabled = false;
+    private boolean alcoholHangoverEnabled = true;
+    private double alcoholHangoverTriggerThreshold = 70.0;
+    private int alcoholHangoverDurationSeconds = 60;
+
     // Logging Settings
     private LogLevel loggingLevel = LogLevel.INFO;
     private LogStyle loggingStyle = LogStyle.RICH;
@@ -109,6 +126,23 @@ public class PluginConfig {
 
         // Crafting configuration
         this.craftingAutoDiscoverRecipes = config.getBoolean("crafting.auto-discover-recipes", true);
+
+        // Consumables & Alcohol configuration
+        this.consumablesAutoLore = config.getBoolean("consumables.auto-lore", false);
+        this.consumablesEffectTickInterval = Math.max(1L, config.getLong("consumables.effect-tick-interval", 20L));
+        this.consumablesHudEnabled = config.getBoolean("consumables.hud.enabled", false);
+        this.alcoholDecayPerSecond = Math.max(0.01, config.getDouble("consumables.alcohol.decay-per-second", 0.25));
+        this.alcoholMilkReduction = Math.max(0.0, Math.min(1.0, config.getDouble("consumables.alcohol.milk-reduction", 0.5)));
+        this.alcoholTipsyThreshold = Math.max(1.0, config.getDouble("consumables.alcohol.stages.tipsy", 20.0));
+        this.alcoholDrunkThreshold = Math.max(this.alcoholTipsyThreshold, config.getDouble("consumables.alcohol.stages.drunk", 45.0));
+        this.alcoholHeavilyDrunkThreshold = Math.max(this.alcoholDrunkThreshold, config.getDouble("consumables.alcohol.stages.heavily-drunk", 70.0));
+        this.alcoholBlackoutThreshold = Math.max(this.alcoholHeavilyDrunkThreshold, config.getDouble("consumables.alcohol.stages.blackout", 90.0));
+        this.alcoholNauseaPulseIntervalSeconds = Math.max(2, config.getInt("consumables.alcohol.nausea-pulse-interval-seconds", 12));
+        this.alcoholChatSlurring = config.getBoolean("consumables.alcohol.chat-slurring", false);
+        this.alcoholSwayEnabled = config.getBoolean("consumables.alcohol.sway-enabled", false);
+        this.alcoholHangoverEnabled = config.getBoolean("consumables.alcohol.hangover.enabled", true);
+        this.alcoholHangoverTriggerThreshold = Math.max(1.0, config.getDouble("consumables.alcohol.hangover.trigger-threshold", 70.0));
+        this.alcoholHangoverDurationSeconds = Math.max(5, config.getInt("consumables.alcohol.hangover.duration-seconds", 60));
 
         // Logging configuration
         String rawLevel = config.getString("logging.level", "INFO");
@@ -248,4 +282,20 @@ public class PluginConfig {
     public Set<LogChannel> getLoggingDebugChannels() {
         return loggingDebugChannels;
     }
+
+    public boolean isConsumablesAutoLore() { return consumablesAutoLore; }
+    public long getConsumablesEffectTickInterval() { return consumablesEffectTickInterval; }
+    public boolean isConsumablesHudEnabled() { return consumablesHudEnabled; }
+    public double getAlcoholDecayPerSecond() { return alcoholDecayPerSecond; }
+    public double getAlcoholMilkReduction() { return alcoholMilkReduction; }
+    public double getAlcoholTipsyThreshold() { return alcoholTipsyThreshold; }
+    public double getAlcoholDrunkThreshold() { return alcoholDrunkThreshold; }
+    public double getAlcoholHeavilyDrunkThreshold() { return alcoholHeavilyDrunkThreshold; }
+    public double getAlcoholBlackoutThreshold() { return alcoholBlackoutThreshold; }
+    public int getAlcoholNauseaPulseIntervalSeconds() { return alcoholNauseaPulseIntervalSeconds; }
+    public boolean isAlcoholChatSlurring() { return alcoholChatSlurring; }
+    public boolean isAlcoholSwayEnabled() { return alcoholSwayEnabled; }
+    public boolean isAlcoholHangoverEnabled() { return alcoholHangoverEnabled; }
+    public double getAlcoholHangoverTriggerThreshold() { return alcoholHangoverTriggerThreshold; }
+    public int getAlcoholHangoverDurationSeconds() { return alcoholHangoverDurationSeconds; }
 }

@@ -1,12 +1,19 @@
 package dev.darkblade.croppy.core.item;
 
 import dev.darkblade.croppy.api.identifier.Key;
+import dev.darkblade.croppy.api.item.ConsumableProperties;
+import dev.darkblade.croppy.api.item.ConsumeCooldown;
+import dev.darkblade.croppy.api.item.ConsumeEffectSpec;
+import dev.darkblade.croppy.api.item.FoodProperties;
 import dev.darkblade.croppy.api.item.ItemDefinition;
 import dev.darkblade.croppy.api.item.ItemRegistry;
+import dev.darkblade.croppy.api.item.QualityScaling;
+import dev.darkblade.croppy.api.item.UseAnimation;
 import dev.darkblade.croppy.api.logging.CroppyLogger;
 import dev.darkblade.croppy.api.logging.JulCroppyLogger;
 import dev.darkblade.croppy.api.logging.LogChannel;
 import dev.darkblade.croppy.api.logging.NoOpCroppyLogger;
+import dev.darkblade.croppy.core.expression.ExpressionCompiler;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -166,6 +173,9 @@ public class YamlItemLoader {
             }
         }
 
+        // 8. Optional Consumable & Food Properties
+        ConsumableProperties consumableProperties = parseConsumableProperties(root, itemMap, material, sourceName);
+
         return new ItemDefinition(
                 key,
                 category.toLowerCase(Locale.ROOT),
@@ -175,7 +185,8 @@ public class YamlItemLoader {
                 texture,
                 displayName,
                 lore,
-                pdcProperties
+                pdcProperties,
+                consumableProperties
         );
     }
 
@@ -277,5 +288,204 @@ public class YamlItemLoader {
             }
         }
         return def;
+    }
+
+    private double getDouble(Map<String, Object> map, String key, double def) {
+        Object val = map.get(key);
+        if (val instanceof Number n) {
+            return n.doubleValue();
+        } else if (val != null) {
+            try {
+                return Double.parseDouble(val.toString().trim());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return def;
+    }
+
+    private boolean getBoolean(Map<String, Object> map, String key, boolean def) {
+        Object val = map.get(key);
+        if (val instanceof Boolean b) {
+            return b;
+        } else if (val != null) {
+            String s = val.toString().trim().toLowerCase(Locale.ROOT);
+            if ("true".equals(s)) return true;
+            if ("false".equals(s)) return false;
+        }
+        return def;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findMap(Map<String, Object> root, Map<String, Object> itemMap, String... keys) {
+        for (String key : keys) {
+            Object raw = root.get(key);
+            if (raw instanceof Map<?, ?> map) {
+                return (Map<String, Object>) map;
+            }
+        }
+        if (itemMap != null) {
+            for (String key : keys) {
+                Object raw = itemMap.get(key);
+                if (raw instanceof Map<?, ?> map) {
+                    return (Map<String, Object>) map;
+                }
+            }
+        }
+        return null;
+    }
+
+    private Object findRaw(Map<String, Object> root, Map<String, Object> itemMap, String... keys) {
+        for (String key : keys) {
+            if (root.containsKey(key)) {
+                return root.get(key);
+            }
+        }
+        if (itemMap != null) {
+            for (String key : keys) {
+                if (itemMap.containsKey(key)) {
+                    return itemMap.get(key);
+                }
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private ConsumableProperties parseConsumableProperties(
+            Map<String, Object> root,
+            Map<String, Object> itemMap,
+            String material,
+            String sourceName
+    ) {
+        Map<String, Object> foodMap = findMap(root, itemMap, "food", "nutrition");
+        Map<String, Object> consumableMap = findMap(root, itemMap, "consumable");
+        Object rawEffects = findRaw(root, itemMap, "effects");
+
+        if (foodMap == null && consumableMap == null && rawEffects == null) {
+            return null;
+        }
+
+        FoodProperties food = null;
+        if (foodMap != null) {
+            int hunger = getInt(foodMap, "hunger", 0);
+            float saturation = (float) getDouble(foodMap, "saturation", 0.0);
+            boolean canAlwaysEat = getBoolean(foodMap, "can-always-eat",
+                    getBoolean(foodMap, "can_always_eat", false));
+
+            QualityScaling scaling = QualityScaling.NONE;
+            Map<String, Object> scalingMap = findMap(foodMap, null, "quality-scaling", "quality_scaling");
+            if (scalingMap != null) {
+                double hScale = getDouble(scalingMap, "hunger-per-level",
+                        getDouble(scalingMap, "hunger_per_level", 0.0));
+                double sScale = getDouble(scalingMap, "saturation-per-level",
+                        getDouble(scalingMap, "saturation_per_level", 0.0));
+                double dScale = getDouble(scalingMap, "duration-per-level",
+                        getDouble(scalingMap, "duration_per_level", 0.0));
+                scaling = new QualityScaling(hScale, sScale, dScale);
+            }
+            food = new FoodProperties(hunger, saturation, canAlwaysEat, scaling);
+        }
+
+        float consumeSeconds = ConsumableProperties.DEFAULT_CONSUME_SECONDS;
+        UseAnimation animation = defaultAnimationForMaterial(material);
+        Key sound = null;
+        boolean particles = true;
+        Key remainder = null;
+        ConsumeCooldown cooldown = null;
+
+        if (consumableMap != null) {
+            consumeSeconds = (float) getDouble(consumableMap, "consume-seconds",
+                    getDouble(consumableMap, "consume_seconds", ConsumableProperties.DEFAULT_CONSUME_SECONDS));
+
+            String rawAnim = getString(consumableMap, "animation", null);
+            if (rawAnim != null && !rawAnim.isBlank()) {
+                try {
+                    animation = UseAnimation.valueOf(rawAnim.trim().toUpperCase(Locale.ROOT));
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException(
+                            "Invalid consumable animation '" + rawAnim + "' in " + sourceName);
+                }
+            }
+
+            String rawSound = getString(consumableMap, "sound", null);
+            if (rawSound != null && !rawSound.isBlank()) {
+                sound = parseNamespacedKey(rawSound, "minecraft");
+            }
+
+            particles = getBoolean(consumableMap, "particles",
+                    getBoolean(consumableMap, "has-consume-particles",
+                            getBoolean(consumableMap, "has_consume_particles", true)));
+
+            String rawRemainder = getString(consumableMap, "remainder",
+                    getString(consumableMap, "use-remainder",
+                            getString(consumableMap, "use_remainder", null)));
+            if (rawRemainder != null && !rawRemainder.isBlank()) {
+                remainder = parseNamespacedKey(rawRemainder, "croppy");
+            }
+
+            Map<String, Object> cooldownMap = findMap(consumableMap, null, "cooldown");
+            if (cooldownMap != null) {
+                float cdSeconds = (float) getDouble(cooldownMap, "seconds", 0.0);
+                String rawGroup = getString(cooldownMap, "group", null);
+                Key group = (rawGroup != null && !rawGroup.isBlank())
+                        ? parseNamespacedKey(rawGroup, "croppy")
+                        : null;
+                cooldown = new ConsumeCooldown(cdSeconds, group);
+            }
+        }
+
+        List<ConsumeEffectSpec> effects = new ArrayList<>();
+        if (rawEffects instanceof List<?> list) {
+            for (Object item : list) {
+                if (!(item instanceof Map<?, ?> rawEffectMap)) {
+                    throw new IllegalArgumentException("Effect entry in " + sourceName + " must be a mapping");
+                }
+                Map<String, Object> effectMap = (Map<String, Object>) rawEffectMap;
+                String rawType = getString(effectMap, "type", null);
+                if (rawType == null || rawType.isBlank()) {
+                    throw new IllegalArgumentException("Effect entry missing 'type' in " + sourceName);
+                }
+                Key typeKey = parseNamespacedKey(rawType, "croppy");
+                double chance = getDouble(effectMap, "chance", 1.0);
+                int minQuality = getInt(effectMap, "min-quality", getInt(effectMap, "min_quality", 0));
+                String condition = getString(effectMap, "condition", null);
+                if (condition != null && !condition.isBlank()) {
+                    ExpressionCompiler.compile(condition);
+                }
+
+                Map<String, Object> params = new HashMap<>();
+                for (Map.Entry<String, Object> entry : effectMap.entrySet()) {
+                    String k = entry.getKey();
+                    if (k == null || entry.getValue() == null) continue;
+                    if (k.equals("type") || k.equals("chance") || k.equals("min-quality")
+                            || k.equals("min_quality") || k.equals("condition")) {
+                        continue;
+                    }
+                    params.put(k, entry.getValue());
+                }
+                effects.add(new ConsumeEffectSpec(typeKey, chance, minQuality, condition, params));
+            }
+        }
+
+        return new ConsumableProperties(food, consumeSeconds, animation, sound, particles, remainder, cooldown, effects);
+    }
+
+    private static UseAnimation defaultAnimationForMaterial(String material) {
+        if (material == null) {
+            return UseAnimation.EAT;
+        }
+        String norm = material.trim().toUpperCase(Locale.ROOT);
+        if (norm.startsWith("MINECRAFT:")) {
+            norm = norm.substring("MINECRAFT:".length());
+        }
+        if ("POTION".equals(norm) || "MILK_BUCKET".equals(norm) || "HONEY_BOTTLE".equals(norm)) {
+            return UseAnimation.DRINK;
+        }
+        return UseAnimation.EAT;
+    }
+
+    private static Key parseNamespacedKey(String raw, String defaultNamespace) {
+        String trimmed = raw.trim();
+        return trimmed.contains(":") ? Key.parse(trimmed) : Key.of(defaultNamespace, trimmed.toLowerCase(Locale.ROOT));
     }
 }

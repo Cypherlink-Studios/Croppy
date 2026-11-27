@@ -70,7 +70,7 @@ The system SHALL execute a five-phase decommissioning protocol upon addon disabl
 
 #### Scenario: Disabling an active addon
 - **WHEN** an administrator disables an active addon
-- **THEN** the system executes `onDisable()`, unregisters all Bukkit listeners, terminates managed executor tasks, removes or deactivates its registry entries (including species, items, crafting recipes, recipes, recipe categories, processes, stations, menus, and interactions), unregisters Bukkit crafting recipes, and transitions the addon state to `LOADED`
+- **THEN** the system executes `onDisable()`, unregisters all Bukkit listeners, terminates managed executor tasks, removes or deactivates its registry entries (including species, items, crafting recipes, recipes, recipe categories, processes, stations, menus, interactions, consume effect handlers, and custom status effects), purges active player status effects belonging to the removed definitions, unregisters Bukkit crafting recipes, and transitions the addon state to `LOADED`
 
 #### Scenario: Unloading an addon completely
 - **WHEN** an administrator unloads an addon
@@ -187,3 +187,10 @@ The system SHALL allow the host plugin to identify registry keys owned by enable
 #### Scenario: Querying addon-owned keys during core reload
 - **WHEN** the host plugin reloads core definitions while addons are enabled
 - **THEN** registry entries tracked by any enabled addon's `AddonContext` are preserved intact across species, items, item categories, crafting recipes, culinary recipes, recipe categories, menus, stations, processes, and interactions
+
+### Requirement: Addon Consumable and Status Effect Registration
+The system SHALL expose `ConsumeEffectRegistry`, `StatusEffectRegistry`, and `PlayerEffectService` on `AddonContext` and track all addon-registered consume effect handler keys and custom status effect keys under the owning addon's identifier.
+
+#### Scenario: Track addon-registered consume and status effects
+- **WHEN** an enabled addon registers a custom consume effect handler or custom status effect via its `AddonContext` registries
+- **THEN** the system records ownership of those keys under the addon's unique identifier and preserves them across core reloads

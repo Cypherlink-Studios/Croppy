@@ -121,6 +121,19 @@ public final class AddonDecommissioner {
                     core.getItemCategoryRegistry().unregister(key);
                 }
             }
+            if (core.getConsumeEffectRegistry() != null) {
+                for (Key key : context.getRegisteredConsumeEffects()) {
+                    core.getConsumeEffectRegistry().unregister(key);
+                }
+            }
+            if (core.getStatusEffectRegistry() != null) {
+                for (Key key : context.getRegisteredStatusEffects()) {
+                    core.getStatusEffectRegistry().unregister(key);
+                    if (core.getPlayerEffectService() != null) {
+                        core.getPlayerEffectService().purgeEffectDefinition(key);
+                    }
+                }
+            }
         }
 
         // Phase 5: ClassLoader Severing (Unload only)

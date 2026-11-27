@@ -94,6 +94,20 @@ class AddonDecommissionerTest {
         core.getGrowthEngine().addModifier(modifier);
         context.trackGrowthModifier(modifier);
 
+        Key consumeKey = Key.of("test_addon", "sparkle");
+        context.getConsumeEffectRegistry().register(new dev.darkblade.croppy.api.consumable.ConsumeEffectHandler() {
+            @Override public Key getKey() { return consumeKey; }
+            @Override public void apply(dev.darkblade.croppy.api.consumable.ConsumeExecutionContext ctx, Map<String, Object> params) {}
+        });
+
+        Key statusKey = Key.of("test_addon", "caffeinated");
+        context.getStatusEffectRegistry().register(new dev.darkblade.croppy.api.effect.CustomStatusEffect() {
+            @Override public Key getKey() { return statusKey; }
+        });
+        java.util.UUID playerUuid = java.util.UUID.randomUUID();
+        context.getPlayerEffectService().apply(playerUuid, statusKey, 200L, 0);
+        assertTrue(core.getPlayerEffectService().hasEffect(playerUuid, statusKey));
+
         AtomicBoolean onDisableCalled = new AtomicBoolean(false);
         CroppyAddon addon = new CroppyAddon() {
             @Override
@@ -121,6 +135,9 @@ class AddonDecommissionerTest {
         assertFalse(core.getSpeciesRegistry().contains(speciesKey));
         assertFalse(core.getMenuRegistry().contains(menuKey));
         assertFalse(core.getInteractionRegistry().contains(interactionKey));
+        assertFalse(core.getConsumeEffectRegistry().contains(consumeKey));
+        assertFalse(core.getStatusEffectRegistry().contains(statusKey));
+        assertFalse(core.getPlayerEffectService().hasEffect(playerUuid, statusKey));
 
         // Phase 5 verification: classloader closed
         assertTrue(classLoader.getDependencyLoaders().isEmpty());

@@ -185,4 +185,104 @@ class YamlItemLoaderTest {
         assertThrows(IllegalArgumentException.class, () ->
                 loader.load(new ByteArrayInputStream(noMat.getBytes(StandardCharsets.UTF_8)), "seeds", "test.yml"));
     }
+
+    @Test
+    @DisplayName("Load item with food, quality-scaling, consumable, and effects")
+    void testLoadConsumableProperties() {
+        String yaml = """
+                id: "croppy_coffee:espresso"
+                category: "drinks"
+                material: "POTION"
+                item-model: "croppy_coffee:item/espresso"
+                name: "<gold>Espresso</gold>"
+                food:
+                  hunger: 2
+                  saturation: 1.5
+                  can-always-eat: true
+                  quality-scaling:
+                    hunger-per-level: 0.25
+                    saturation-per-level: 0.25
+                    duration-per-level: 0.2
+                consumable:
+                  consume-seconds: 0.8
+                  animation: "DRINK"
+                  sound: "minecraft:entity.generic.drink"
+                  particles: false
+                  remainder: "minecraft:glass_bottle"
+                  cooldown:
+                    seconds: 5.0
+                    group: "croppy_coffee:caffeine"
+                effects:
+                  - type: "croppy:potion"
+                    effect: "minecraft:speed"
+                    duration: "45s"
+                    amplifier: 0
+                    chance: 1.0
+                    min-quality: 1
+                    condition: "item.quality >= 1"
+                """;
+
+        ItemDefinition def = loader.load(
+                new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)), "drinks", "espresso.yml");
+        assertTrue(def.getConsumableProperties().isPresent());
+        var props = def.getConsumableProperties().get();
+
+        assertTrue(props.getFood().isPresent());
+        assertEquals(2, props.getFood().get().hunger());
+        assertEquals(1.5f, props.getFood().get().saturation(), 0.001f);
+        assertTrue(props.getFood().get().canAlwaysEat());
+        assertEquals(3, props.getFood().get().qualityScaling().scaleHunger(2, 2));
+
+        assertEquals(0.8f, props.consumeSeconds(), 0.001f);
+        assertEquals(dev.darkblade.croppy.api.item.UseAnimation.DRINK, props.animation());
+        assertEquals(Key.of("minecraft", "entity.generic.drink"), props.getSound().orElseThrow());
+        assertFalse(props.hasConsumeParticles());
+        assertEquals(Key.of("minecraft", "glass_bottle"), props.getRemainderItemKey().orElseThrow());
+        assertEquals(5.0f, props.getCooldown().orElseThrow().seconds(), 0.001f);
+        assertEquals(Key.of("croppy_coffee", "caffeine"), props.getCooldown().get().getGroup().orElseThrow());
+
+        assertEquals(1, props.effects().size());
+        var eff = props.effects().getFirst();
+        assertEquals(Key.of("croppy", "potion"), eff.type());
+        assertEquals(1.0, eff.chance(), 0.001);
+        assertEquals(1, eff.minQuality());
+        assertEquals("item.quality >= 1", eff.getCondition().orElseThrow());
+        assertEquals("45s", eff.parameters().get("duration"));
+    }
+
+    @Test
+    @DisplayName("Load legacy nutrition alias block and reject invalid consumable values")
+    void testNutritionAliasAndValidation() {
+        String legacy = """
+                id: "croppy_coffee:latte"
+                material: "POTION"
+                nutrition:
+                  hunger: 4
+                  saturation: 3.0
+                """;
+        ItemDefinition def = loader.load(
+                new ByteArrayInputStream(legacy.getBytes(StandardCharsets.UTF_8)), "drinks", "latte.yml");
+        assertTrue(def.getConsumableProperties().isPresent());
+        assertEquals(4, def.getConsumableProperties().get().getFood().orElseThrow().hunger());
+        assertEquals(dev.darkblade.croppy.api.item.UseAnimation.DRINK, def.getConsumableProperties().get().animation());
+
+        String negativeHunger = """
+                id: "croppy:bad_food"
+                material: "APPLE"
+                food:
+                  hunger: -2
+                  saturation: 1.0
+                """;
+        assertThrows(IllegalArgumentException.class, () ->
+                loader.load(new ByteArrayInputStream(negativeHunger.getBytes(StandardCharsets.UTF_8)), "ingredients", "bad.yml"));
+
+        String zeroConsumeSeconds = """
+                id: "croppy:bad_consume"
+                material: "APPLE"
+                consumable:
+                  consume-seconds: 0
+                """;
+        assertThrows(IllegalArgumentException.class, () ->
+                loader.load(new ByteArrayInputStream(zeroConsumeSeconds.getBytes(StandardCharsets.UTF_8)), "ingredients", "bad2.yml"));
+    }
 }

@@ -48,6 +48,9 @@ Los addons habilitados pueden consultar o registrar definiciones de dominio medi
 | `getMenuRegistry()` | `MenuRegistry` | `api.menu` |
 | `getItemMetadataRegistry()` | `ItemMetadataRegistry` | `api.item` |
 | `getStationActionRegistry()` | `StationActionRegistry` | `api.station` |
+| `getConsumeEffectRegistry()` | `ConsumeEffectRegistry` | `api.consumable` |
+| `getStatusEffectRegistry()` | `StatusEffectRegistry` | `api.effect` |
+| `getPlayerEffectService()` | `PlayerEffectService` | `api.effect` |
 
 Adicionalmente, `DataTypeRegistry` (`api.variable`) expone `getTyped(Key key, Class<T> valueClass)` para contratos de variables tipadas.
 

@@ -336,4 +336,33 @@ class CroppyPlaceholderExpansionTest {
                 }
         );
     }
+
+    @Test
+    @DisplayName("Player status effect placeholders resolve active and inactive states")
+    void testPlayerStatusEffectPlaceholders() {
+        UUID playerUuid = UUID.randomUUID();
+        OfflinePlayer mockPlayer = createMockOfflinePlayer(playerUuid);
+        Key key = Key.of("croppy", "intoxication");
+
+        assertEquals("false", expansion.onRequest(mockPlayer, "effect_active_croppy:intoxication"));
+        assertEquals("0", expansion.onRequest(mockPlayer, "effect_remaining_croppy:intoxication"));
+        assertEquals("0", expansion.onRequest(mockPlayer, "effect_amplifier_croppy:intoxication"));
+        assertEquals("0.0", expansion.onRequest(mockPlayer, "effect_intensity_croppy:intoxication"));
+        assertEquals("", expansion.onRequest(mockPlayer, "effect_stage_croppy:intoxication"));
+
+        core.getStatusEffectRegistry().register(new dev.darkblade.croppy.api.effect.CustomStatusEffect() {
+            @Override public Key getKey() { return key; }
+            @Override public double getDecayPerSecond() { return 0.5; }
+            @Override public List<dev.darkblade.croppy.api.effect.StatusEffectStage> getStages() {
+                return List.of(new dev.darkblade.croppy.api.effect.StatusEffectStage("drunk", "Drunk", 45.0, 1));
+            }
+        });
+        core.getPlayerEffectService().apply(playerUuid, key, 0L, 1, 52.0, Map.of());
+
+        assertEquals("true", expansion.onRequest(mockPlayer, "effect_active_croppy:intoxication"));
+        assertEquals("104s", expansion.onRequest(mockPlayer, "effect_remaining_croppy:intoxication"));
+        assertEquals("1", expansion.onRequest(mockPlayer, "effect_amplifier_croppy:intoxication"));
+        assertEquals("52.0", expansion.onRequest(mockPlayer, "effect_intensity_croppy:intoxication"));
+        assertEquals("Drunk", expansion.onRequest(mockPlayer, "effect_stage_croppy:intoxication"));
+    }
 }

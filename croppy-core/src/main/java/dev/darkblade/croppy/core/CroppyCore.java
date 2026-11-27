@@ -1,7 +1,10 @@
 package dev.darkblade.croppy.core;
 
+import dev.darkblade.croppy.api.consumable.ConsumeEffectRegistry;
 import dev.darkblade.croppy.api.crafting.CraftingRecipeRegistry;
 import dev.darkblade.croppy.api.discovery.RecipeDiscoveryEngine;
+import dev.darkblade.croppy.api.effect.PlayerEffectService;
+import dev.darkblade.croppy.api.effect.StatusEffectRegistry;
 import dev.darkblade.croppy.api.interaction.InteractionRegistry;
 import dev.darkblade.croppy.api.item.ItemCategoryRegistry;
 import dev.darkblade.croppy.api.item.ItemMetadataRegistry;
@@ -17,9 +20,12 @@ import dev.darkblade.croppy.api.station.StationActionRegistry;
 import dev.darkblade.croppy.api.station.StationRegistry;
 import dev.darkblade.croppy.api.storage.CropStorage;
 import dev.darkblade.croppy.api.variable.DataTypeRegistry;
+import dev.darkblade.croppy.core.consumable.DefaultConsumeEffectRegistry;
 import dev.darkblade.croppy.core.crafting.DefaultCraftingRecipeRegistry;
 import dev.darkblade.croppy.core.crop.CropManager;
 import dev.darkblade.croppy.core.discovery.DefaultRecipeDiscoveryEngine;
+import dev.darkblade.croppy.core.effect.DefaultPlayerEffectService;
+import dev.darkblade.croppy.core.effect.DefaultStatusEffectRegistry;
 import dev.darkblade.croppy.core.growth.GrowthEngine;
 import dev.darkblade.croppy.core.interaction.DefaultInteractionRegistry;
 import dev.darkblade.croppy.core.interaction.InteractionRouter;
@@ -73,6 +79,9 @@ public class CroppyCore {
     private final DefaultRecipeCategoryRegistry recipeCategoryRegistry = new DefaultRecipeCategoryRegistry();
     private final DefaultCraftingRecipeRegistry craftingRecipeRegistry = new DefaultCraftingRecipeRegistry();
     private final DefaultDataTypeRegistry dataTypeRegistry = new DefaultDataTypeRegistry();
+    private final DefaultConsumeEffectRegistry consumeEffectRegistry = new DefaultConsumeEffectRegistry();
+    private final DefaultStatusEffectRegistry statusEffectRegistry = new DefaultStatusEffectRegistry();
+    private final DefaultPlayerEffectService playerEffectService;
     private final DefaultRecipeDiscoveryEngine recipeDiscoveryEngine = new DefaultRecipeDiscoveryEngine();
     private final CropManager cropManager = new CropManager();
     private final DefaultStationManager stationManager = new DefaultStationManager();
@@ -85,6 +94,7 @@ public class CroppyCore {
 
     public CroppyCore(CroppyLogger logger) {
         this.logger = Objects.requireNonNull(logger, "Logger cannot be null");
+        this.playerEffectService = new DefaultPlayerEffectService(statusEffectRegistry, this.logger);
     }
 
     public CroppyCore(Logger logger) {
@@ -122,6 +132,9 @@ public class CroppyCore {
         craftingRecipeRegistry.clear();
         dataTypeRegistry.clear();
         dataTypeRegistry.registerDefaults();
+        consumeEffectRegistry.clear();
+        statusEffectRegistry.clear();
+        playerEffectService.clearAll();
         cropManager.clear();
         stationManager.clear();
         registerService(SpeciesRegistry.class, speciesRegistry);
@@ -135,6 +148,9 @@ public class CroppyCore {
         registerService(RecipeCategoryRegistry.class, recipeCategoryRegistry);
         registerService(CraftingRecipeRegistry.class, craftingRecipeRegistry);
         registerService(DataTypeRegistry.class, dataTypeRegistry);
+        registerService(ConsumeEffectRegistry.class, consumeEffectRegistry);
+        registerService(StatusEffectRegistry.class, statusEffectRegistry);
+        registerService(PlayerEffectService.class, playerEffectService);
         registerService(RecipeDiscoveryEngine.class, recipeDiscoveryEngine);
         registerService(InteractionRegistry.class, interactionRegistry);
         registerService(RuleRegistry.class, ruleRegistry);
@@ -166,6 +182,9 @@ public class CroppyCore {
         craftingRecipeRegistry.clear();
         dataTypeRegistry.clear();
         dataTypeRegistry.registerDefaults();
+        consumeEffectRegistry.clear();
+        statusEffectRegistry.clear();
+        playerEffectService.clearAll();
         cropManager.clear();
         stationManager.clear();
         growthEngine.shutdown();
@@ -286,6 +305,27 @@ public class CroppyCore {
      */
     public DataTypeRegistry getDataTypeRegistry() {
         return dataTypeRegistry;
+    }
+
+    /**
+     * @return the central consume effect handler registry
+     */
+    public ConsumeEffectRegistry getConsumeEffectRegistry() {
+        return consumeEffectRegistry;
+    }
+
+    /**
+     * @return the central custom status effect registry
+     */
+    public StatusEffectRegistry getStatusEffectRegistry() {
+        return statusEffectRegistry;
+    }
+
+    /**
+     * @return the player status effect service
+     */
+    public DefaultPlayerEffectService getPlayerEffectService() {
+        return playerEffectService;
     }
 
     /**

@@ -20,6 +20,7 @@ import java.util.Optional;
  * @param displayName MiniMessage formatted display name
  * @param lore MiniMessage formatted lore lines
  * @param pdcProperties arbitrary persistent data key-value properties configured in YAML
+ * @param consumableProperties optional food, consumption behavior, and effect properties
  */
 public record ItemDefinition(
         Key key,
@@ -30,7 +31,8 @@ public record ItemDefinition(
         String skullTexture,
         String displayName,
         List<String> lore,
-        Map<String, String> pdcProperties
+        Map<String, String> pdcProperties,
+        ConsumableProperties consumableProperties
 ) implements Keyed {
 
     public ItemDefinition {
@@ -42,7 +44,24 @@ public record ItemDefinition(
     }
 
     /**
-     * Backward-compatible constructor without {@code skullTexture}.
+     * Backward-compatible constructor without {@code consumableProperties}.
+     */
+    public ItemDefinition(
+            Key key,
+            String category,
+            String materialKey,
+            int customModelData,
+            Key itemModel,
+            String skullTexture,
+            String displayName,
+            List<String> lore,
+            Map<String, String> pdcProperties
+    ) {
+        this(key, category, materialKey, customModelData, itemModel, skullTexture, displayName, lore, pdcProperties, null);
+    }
+
+    /**
+     * Backward-compatible constructor without {@code skullTexture} and {@code consumableProperties}.
      */
     public ItemDefinition(
             Key key,
@@ -54,11 +73,11 @@ public record ItemDefinition(
             List<String> lore,
             Map<String, String> pdcProperties
     ) {
-        this(key, category, materialKey, customModelData, itemModel, null, displayName, lore, pdcProperties);
+        this(key, category, materialKey, customModelData, itemModel, null, displayName, lore, pdcProperties, null);
     }
 
     /**
-     * Backward-compatible constructor without native {@code itemModel} and {@code skullTexture}.
+     * Backward-compatible constructor without native {@code itemModel}, {@code skullTexture}, and {@code consumableProperties}.
      */
     public ItemDefinition(
             Key key,
@@ -69,7 +88,7 @@ public record ItemDefinition(
             List<String> lore,
             Map<String, String> pdcProperties
     ) {
-        this(key, category, materialKey, customModelData, null, null, displayName, lore, pdcProperties);
+        this(key, category, materialKey, customModelData, null, null, displayName, lore, pdcProperties, null);
     }
 
     /**
@@ -88,6 +107,15 @@ public record ItemDefinition(
      */
     public Optional<String> getSkullTexture() {
         return Optional.ofNullable(skullTexture);
+    }
+
+    /**
+     * Gets the optional food, consumption behavior, and effect properties.
+     *
+     * @return Optional containing the consumable properties, or empty if not consumable
+     */
+    public Optional<ConsumableProperties> getConsumableProperties() {
+        return Optional.ofNullable(consumableProperties);
     }
 
     @Override
