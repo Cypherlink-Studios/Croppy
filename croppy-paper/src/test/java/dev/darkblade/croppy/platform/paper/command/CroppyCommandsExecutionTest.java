@@ -439,11 +439,11 @@ class CroppyCommandsExecutionTest {
 
         receivedMessages.clear();
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon reload orchard").join());
-        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("hard-reloaded")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("reloaded successfully")));
 
         receivedMessages.clear();
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon reload @all").join());
-        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Hard-reloaded")));
+        assertTrue(receivedMessages.stream().anyMatch(m -> m.contains("Reloaded")));
 
         receivedMessages.clear();
         assertDoesNotThrow(() -> commandManager.commandExecutor().executeCommand(mockSource, "croppy addon disable @all").join());

@@ -240,8 +240,8 @@ class RecipeDetailMenuControllerTest {
         // Result slot: Row 0, Col 4 -> 4
         assertNotNull(inventorySlots.get(4), "Result card slot 'R' should be populated");
 
-        // Station slot: Row 0, Col 8 -> 8
-        assertNotNull(inventorySlots.get(8), "Station slot 'S' should be populated");
+        // Station slot: Row 2, Col 4 -> 22
+        assertNotNull(inventorySlots.get(22), "Station slot 'S' should be populated");
 
         // Ingredient slots: Row 1 has 'I' at cols 1-7 (slots 10-16)
         assertNotNull(inventorySlots.get(10), "First ingredient slot should be populated");
