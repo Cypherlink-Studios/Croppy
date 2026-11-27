@@ -30,6 +30,17 @@ versions:
   # -------------------------------------------------------------
   # CURRENT VERSION (LATEST) -> Always index 0
   # -------------------------------------------------------------
+  - version: "0.14.0"
+    releaseDate: "2026-11-27"
+    reference: "v0.14.0"
+    downloadUrl: https://github.com/Cypherlink-Studios/Croppy/releases
+    changelog: "Introduced native Paper 1.21.8 consumable Data Components (FOOD, CONSUMABLE, USE_REMAINDER, USE_COOLDOWN), quality-scaled nutrition, an extensible instant ConsumeEffectRegistry with 14 built-in handlers, stateful PlayerEffectService with stacking policies and opt-in PDC persistence, staged alcohol intoxication (croppy:intoxication) and hangover (croppy:hangover) mechanics, AddonContext effect tracking, and %croppy_effect_*% PlaceholderAPI telemetry."
+    minecraft:
+      - "1.21.x"
+
+  # -------------------------------------------------------------
+  # ARCHIVED VERSIONS (HISTORICAL)
+  # -------------------------------------------------------------
   - version: "0.12.0"
     releaseDate: "2026-11-23"
     reference: "v0.12.0"
